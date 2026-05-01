@@ -1561,29 +1561,28 @@
 }
 
 .detail-panel {
-  position: fixed;
-  z-index: 55;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(520px, 100%);
-  overflow-y: auto;
-  border-left: 1px solid var(--border);
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: calc(100svh - 118px);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 26px;
   color: var(--text);
   background:
     radial-gradient(circle at 0% 10%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 32%),
     radial-gradient(circle at 100% 86%, color-mix(in srgb, var(--accent-2) 18%, transparent), transparent 30%),
     color-mix(in srgb, var(--surface-strong) 94%, black);
   box-shadow:
-    -30px 0 100px rgba(0, 0, 0, 0.6),
-    -10px 0 54px color-mix(in srgb, var(--accent) 14%, transparent);
+    0 28px 100px rgba(0, 0, 0, 0.42),
+    0 0 54px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .detail-close {
-  position: fixed;
-  z-index: 2;
-  top: 20px;
-  right: 20px;
+  position: absolute;
+  z-index: 5;
+  top: 22px;
+  right: 22px;
   width: 52px;
   height: 52px;
   border: 1px solid var(--border);
@@ -1596,7 +1595,7 @@
 }
 
 .detail-art {
-  min-height: 300px;
+  min-height: min(560px, 54svh);
   background-size: cover;
   background-position: center;
   position: relative;
@@ -1606,11 +1605,17 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(0deg, var(--bg), transparent 68%);
+  background:
+    linear-gradient(90deg, var(--bg) 0%, rgba(0, 0, 0, 0.34) 46%, transparent 100%),
+    linear-gradient(0deg, var(--bg), transparent 72%);
 }
 
 .detail-body {
-  padding: 0 28px 32px;
+  width: min(1180px, 100%);
+  margin: -168px auto 0;
+  position: relative;
+  z-index: 2;
+  padding: 0 34px 44px;
 }
 
 .detail-body h2 {
@@ -1760,7 +1765,7 @@
 
 .metadata-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 10px;
   margin: 18px 0;
 }

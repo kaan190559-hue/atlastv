@@ -357,6 +357,7 @@ function App() {
   const [vodPlatform, setVodPlatform] = useState('')
   const [playerItem, setPlayerItem] = useState<ContentItem | null>(null)
   const [detailItem, setDetailItem] = useState<ContentItem | null>(null)
+  const [detailReturnScreen, setDetailReturnScreen] = useState<Screen>('home')
   const [isPlaying, setIsPlaying] = useState(true)
   const [adminGateOpen, setAdminGateOpen] = useState(false)
   const [adminPanelOpen, setAdminPanelOpen] = useState(false)
@@ -711,7 +712,24 @@ function App() {
       />
 
       <main className="page-shell">
-        {screen === 'home' && hero ? (
+        {detailItem ? (
+          <DetailPanel
+            item={detailItem}
+            onClose={() => {
+              setDetailItem(null)
+              setScreen(detailReturnScreen)
+            }}
+            onPlay={(episode) => {
+              setDetailItem(null)
+              setScreen(detailReturnScreen)
+              openPlayer(episode)
+            }}
+            onToggleFavorite={toggleFavorite}
+            onToggleList={toggleList}
+          />
+        ) : null}
+
+        {!detailItem && screen === 'home' && hero ? (
           <HomeScreen
             hero={hero}
             heroItems={heroItems}
@@ -719,11 +737,15 @@ function App() {
             sections={homeSections}
             onHeroIndex={setHeroIndex}
             onPlay={openPlayer}
+            onDetail={(item) => {
+              setDetailReturnScreen('home')
+              setDetailItem(item)
+            }}
             onToggleFavorite={toggleFavorite}
           />
         ) : null}
 
-        {['live', 'sports', 'series', 'movies', 'list', 'favorites'].includes(screen) ? (
+        {!detailItem && ['live', 'sports', 'series', 'movies', 'list', 'favorites'].includes(screen) ? (
           <CategoryScreen
             screen={screen}
             items={categoryItems}
@@ -744,15 +766,18 @@ function App() {
             onVodCategoryChange={changeVodCategory}
             onVodPlatformChange={changeVodPlatform}
             onLoadMore={loadMoreCategoryItems}
-            onPlay={setDetailItem}
+            onPlay={(item) => {
+              setDetailReturnScreen(screen)
+              setDetailItem(item)
+            }}
             onToggleFavorite={toggleFavorite}
           />
         ) : null}
 
-        {screen === 'account' ? (
+        {!detailItem && screen === 'account' ? (
           <AccountScreen user={currentUser} onLogout={handleLogout} onPasswordChange={handlePasswordChange} />
         ) : null}
-        {screen === 'about' ? (
+        {!detailItem && screen === 'about' ? (
           <SettingsScreen
             appearance={appearance}
             onAppearanceChange={setAppearance}
@@ -772,19 +797,6 @@ function App() {
           onClose={closePlayer}
           onSelectEpisode={openPlayer}
           onToggleFavorite={() => toggleFavorite(playerItem)}
-        />
-      ) : null}
-
-      {detailItem ? (
-        <DetailPanel
-          item={detailItem}
-          onClose={() => setDetailItem(null)}
-          onPlay={(episode) => {
-            setDetailItem(null)
-            openPlayer(episode)
-          }}
-          onToggleFavorite={toggleFavorite}
-          onToggleList={toggleList}
         />
       ) : null}
 
@@ -1023,6 +1035,7 @@ function HomeScreen({
   sections,
   onHeroIndex,
   onPlay,
+  onDetail,
   onToggleFavorite,
 }: {
   hero: ContentItem
@@ -1031,6 +1044,7 @@ function HomeScreen({
   sections: HomeSection[]
   onHeroIndex: (index: number) => void
   onPlay: (item: ContentItem) => void
+  onDetail: (item: ContentItem) => void
   onToggleFavorite: (item: ContentItem) => void
 }) {
   const historyItems = uniqueById(sections.flatMap((section) => section.items).filter((item) => item.progress))
@@ -1052,7 +1066,7 @@ function HomeScreen({
             <button data-autofocus="true" type="button" className="watch-button" onClick={() => onPlay(hero)}>
               <Play /> İzle
             </button>
-            <button type="button" className="detail-button">
+            <button type="button" className="detail-button" onClick={() => onDetail(hero)}>
               <Info /> Detay
             </button>
           </div>
@@ -1543,8 +1557,7 @@ function DetailPanel({
     <aside
       ref={panelRef}
       className="detail-panel"
-      role="dialog"
-      aria-modal="true"
+      role="region"
       aria-label={`${item.title} detay`}
       onKeyDown={(event) => {
         if (event.key === 'Escape' || event.key === 'Backspace') {

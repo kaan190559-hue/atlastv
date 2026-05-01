@@ -286,15 +286,8 @@ async function handleCatalog(req, res, requestUrl) {
     if (category === 'movies' && item.type !== 'movie') return false
     return true
   })
-  const categories = getSortedValues([
-    ...PRESET_GENRES,
-    ...scopedCatalog.map((item) => item.genre || inferGenre(item.category, item.title, item.type)),
-    ...scopedCatalog.map((item) => (isGenericVodCategory(item.category) ? '' : item.category)),
-  ])
-  const platforms = getSortedValues([
-    ...PRESET_PLATFORMS,
-    ...scopedCatalog.map((item) => item.platform || inferPlatform(item.category, item.title)),
-  ])
+  const categories = getSortedValues(scopedCatalog.map((item) => item.genre || inferGenre(item.category, item.title, item.type)))
+  const platforms = getSortedValues(scopedCatalog.map((item) => item.platform || inferPlatform(item.category, item.title)))
   const filtered = catalog.filter((item) => {
     if (category === 'series' && item.type !== 'series') return false
     if (category === 'movies' && item.type !== 'movie') return false
@@ -370,7 +363,7 @@ async function handleMetadata(req, res, requestUrl) {
     return
   }
 
-  const metadata = await loadTmdbMetadata(title, type)
+  const metadata = await loadTmdbMetadata(title, type, fallbackMetadata)
   metadataCache.set(cacheKey, metadata)
   sendJson(res, metadata)
 }
@@ -538,19 +531,34 @@ async function loadLiveServerCatalog(sourceUrl = '', refreshKey = '', library = 
   return pendingLoad
 }
 
-async function loadTmdbMetadata(title, type) {
+async function loadTmdbMetadata(title, type, fallbackMetadata = {}) {
   const preferredType = type === 'series' ? 'tv' : 'movie'
-  const search = await tmdbFetch(`/search/${preferredType}`, { query: title })
-  let result = search.results?.[0]
+  const queryVariants = uniqueStrings([
+    title,
+    title.replace(/ı/g, 'i').replace(/İ/g, 'I'),
+    title.replace(/ğ/g, 'g').replace(/Ğ/g, 'G').replace(/ü/g, 'u').replace(/Ü/g, 'U').replace(/ş/g, 's').replace(/Ş/g, 'S').replace(/ö/g, 'o').replace(/Ö/g, 'O').replace(/ç/g, 'c').replace(/Ç/g, 'C').replace(/ı/g, 'i').replace(/İ/g, 'I'),
+    title.split(/[:|-]/)[0]?.trim(),
+  ])
+  let result = null
   let mediaType = preferredType
 
-  if (!result) {
-    const multi = await tmdbFetch('/search/multi', { query: title })
-    result = multi.results?.find((entry) => entry.media_type === 'movie' || entry.media_type === 'tv')
+  for (const query of queryVariants) {
+    if (!query) continue
+    const search = await tmdbFetch(`/search/${preferredType}`, { query })
+    result = pickBestTmdbResult(search.results ?? [], title)
+    mediaType = preferredType
+    if (result) break
+
+    const multi = await tmdbFetch('/search/multi', { query })
+    result = pickBestTmdbResult(
+      (multi.results ?? []).filter((entry) => entry.media_type === 'movie' || entry.media_type === 'tv'),
+      title,
+    )
     mediaType = result?.media_type || preferredType
+    if (result) break
   }
 
-  if (!result?.id) return emptyMetadata(title)
+  if (!result?.id) return { ...fallbackMetadata, title: fallbackMetadata.title || title }
 
   const details = await tmdbFetch(`/${mediaType}/${result.id}`, {
     append_to_response: 'credits,videos,external_ids,watch/providers',
@@ -638,7 +646,7 @@ function inferPlatform(category = '', title = '') {
     ['Apple TV+', /apple/],
     ['TRT Tabii', /tabii|trt/],
   ]
-  return platforms.find(([, pattern]) => pattern.test(source))?.[0] || 'Katalog'
+  return platforms.find(([, pattern]) => pattern.test(source))?.[0] || stablePick(PRESET_PLATFORMS.filter((platform) => platform !== 'Katalog'), title || category)
 }
 
 function inferGenre(category = '', title = '', type = 'movie') {
@@ -663,7 +671,7 @@ function inferGenre(category = '', title = '', type = 'movie') {
     ['Western', /western|cowboy/],
     ['Yerli', /yerli|turkish|türk|turk/],
   ]
-  return genreRules.find(([, pattern]) => pattern.test(source))?.[0] || (type === 'series' ? 'Dram' : 'Macera')
+  return genreRules.find(([, pattern]) => pattern.test(source))?.[0] || stablePick(PRESET_GENRES, `${type}-${title || category}`)
 }
 
 function isGenericVodCategory(category = '') {
@@ -679,6 +687,34 @@ function emptyMetadata(title, fallback = {}) {
     crew: [],
     providers: [fallback.platform].filter(Boolean),
   }
+}
+
+function pickBestTmdbResult(results, title) {
+  if (!results.length) return null
+  const normalizedTitle = normalizeSearchText(title)
+  return [...results].sort((a, b) => {
+    const aName = normalizeSearchText(a.title || a.name || a.original_title || a.original_name || '')
+    const bName = normalizeSearchText(b.title || b.name || b.original_title || b.original_name || '')
+    const aScore = (aName === normalizedTitle ? 100 : aName.includes(normalizedTitle) || normalizedTitle.includes(aName) ? 45 : 0) + (a.popularity || 0)
+    const bScore = (bName === normalizedTitle ? 100 : bName.includes(normalizedTitle) || normalizedTitle.includes(bName) ? 45 : 0) + (b.popularity || 0)
+    return bScore - aScore
+  })[0]
+}
+
+function normalizeSearchText(value = '') {
+  return value
+    .toLocaleLowerCase('tr-TR')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function stablePick(values, seed = '') {
+  if (!values.length) return ''
+  let hash = 0
+  for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0
+  return values[hash % values.length]
 }
 
 function uniqueStrings(values) {
