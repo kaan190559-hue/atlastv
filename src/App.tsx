@@ -55,7 +55,7 @@ type Direction = 'up' | 'down' | 'left' | 'right'
 
 const DEFAULT_PLAYER_USER_AGENT = 'okhttp/4.12.0'
 const CATEGORY_PAGE_SIZE = 90
-const VOD_CATEGORY_PAGE_SIZE = 5000
+const VOD_CATEGORY_PAGE_SIZE = 120
 const APP_VERSION = '0.0.0'
 const LIVE_GITHUB_M3U_URL = 'https://raw.githubusercontent.com/kaan190559-hue/atlastv/master/public/vavoo_full_worker.m3u'
 const APPEARANCE_KEY = 'atlastv.appearance'

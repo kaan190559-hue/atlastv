@@ -575,7 +575,7 @@ const loadVodCatalog = async () => {
 
   const settings = await getAdminSettings()
   const source = settings.vodM3uUrl.trim() || VOD_M3U_URL
-  const params = new URLSearchParams({ source, limit: '50000' })
+  const params = new URLSearchParams({ source, limit: '800' })
   if (settings.updatedAt) params.set('refresh', settings.updatedAt)
 
   vodCatalogPromise = cachedFetchJson<CategoryPage>(`/__atlas_catalog?${params.toString()}`)
@@ -892,6 +892,7 @@ export const api = {
         if (filters.country) params.set('country', filters.country)
         if (filters.liveCategory) params.set('liveCategory', filters.liveCategory)
         if (settings.liveM3uUrl.trim()) params.set('source', settings.liveM3uUrl.trim())
+        if (settings.liveM3uContent?.trim()) params.set('library', 'live')
         if (settings.updatedAt) params.set('refresh', settings.updatedAt)
 
         try {
