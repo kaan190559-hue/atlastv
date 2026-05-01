@@ -139,6 +139,8 @@ export type UserStats = {
 export type CacheBotStatus = {
   isRunning: boolean
   lastRunAt: string
+  startedAt: string
+  currentStep: string
   lastMessage: string
   memory: Record<string, number>
   diskBuckets: string[]

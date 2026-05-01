@@ -1968,6 +1968,8 @@ function AdminPanel({
   const [cacheStatus, setCacheStatus] = useState<CacheBotStatus>({
     isRunning: false,
     lastRunAt: '',
+    startedAt: '',
+    currentStep: '',
     lastMessage: '',
     memory: {},
     diskBuckets: [],
@@ -1978,6 +1980,17 @@ function AdminPanel({
     api.admin.getUserStats().then(setUserStats)
     api.admin.getCacheStatus().then(setCacheStatus).catch(() => undefined)
   }, [])
+
+  useEffect(() => {
+    if (!cacheStatus.isRunning) return
+    const timer = window.setInterval(() => {
+      api.admin.getCacheStatus().then((nextStatus) => {
+        setCacheStatus(nextStatus)
+        setStatus(nextStatus.lastMessage || 'Katalog botu çalışıyor.')
+      }).catch(() => undefined)
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [cacheStatus.isRunning])
 
   const update = (key: keyof AdminSettings, value: string) => {
     setSettings((current) => ({ ...current, [key]: value }))
@@ -2021,6 +2034,7 @@ function AdminPanel({
     setStatus('Katalog botu başlatıldı. Büyük listelerde birkaç dakika sürebilir.')
     const nextStatus = await api.admin.runCatalogBot(adminPassword)
     setCacheStatus(nextStatus)
+    setStatus(nextStatus.lastMessage || 'Katalog botu başlatıldı.')
   }
 
   const clearServerCache = async () => {
@@ -2103,6 +2117,7 @@ function AdminPanel({
           <span>Toplam Üye {userStats.totalUsers}</span>
           <span>Hatırlanan {userStats.rememberedUsers}</span>
           <span>Bot {cacheStatus.isRunning ? 'Çalışıyor' : 'Hazır'}</span>
+          {cacheStatus.currentStep ? <span>Adım {cacheStatus.currentStep}</span> : null}
           <span>Cache {cacheStatus.diskBuckets.length || Object.values(cacheStatus.memory).reduce((sum, value) => sum + value, 0)}</span>
           <button type="button" onClick={runCatalogBot}>
             Katalog Botunu Çalıştır

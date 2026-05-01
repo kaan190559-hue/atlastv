@@ -11,6 +11,7 @@ const DATA_DIR = resolve(process.env.ATLAS_DATA_DIR || join(__dirname, '.atlas')
 const ADMIN_SETTINGS_FILE = resolve(process.env.ATLAS_SETTINGS_FILE || join(DATA_DIR, 'admin-settings.json'))
 const USER_STATS_FILE = resolve(process.env.ATLAS_USER_STATS_FILE || join(DATA_DIR, 'user-stats.json'))
 const MEDIA_CACHE_FILE = resolve(process.env.ATLAS_MEDIA_CACHE_FILE || join(DATA_DIR, 'media-cache.json'))
+const CACHE_BOT_STATUS_FILE = resolve(process.env.ATLAS_CACHE_BOT_STATUS_FILE || join(DATA_DIR, 'cache-bot-status.json'))
 
 const PROXY_PATH = '/__atlas_proxy'
 const DOWNLOAD_PATH = '/__atlas_download'
@@ -56,11 +57,14 @@ const liveCatalogCache = new Map()
 const liveCatalogPromise = new Map()
 const metadataCache = new Map()
 const activeUsers = new Map()
-const cacheBotState = {
+const defaultCacheBotState = {
   isRunning: false,
   lastRunAt: '',
+  startedAt: '',
+  currentStep: '',
   lastMessage: 'Katalog botu henüz çalıştırılmadı.',
 }
+let cacheBotState = { ...defaultCacheBotState }
 const ACTIVE_USER_WINDOW_MS = 2 * 60 * 1000
 const PRESET_GENRES = [
   'Aksiyon',
@@ -281,7 +285,39 @@ async function writeMediaDiskCache(bucket, key, value) {
   }
 }
 
+async function readCacheBotState() {
+  try {
+    const parsed = JSON.parse(await readFile(CACHE_BOT_STATUS_FILE, 'utf8'))
+    cacheBotState = { ...defaultCacheBotState, ...parsed }
+  } catch {
+    cacheBotState = { ...cacheBotState }
+  }
+
+  if (cacheBotState.isRunning && cacheBotState.startedAt) {
+    const started = Date.parse(cacheBotState.startedAt)
+    if (Number.isFinite(started) && Date.now() - started > 20 * 60 * 1000) {
+      cacheBotState = {
+        ...cacheBotState,
+        isRunning: false,
+        lastRunAt: new Date().toISOString(),
+        lastMessage: 'Katalog botu yarıda kesildi. Render işlemi yeniden başlatmış olabilir.',
+      }
+      await writeCacheBotState(cacheBotState)
+    }
+  }
+
+  return cacheBotState
+}
+
+async function writeCacheBotState(nextState) {
+  cacheBotState = { ...cacheBotState, ...nextState }
+  await mkdir(DATA_DIR, { recursive: true })
+  await writeFile(CACHE_BOT_STATUS_FILE, `${JSON.stringify(cacheBotState)}\n`)
+  return cacheBotState
+}
+
 async function getMediaCacheStatus() {
+  await readCacheBotState()
   let diskBuckets = []
   try {
     const parsed = JSON.parse(await readFile(MEDIA_CACHE_FILE, 'utf8'))
@@ -303,23 +339,46 @@ async function getMediaCacheStatus() {
 }
 
 async function runMediaCacheBot() {
+  await readCacheBotState()
   if (cacheBotState.isRunning) return
-  cacheBotState.isRunning = true
-  cacheBotState.lastMessage = 'Katalog botu çalışıyor.'
+  await writeCacheBotState({
+    isRunning: true,
+    startedAt: new Date().toISOString(),
+    currentStep: 'başlıyor',
+    lastMessage: 'Katalog botu çalışıyor.',
+  })
   try {
     const settings = await readAdminSettings()
-    const results = await Promise.allSettled([
-      loadGroupedServerCatalog(settings.vodM3uUrl || VOD_M3U_URL, settings.updatedAt || ''),
-      loadLiveServerCatalog(settings.liveM3uUrl || LIVE_M3U_URL, settings.updatedAt || '', 'live'),
-      settings.sportsM3uUrl ? loadLiveServerCatalog(settings.sportsM3uUrl, settings.updatedAt || '', 'sports') : Promise.resolve([]),
-    ])
+    const tasks = [
+      ['Canlı TV', () => loadLiveServerCatalog(settings.liveM3uUrl || LIVE_M3U_URL, settings.updatedAt || '', 'live')],
+      ['Spor', () => (settings.sportsM3uUrl ? loadLiveServerCatalog(settings.sportsM3uUrl, settings.updatedAt || '', 'sports') : Promise.resolve([]))],
+      ['Dizi/Film', () => loadGroupedServerCatalog(settings.vodM3uUrl || VOD_M3U_URL, settings.updatedAt || '')],
+    ]
+    const results = []
+    for (const [label, task] of tasks) {
+      await writeCacheBotState({
+        currentStep: label,
+        lastMessage: `${label} kataloğu hazırlanıyor.`,
+      })
+      results.push(await Promise.resolve().then(task).then(
+        () => ({ status: 'fulfilled', label }),
+        (error) => ({ status: 'rejected', label, reason: error instanceof Error ? error.message : String(error) }),
+      ))
+    }
     const okCount = results.filter((result) => result.status === 'fulfilled').length
-    cacheBotState.lastRunAt = new Date().toISOString()
-    cacheBotState.lastMessage = `${okCount}/${results.length} katalog önbelleğe alındı.`
+    await writeCacheBotState({
+      isRunning: false,
+      currentStep: '',
+      lastRunAt: new Date().toISOString(),
+      lastMessage: `${okCount}/${results.length} katalog önbelleğe alındı.`,
+    })
   } catch (error) {
-    cacheBotState.lastMessage = error instanceof Error ? error.message : 'Katalog botu tamamlanamadı.'
-  } finally {
-    cacheBotState.isRunning = false
+    await writeCacheBotState({
+      isRunning: false,
+      currentStep: '',
+      lastRunAt: new Date().toISOString(),
+      lastMessage: error instanceof Error ? error.message : 'Katalog botu tamamlanamadı.',
+    })
   }
 }
 
@@ -344,8 +403,12 @@ async function handleCacheControl(req, res) {
     clearMediaCaches()
     await mkdir(DATA_DIR, { recursive: true })
     await writeFile(MEDIA_CACHE_FILE, '{}\n')
-    cacheBotState.lastRunAt = new Date().toISOString()
-    cacheBotState.lastMessage = 'Sunucu katalog önbelleği temizlendi.'
+    await writeCacheBotState({
+      isRunning: false,
+      currentStep: '',
+      lastRunAt: new Date().toISOString(),
+      lastMessage: 'Sunucu katalog önbelleği temizlendi.',
+    })
     sendJson(res, await getMediaCacheStatus())
     return
   }
