@@ -1201,7 +1201,7 @@ function CategoryScreen({
               <button className={!vodCategory ? 'active' : ''} type="button" onClick={() => onVodCategoryChange('')}>
                 Tümü
               </button>
-              {vodCategories.slice(0, 14).map((category) => (
+              {vodCategories.map((category) => (
                 <button
                   className={vodCategory === category ? 'active' : ''}
                   key={category}
@@ -1219,7 +1219,7 @@ function CategoryScreen({
               <button className={!vodPlatform ? 'active' : ''} type="button" onClick={() => onVodPlatformChange('')}>
                 Tümü
               </button>
-              {vodPlatforms.slice(0, 12).map((platform) => (
+              {vodPlatforms.map((platform) => (
                 <button
                   className={vodPlatform === platform ? 'active' : ''}
                   key={platform}

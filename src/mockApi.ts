@@ -16,6 +16,7 @@ export type ContentItem = {
   type: ContentType
   category: string
   platform?: string
+  genre?: string
   country?: string
   liveCategory?: string
   streamUrl: string
@@ -913,9 +914,23 @@ export const api = {
         title: item.displayTitle ?? item.title,
         type: item.type,
         year: String(item.badge ?? ''),
+        category: item.category,
+        platform: item.platform ?? '',
+        description: item.description,
       })
       const response = await fetch(`/__atlas_metadata?${params.toString()}`)
-      if (!response.ok) return withLatency(null)
+      if (!response.ok) {
+        return withLatency({
+          title: item.displayTitle ?? item.title,
+          overview: item.description,
+          genres: [item.genre ?? item.category].filter(Boolean),
+          cast: [],
+          crew: [],
+          providers: [item.platform ?? 'Katalog'].filter(Boolean),
+          posterUrl: item.posterUrl,
+          backdropUrl: item.backdropUrl,
+        } satisfies ContentMetadata)
+      }
       return withLatency((await response.json()) as ContentMetadata)
     },
   },

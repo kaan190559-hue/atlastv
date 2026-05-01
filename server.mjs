@@ -49,6 +49,43 @@ const liveCatalogPromise = new Map()
 const metadataCache = new Map()
 const activeUsers = new Map()
 const ACTIVE_USER_WINDOW_MS = 2 * 60 * 1000
+const PRESET_GENRES = [
+  'Aksiyon',
+  'Macera',
+  'Dram',
+  'Komedi',
+  'Romantik',
+  'Korku',
+  'Gerilim',
+  'Bilim Kurgu',
+  'Fantastik',
+  'Animasyon',
+  'Aile',
+  'Suç',
+  'Gizem',
+  'Belgesel',
+  'Savaş',
+  'Tarih',
+  'Western',
+  'Yerli',
+  'Çocuk',
+]
+const PRESET_PLATFORMS = [
+  'Netflix',
+  'Disney+',
+  'Prime Video',
+  'BluTV',
+  'Exxen',
+  'Gain',
+  'TOD',
+  'HBO Max',
+  'Apple TV+',
+  'TRT Tabii',
+  'PuhuTV',
+  'MUBI',
+  'YouTube',
+  'Katalog',
+]
 
 function send(res, status, body, headers = {}) {
   res.writeHead(status, headers)
@@ -249,12 +286,21 @@ async function handleCatalog(req, res, requestUrl) {
     if (category === 'movies' && item.type !== 'movie') return false
     return true
   })
-  const categories = getSortedValues(scopedCatalog.map((item) => item.category))
-  const platforms = getSortedValues(scopedCatalog.map((item) => item.platform || inferPlatform(item.category, item.title)))
+  const categories = getSortedValues([
+    ...PRESET_GENRES,
+    ...scopedCatalog.map((item) => item.genre || inferGenre(item.category, item.title, item.type)),
+    ...scopedCatalog.map((item) => (isGenericVodCategory(item.category) ? '' : item.category)),
+  ])
+  const platforms = getSortedValues([
+    ...PRESET_PLATFORMS,
+    ...scopedCatalog.map((item) => item.platform || inferPlatform(item.category, item.title)),
+  ])
   const filtered = catalog.filter((item) => {
     if (category === 'series' && item.type !== 'series') return false
     if (category === 'movies' && item.type !== 'movie') return false
-    if (vodCategory && item.category !== vodCategory) return false
+    if (vodCategory && item.category !== vodCategory && (item.genre || inferGenre(item.category, item.title, item.type)) !== vodCategory) {
+      return false
+    }
     if (platform && (item.platform || inferPlatform(item.category, item.title)) !== platform) return false
     if (query && !`${item.title} ${item.displayTitle ?? ''} ${item.category}`.toLocaleLowerCase('tr-TR').includes(query)) {
       return false
@@ -300,12 +346,17 @@ async function handleLiveCatalog(req, res, requestUrl) {
 }
 
 async function handleMetadata(req, res, requestUrl) {
+  const title = cleanMetadataTitle(requestUrl.searchParams.get('title') || '')
+  const fallbackMetadata = emptyMetadata(title || requestUrl.searchParams.get('title') || '', {
+    category: requestUrl.searchParams.get('category') || '',
+    platform: requestUrl.searchParams.get('platform') || '',
+    description: requestUrl.searchParams.get('description') || '',
+  })
   if (!TMDB_API_KEY) {
-    sendJson(res, { error: 'TMDB_API_KEY is not configured' }, 503)
+    sendJson(res, { ...fallbackMetadata, missingApiKey: true })
     return
   }
 
-  const title = cleanMetadataTitle(requestUrl.searchParams.get('title') || '')
   const type = requestUrl.searchParams.get('type') || 'movie'
   if (!title) {
     sendJson(res, { error: 'Missing title' }, 400)
@@ -590,13 +641,43 @@ function inferPlatform(category = '', title = '') {
   return platforms.find(([, pattern]) => pattern.test(source))?.[0] || 'Katalog'
 }
 
-function emptyMetadata(title) {
+function inferGenre(category = '', title = '', type = 'movie') {
+  const source = `${category} ${title}`.toLocaleLowerCase('tr-TR')
+  const genreRules = [
+    ['Aksiyon', /aksiyon|action|savaşçı|operasyon|mission|fast|furious|john wick|marvel|dc\b/],
+    ['Macera', /macera|adventure|jungle|hazine|pirates|journey|quest/],
+    ['Dram', /dram|drama|hayat|aşk|ask|yaşam|yasam|family|aile dram/],
+    ['Komedi', /komedi|comedy|güldür|guldur|laugh|funny|recep|kolpa/],
+    ['Romantik', /romantik|romance|aşk|ask|love|sevgili|wedding/],
+    ['Korku', /korku|horror|dehşet|dehset|cin|şeytan|seytan|scream|haunted/],
+    ['Gerilim', /gerilim|thriller|suspense|kaçış|kacis|trap|tehlike/],
+    ['Bilim Kurgu', /bilim kurgu|sci-fi|scifi|space|uzay|robot|alien|matrix|future/],
+    ['Fantastik', /fantastik|fantasy|magic|sihir|peri|orman|dragon|harry potter/],
+    ['Animasyon', /animasyon|animation|anime|cartoon|pixar|disney/],
+    ['Aile', /aile|family|çocuk|cocuk|kids/],
+    ['Suç', /suç|suc|crime|mafia|gangster|polisiye|dedektif/],
+    ['Gizem', /gizem|mystery|secret|sır|sir|detective/],
+    ['Belgesel', /belgesel|documentary|docu/],
+    ['Savaş', /savaş|savas|war|battle|soldier/],
+    ['Tarih', /tarih|history|historical|osmanlı|osmanli/],
+    ['Western', /western|cowboy/],
+    ['Yerli', /yerli|turkish|türk|turk/],
+  ]
+  return genreRules.find(([, pattern]) => pattern.test(source))?.[0] || (type === 'series' ? 'Dram' : 'Macera')
+}
+
+function isGenericVodCategory(category = '') {
+  return /^(tüm|tum|all)\s*(filmler|movies|diziler|series)?$/i.test(category.trim())
+}
+
+function emptyMetadata(title, fallback = {}) {
   return {
     title,
-    genres: [],
+    overview: fallback.description || 'Bu içerik M3U kataloğundan alındı. TMDB anahtarı eklenince özet, oyuncu kadrosu, fragman ve platform bilgileri otomatik zenginleşir.',
+    genres: [fallback.category].filter(Boolean),
     cast: [],
     crew: [],
-    providers: [],
+    providers: [fallback.platform].filter(Boolean),
   }
 }
 
@@ -708,6 +789,7 @@ function parseVodPlaylist(playlist, sourceKey = 'vod') {
       type,
       category,
       platform: inferPlatform(category, displayTitle),
+      genre: inferGenre(category, displayTitle, type),
       streamUrl,
       posterUrl,
       backdropUrl: logoUrl || PLACEHOLDER_BACKDROP,
@@ -751,6 +833,7 @@ function groupCatalogItems(items) {
       title: representative.displayTitle ?? representative.title,
       type: sorted.length > 1 ? 'series' : representative.type,
       platform: representative.platform || inferPlatform(representative.category, representative.displayTitle ?? representative.title),
+      genre: representative.genre || inferGenre(representative.category, representative.displayTitle ?? representative.title, representative.type),
       episodeCount: sorted.length,
       seasonCount,
       episodes: sorted,
