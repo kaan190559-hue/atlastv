@@ -18,7 +18,9 @@ const ADMIN_AUTH_PATH = '/__atlas_admin_auth'
 const DEFAULT_USER_AGENT = 'okhttp/4.12.0'
 const ADMIN_PASSWORD = process.env.ATLAS_ADMIN_PASSWORD || '190559'
 const VOD_M3U_URL = 'https://file.garden/Z-hq5n4Shk27aY58/Wars-vod-iptv.m3u'
-const LIVE_M3U_URL = process.env.ATLAS_LIVE_M3U_URL || ''
+const LIVE_M3U_URL =
+  process.env.ATLAS_LIVE_M3U_URL ||
+  'https://raw.githubusercontent.com/kaan190559-hue/atlastv/master/public/vavoo_full_worker.m3u'
 const LIVE_M3U_FILE = process.env.ATLAS_LIVE_M3U_FILE || ''
 const VAVOO_REFERER = 'https://vavoo.to/'
 const VAVOO_ORIGIN = 'https://vavoo.to'
