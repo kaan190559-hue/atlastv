@@ -69,7 +69,11 @@ function normalizeAdminSettings(settings = {}) {
 async function readAdminSettings() {
   try {
     const raw = await readFile(ADMIN_SETTINGS_FILE, 'utf8')
-    return { ...defaultAdminSettings, ...JSON.parse(raw) }
+    const settings = { ...defaultAdminSettings, ...JSON.parse(raw) }
+    if (!settings.liveM3uUrl?.trim() && !settings.liveM3uContent?.trim()) {
+      settings.liveM3uUrl = defaultAdminSettings.liveM3uUrl
+    }
+    return settings
   } catch {
     return defaultAdminSettings
   }
