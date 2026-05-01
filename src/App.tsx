@@ -54,7 +54,8 @@ type AuthMode = 'login' | 'register'
 type Direction = 'up' | 'down' | 'left' | 'right'
 
 const DEFAULT_PLAYER_USER_AGENT = 'okhttp/4.12.0'
-const CATEGORY_PAGE_SIZE = 60
+const CATEGORY_PAGE_SIZE = 90
+const VOD_CATEGORY_PAGE_SIZE = 5000
 const APP_VERSION = '0.0.0'
 const LIVE_GITHUB_M3U_URL = 'https://raw.githubusercontent.com/kaan190559-hue/atlastv/master/public/vavoo_full_worker.m3u'
 const APPEARANCE_KEY = 'atlastv.appearance'
@@ -227,6 +228,10 @@ function formatTime(seconds: number) {
   return hours > 0 ? `${hours}:${paddedMinutes}:${paddedSeconds}` : `${paddedMinutes}:${paddedSeconds}`
 }
 
+function getCategoryPageSize(screen: Screen) {
+  return screen === 'series' || screen === 'movies' ? VOD_CATEGORY_PAGE_SIZE : CATEGORY_PAGE_SIZE
+}
+
 function isVisible(element: HTMLElement) {
   const rect = element.getBoundingClientRect()
   const style = window.getComputedStyle(element)
@@ -237,6 +242,7 @@ function getNavigationRoot() {
   return (
     document.querySelector<HTMLElement>('.player-overlay') ??
     document.querySelector<HTMLElement>('.detail-panel') ??
+    document.querySelector<HTMLElement>('.admin-page') ??
     document
   )
 }
@@ -296,6 +302,9 @@ function useSpatialNavigation(resetKey: string) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target
+      const isTextInput =
+        target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement
       const directionByKey: Record<string, Direction> = {
         ArrowUp: 'up',
         ArrowDown: 'down',
@@ -305,6 +314,7 @@ function useSpatialNavigation(resetKey: string) {
       const direction = directionByKey[event.key]
 
       if (direction) {
+        if (isTextInput && (direction === 'left' || direction === 'right')) return
         if (document.querySelector('.player-overlay') && (direction === 'left' || direction === 'right')) {
           return
         }
@@ -322,9 +332,13 @@ function useSpatialNavigation(resetKey: string) {
         return
       }
 
-      if (event.key === 'Enter') {
+      if (event.key === 'Enter' || event.key === 'OK' || event.key === 'Select') {
         const active = document.activeElement
-        if (active instanceof HTMLElement && active.matches('[tabindex]:not(button):not(input)')) {
+        if (
+          active instanceof HTMLElement &&
+          !active.matches('button, input, textarea, select, a') &&
+          active.tabIndex >= 0
+        ) {
           event.preventDefault()
           active.click()
         }
@@ -405,7 +419,7 @@ function App() {
     if (!isAuthed || screen === 'home' || screen === 'account' || screen === 'about') return
     let isActive = true
     api.content
-      .getCategoryPage(screen, 0, CATEGORY_PAGE_SIZE, search, { country: liveCountry, liveCategory, vodCategory, platform: vodPlatform })
+      .getCategoryPage(screen, 0, getCategoryPageSize(screen), search, { country: liveCountry, liveCategory, vodCategory, platform: vodPlatform })
       .then((page) => {
       if (!isActive) return
       setCategoryItems(page.items)
@@ -483,7 +497,7 @@ function App() {
       setCategoryItems([])
       setCategoryTotal(0)
       setCategoryLoading(true)
-      const page = await api.content.getCategoryPage(screen, 0, CATEGORY_PAGE_SIZE, search, {
+      const page = await api.content.getCategoryPage(screen, 0, getCategoryPageSize(screen), search, {
         country: liveCountry,
         liveCategory,
         vodCategory,
@@ -657,7 +671,7 @@ function App() {
   const loadMoreCategoryItems = async () => {
     if (categoryLoadingMore || categoryItems.length >= categoryTotal) return
     setCategoryLoadingMore(true)
-    const page = await api.content.getCategoryPage(screen, categoryItems.length, CATEGORY_PAGE_SIZE, search, {
+    const page = await api.content.getCategoryPage(screen, categoryItems.length, getCategoryPageSize(screen), search, {
       country: liveCountry,
       liveCategory,
       vodCategory,

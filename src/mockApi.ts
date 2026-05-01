@@ -233,6 +233,8 @@ const USERS_KEY = 'atlastv.users'
 const CURRENT_USER_KEY = 'atlastv.currentUser'
 const SESSION_KEY = 'atlastv.sessionId'
 const ADMIN_SETTINGS_KEY = 'atlastv.adminSettings'
+const CONTENT_PAGE_CACHE_PREFIX = 'atlastv.contentPage.'
+const CONTENT_PAGE_CACHE_TTL = 10 * 60 * 1000
 const ADMIN_SETTINGS_ENDPOINT = '/__atlas_admin_settings'
 const ADMIN_AUTH_ENDPOINT = '/__atlas_admin_auth'
 const USER_STATS_ENDPOINT = '/__atlas_user_stats'
@@ -251,8 +253,31 @@ const defaultAdminSettings: AdminSettings = {
 
 const withLatency = <T,>(value: T) =>
   new Promise<T>((resolve) => {
-    window.setTimeout(() => resolve(value), 120)
+    window.setTimeout(() => resolve(value), 20)
   })
+
+const cachedFetchJson = async <T,>(url: string, ttl = CONTENT_PAGE_CACHE_TTL): Promise<T> => {
+  const key = `${CONTENT_PAGE_CACHE_PREFIX}${url}`
+  try {
+    const cached = window.sessionStorage.getItem(key)
+    if (cached) {
+      const parsed = JSON.parse(cached) as { savedAt: number; value: T }
+      if (Date.now() - parsed.savedAt < ttl) return parsed.value
+    }
+  } catch {
+    // Ignore broken browser cache entries and continue with the network.
+  }
+
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`Katalog yÃ¼klenemedi: ${response.status}`)
+  const value = (await response.json()) as T
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), value }))
+  } catch {
+    // Storage can be full on TV browsers; the app should still work.
+  }
+  return value
+}
 
 const getUsers = (): Array<AtlasUser & { password?: string }> => {
   const raw = window.localStorage.getItem(USERS_KEY)
@@ -389,6 +414,13 @@ const clearCatalogCaches = () => {
   vodCatalogPromise = null
   liveCatalogCache = null
   liveCatalogPromise = null
+  try {
+    Object.keys(window.sessionStorage)
+      .filter((key) => key.startsWith(CONTENT_PAGE_CACHE_PREFIX))
+      .forEach((key) => window.sessionStorage.removeItem(key))
+  } catch {
+    // Session storage may be unavailable in some embedded TV browsers.
+  }
 }
 
 const getCurrentUser = () => {
@@ -543,13 +575,11 @@ const loadVodCatalog = async () => {
 
   const settings = await getAdminSettings()
   const source = settings.vodM3uUrl.trim() || VOD_M3U_URL
-  const params = new URLSearchParams({ source })
+  const params = new URLSearchParams({ source, limit: '50000' })
   if (settings.updatedAt) params.set('refresh', settings.updatedAt)
 
-  vodCatalogPromise = fetch(`/__atlas_catalog?${params.toString()}`)
-    .then(async (response) => {
-      if (!response.ok) throw new Error(`Katalog yüklenemedi: ${response.status}`)
-      const parsed = (await response.json()) as CategoryPage
+  vodCatalogPromise = cachedFetchJson<CategoryPage>(`/__atlas_catalog?${params.toString()}`)
+    .then((parsed) => {
       vodCatalogCache = parsed.items.length ? parsed.items : fallbackVodCatalog
       return vodCatalogCache
     })
@@ -584,10 +614,8 @@ const loadLiveCatalog = async () => {
   if (settings.liveM3uContent?.trim()) params.set('library', 'live')
   if (settings.updatedAt) params.set('refresh', settings.updatedAt)
 
-  liveCatalogPromise = fetch(`/__atlas_live_catalog?${params.toString()}`)
-    .then(async (response) => {
-      if (!response.ok) throw new Error(`Canlı katalog yüklenemedi: ${response.status}`)
-      const parsed = (await response.json()) as CategoryPage
+  liveCatalogPromise = cachedFetchJson<CategoryPage>(`/__atlas_live_catalog?${params.toString()}`)
+    .then((parsed) => {
       liveCatalogCache = parsed.items.length ? parsed.items : liveCatalog
       return liveCatalogCache
     })
@@ -622,9 +650,7 @@ const loadSportsCatalog = async (offset = 0, limit = 160, query = '', filters: L
     else if (settings.liveM3uContent?.trim()) params.set('library', 'live')
     if (settings.updatedAt) params.set('refresh', settings.updatedAt)
 
-    const response = await fetch(`/__atlas_live_catalog?${params.toString()}`)
-    if (!response.ok) throw new Error(`Spor katalog sayfasÄ± yÃ¼klenemedi: ${response.status}`)
-    const page = (await response.json()) as CategoryPage
+    const page = await cachedFetchJson<CategoryPage>(`/__atlas_live_catalog?${params.toString()}`)
     return { ...page, items: hydrateUserItems(page.items) }
   }
 
@@ -639,9 +665,7 @@ const loadSportsCatalog = async (offset = 0, limit = 160, query = '', filters: L
   if (settings.sportsM3uContent?.trim()) params.set('library', 'sports')
   if (settings.updatedAt) params.set('refresh', settings.updatedAt)
 
-  const response = await fetch(`/__atlas_live_catalog?${params.toString()}`)
-  if (!response.ok) throw new Error(`Spor katalog sayfasÄ± yÃ¼klenemedi: ${response.status}`)
-  const page = (await response.json()) as CategoryPage
+  const page = await cachedFetchJson<CategoryPage>(`/__atlas_live_catalog?${params.toString()}`)
   return { ...page, items: hydrateUserItems(page.items) }
 }
 
@@ -696,9 +720,7 @@ const loadLiveItemsByIds = async (ids: string[]) => {
         })
         if (source) params.set('source', source)
         if (settings.updatedAt) params.set('refresh', settings.updatedAt)
-        const response = await fetch(`/__atlas_live_catalog?${params.toString()}`)
-        if (!response.ok) throw new Error(`Canli favoriler yuklenemedi: ${response.status}`)
-        const page = (await response.json()) as CategoryPage
+        const page = await cachedFetchJson<CategoryPage>(`/__atlas_live_catalog?${params.toString()}`)
         return page.items
       }),
     )
@@ -873,9 +895,7 @@ export const api = {
         if (settings.updatedAt) params.set('refresh', settings.updatedAt)
 
         try {
-          const response = await fetch(`/__atlas_live_catalog?${params.toString()}`)
-          if (!response.ok) throw new Error(`Canlı katalog sayfası yüklenemedi: ${response.status}`)
-          const page = (await response.json()) as CategoryPage
+          const page = await cachedFetchJson<CategoryPage>(`/__atlas_live_catalog?${params.toString()}`)
           return { ...page, items: hydrateUserItems(page.items) }
         } catch (error) {
           console.warn('Canlı katalog sayfası okunamadı, geçici canlı katalog kullanılıyor.', error)
@@ -929,9 +949,7 @@ export const api = {
       if (filters.vodCategory) params.set('vodCategory', filters.vodCategory)
       if (filters.platform) params.set('platform', filters.platform)
 
-      const response = await fetch(`/__atlas_catalog?${params.toString()}`)
-      if (!response.ok) throw new Error(`Katalog sayfası yüklenemedi: ${response.status}`)
-      const page = (await response.json()) as CategoryPage
+      const page = await cachedFetchJson<CategoryPage>(`/__atlas_catalog?${params.toString()}`)
       return { ...page, items: hydrateUserItems(page.items) }
     },
     getCategory: async (category: CategoryKey) => {

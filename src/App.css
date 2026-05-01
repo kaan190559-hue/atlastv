@@ -418,28 +418,14 @@
 }
 
 .app-frame {
-  --screen-density: 1;
-  width: min(100%, 1920px);
+  width: 100%;
   min-height: 100svh;
-  margin: 0 auto;
   color: var(--text);
   background:
     radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--accent-2) 16%, transparent), transparent 30%),
     radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 32%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 360px),
     var(--bg);
-}
-
-@media (min-width: 1800px) {
-  .app-frame {
-    --screen-density: 0.9;
-  }
-}
-
-@media (min-width: 2300px) {
-  .app-frame {
-    --screen-density: 0.78;
-  }
 }
 
 .top-bar {
@@ -633,7 +619,7 @@
 
 .hero-banner {
   position: relative;
-  min-height: min(calc(620px * var(--screen-density)), 72svh);
+  min-height: min(620px, 72svh);
   margin: 0 -28px 36px;
   display: flex;
   align-items: flex-end;
@@ -665,7 +651,7 @@
   position: relative;
   z-index: 1;
   width: min(760px, calc(100% - 48px));
-  padding: 0 0 calc(86px * var(--screen-density)) calc(54px * var(--screen-density));
+  padding: 0 0 86px 54px;
 }
 
 .tag-row {
@@ -688,7 +674,7 @@
 .page-heading h1 {
   margin: 20px 0 0;
   color: var(--text-strong);
-  font-size: clamp(42px, calc(6vw * var(--screen-density)), 76px);
+  font-size: clamp(42px, 4.8rem, 76px);
   line-height: 1;
 }
 
@@ -886,7 +872,7 @@
 .rail-list {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: calc(230px * var(--card-scale) * var(--screen-density));
+  grid-auto-columns: calc(230px * var(--card-scale));
   gap: 18px;
   overflow-x: auto;
   padding: 2px 2px 18px;
@@ -894,15 +880,15 @@
 }
 
 .rail-list.wide {
-  grid-auto-columns: minmax(calc(330px * var(--card-scale) * var(--screen-density)), calc(440px * var(--card-scale) * var(--screen-density)));
+  grid-auto-columns: minmax(calc(330px * var(--card-scale)), calc(440px * var(--card-scale)));
 }
 
 .rail-list.channel {
-  grid-auto-columns: calc(280px * var(--card-scale) * var(--screen-density));
+  grid-auto-columns: calc(280px * var(--card-scale));
 }
 
 .rail-list.circle {
-  grid-auto-columns: calc(184px * var(--card-scale) * var(--screen-density));
+  grid-auto-columns: calc(184px * var(--card-scale));
 }
 
 .content-card {
@@ -1224,7 +1210,7 @@
 
 .content-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(calc(190px * var(--card-scale) * var(--screen-density)), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(calc(190px * var(--card-scale)), calc(190px * var(--card-scale))));
   gap: 22px;
 }
 
@@ -2462,7 +2448,15 @@
   .rail-list,
   .rail-list.wide,
   .rail-list.channel {
-    grid-auto-columns: minmax(250px, 76vw);
+    grid-auto-columns: calc(230px * var(--card-scale));
+  }
+
+  .rail-list.wide {
+    grid-auto-columns: calc(330px * var(--card-scale));
+  }
+
+  .rail-list.channel {
+    grid-auto-columns: calc(280px * var(--card-scale));
   }
 
   .rail-list.circle {
@@ -2519,7 +2513,6 @@
     display: block;
   }
 
-  .content-grid,
   .utility-grid,
   .settings-layout,
   .appearance-controls {

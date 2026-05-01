@@ -10,6 +10,7 @@ const DIST_DIR = resolve(__dirname, 'dist')
 const DATA_DIR = resolve(process.env.ATLAS_DATA_DIR || join(__dirname, '.atlas'))
 const ADMIN_SETTINGS_FILE = resolve(process.env.ATLAS_SETTINGS_FILE || join(DATA_DIR, 'admin-settings.json'))
 const USER_STATS_FILE = resolve(process.env.ATLAS_USER_STATS_FILE || join(DATA_DIR, 'user-stats.json'))
+const MEDIA_CACHE_FILE = resolve(process.env.ATLAS_MEDIA_CACHE_FILE || join(DATA_DIR, 'media-cache.json'))
 
 const PROXY_PATH = '/__atlas_proxy'
 const DOWNLOAD_PATH = '/__atlas_download'
@@ -48,6 +49,7 @@ const defaultAdminSettings = {
 
 const catalogCache = new Map()
 const groupedCatalogCache = new Map()
+const groupedCatalogPromise = new Map()
 const catalogPromise = new Map()
 const liveCatalogCache = new Map()
 const liveCatalogPromise = new Map()
@@ -236,9 +238,41 @@ function readJsonBody(req) {
 function clearMediaCaches() {
   catalogCache.clear()
   groupedCatalogCache.clear()
+  groupedCatalogPromise.clear()
   catalogPromise.clear()
   liveCatalogCache.clear()
   liveCatalogPromise.clear()
+}
+
+function getDiskCacheKey(key) {
+  return Buffer.from(key).toString('base64url')
+}
+
+async function readMediaDiskCache(bucket, key) {
+  try {
+    const raw = await readFile(MEDIA_CACHE_FILE, 'utf8')
+    const parsed = JSON.parse(raw)
+    return parsed?.[bucket]?.[getDiskCacheKey(key)]?.value ?? null
+  } catch {
+    return null
+  }
+}
+
+async function writeMediaDiskCache(bucket, key, value) {
+  try {
+    await mkdir(DATA_DIR, { recursive: true })
+    let parsed = {}
+    try {
+      parsed = JSON.parse(await readFile(MEDIA_CACHE_FILE, 'utf8'))
+    } catch {
+      parsed = {}
+    }
+    parsed[bucket] = parsed[bucket] || {}
+    parsed[bucket][getDiskCacheKey(key)] = { savedAt: new Date().toISOString(), value }
+    await writeFile(MEDIA_CACHE_FILE, `${JSON.stringify(parsed)}\n`)
+  } catch (error) {
+    console.warn('Media disk cache yazılamadı.', error)
+  }
 }
 
 async function handleAdminSettings(req, res) {
@@ -534,16 +568,31 @@ function loadServerCatalog(sourceUrl = VOD_M3U_URL, refreshKey = '') {
   return pendingLoad
 }
 
-function loadGroupedServerCatalog(sourceUrl = VOD_M3U_URL, refreshKey = '') {
+async function loadGroupedServerCatalog(sourceUrl = VOD_M3U_URL, refreshKey = '') {
   const cacheKey = `${sourceUrl || VOD_M3U_URL}::${refreshKey}`
   const cached = groupedCatalogCache.get(cacheKey)
   if (cached) return Promise.resolve(cached)
+  const pending = groupedCatalogPromise.get(cacheKey)
+  if (pending) return pending
 
-  return loadServerCatalog(sourceUrl, refreshKey).then((catalog) => {
-    const grouped = groupCatalogItems(catalog)
-    groupedCatalogCache.set(cacheKey, grouped)
-    return grouped
-  })
+  const diskCached = await readMediaDiskCache('vodGrouped', cacheKey)
+  if (diskCached) {
+    groupedCatalogCache.set(cacheKey, diskCached)
+    return diskCached
+  }
+
+  const pendingLoad = loadServerCatalog(sourceUrl, refreshKey)
+    .then((catalog) => {
+      const grouped = groupCatalogItems(catalog)
+      groupedCatalogCache.set(cacheKey, grouped)
+      void writeMediaDiskCache('vodGrouped', cacheKey, grouped)
+      return grouped
+    })
+    .finally(() => {
+      groupedCatalogPromise.delete(cacheKey)
+    })
+  groupedCatalogPromise.set(cacheKey, pendingLoad)
+  return pendingLoad
 }
 
 async function loadLiveServerCatalog(sourceUrl = '', refreshKey = '', library = '') {
@@ -559,6 +608,11 @@ async function loadLiveServerCatalog(sourceUrl = '', refreshKey = '', library = 
   const cacheKey = `${sourceKey}::${refreshKey}`
   const cached = liveCatalogCache.get(cacheKey)
   if (cached) return Promise.resolve(cached)
+  const diskCached = await readMediaDiskCache(`live-${library || 'default'}`, cacheKey)
+  if (diskCached) {
+    liveCatalogCache.set(cacheKey, diskCached)
+    return diskCached
+  }
   const pending = liveCatalogPromise.get(cacheKey)
   if (pending) return pending
 
@@ -584,6 +638,7 @@ async function loadLiveServerCatalog(sourceUrl = '', refreshKey = '', library = 
     .then((playlist) => {
       const parsed = playlist ? parseLivePlaylist(playlist, sourceKey) : []
       liveCatalogCache.set(cacheKey, parsed)
+      void writeMediaDiskCache(`live-${library || 'default'}`, cacheKey, parsed)
       return parsed
     })
     .finally(() => {
