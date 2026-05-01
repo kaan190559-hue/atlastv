@@ -57,6 +57,7 @@ const liveCatalogCache = new Map()
 const liveCatalogPromise = new Map()
 const metadataCache = new Map()
 const activeUsers = new Map()
+const CACHE_BOT_STALE_MS = 6 * 60 * 1000
 const defaultCacheBotState = {
   isRunning: false,
   lastRunAt: '',
@@ -295,7 +296,7 @@ async function readCacheBotState() {
 
   if (cacheBotState.isRunning && cacheBotState.startedAt) {
     const started = Date.parse(cacheBotState.startedAt)
-    if (Number.isFinite(started) && Date.now() - started > 20 * 60 * 1000) {
+    if (Number.isFinite(started) && Date.now() - started > CACHE_BOT_STALE_MS) {
       cacheBotState = {
         ...cacheBotState,
         isRunning: false,
@@ -307,6 +308,15 @@ async function readCacheBotState() {
   }
 
   return cacheBotState
+}
+
+function withTimeout(promise, timeoutMs, label) {
+  let timeoutId
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`${label} zaman aşımına uğradı.`)), timeoutMs)
+  })
+  promise.catch(() => undefined)
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId))
 }
 
 async function writeCacheBotState(nextState) {
@@ -350,27 +360,33 @@ async function runMediaCacheBot() {
   try {
     const settings = await readAdminSettings()
     const tasks = [
-      ['Canlı TV', () => loadLiveServerCatalog(settings.liveM3uUrl || LIVE_M3U_URL, settings.updatedAt || '', 'live')],
-      ['Spor', () => (settings.sportsM3uUrl ? loadLiveServerCatalog(settings.sportsM3uUrl, settings.updatedAt || '', 'sports') : Promise.resolve([]))],
-      ['Dizi/Film', () => loadGroupedServerCatalog(settings.vodM3uUrl || VOD_M3U_URL, settings.updatedAt || '')],
+      ['Canlı TV', 60_000, () => loadLiveServerCatalog(settings.liveM3uUrl || LIVE_M3U_URL, settings.updatedAt || '', 'live')],
+      ['Spor', 60_000, () => (settings.sportsM3uUrl ? loadLiveServerCatalog(settings.sportsM3uUrl, settings.updatedAt || '', 'sports') : Promise.resolve([]))],
+      ['Dizi/Film', 180_000, () => loadGroupedServerCatalog(settings.vodM3uUrl || VOD_M3U_URL, settings.updatedAt || '')],
     ]
     const results = []
-    for (const [label, task] of tasks) {
+    for (const [label, timeoutMs, task] of tasks) {
       await writeCacheBotState({
         currentStep: label,
         lastMessage: `${label} kataloğu hazırlanıyor.`,
       })
-      results.push(await Promise.resolve().then(task).then(
+      results.push(await withTimeout(Promise.resolve().then(task), timeoutMs, label).then(
         () => ({ status: 'fulfilled', label }),
         (error) => ({ status: 'rejected', label, reason: error instanceof Error ? error.message : String(error) }),
       ))
     }
     const okCount = results.filter((result) => result.status === 'fulfilled').length
+    const errors = results
+      .filter((result) => result.status === 'rejected')
+      .map((result) => `${result.label}: ${result.reason}`)
+      .join(' | ')
     await writeCacheBotState({
       isRunning: false,
       currentStep: '',
       lastRunAt: new Date().toISOString(),
-      lastMessage: `${okCount}/${results.length} katalog önbelleğe alındı.`,
+      lastMessage: errors
+        ? `${okCount}/${results.length} katalog hazır. Sorun: ${errors}`
+        : `${okCount}/${results.length} katalog önbelleğe alındı.`,
     })
   } catch (error) {
     await writeCacheBotState({
