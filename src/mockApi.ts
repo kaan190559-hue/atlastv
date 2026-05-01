@@ -94,6 +94,10 @@ export type AdminSettings = {
   vodM3uUrl: string
   liveM3uUrl: string
   sportsM3uUrl: string
+  telegramUrl: string
+  supportUrl: string
+  appVersion: string
+  announcement: string
   liveM3uContent?: string
   sportsM3uContent?: string
   updatedAt?: string
@@ -237,6 +241,10 @@ const defaultAdminSettings: AdminSettings = {
   vodM3uUrl: VOD_M3U_URL,
   liveM3uUrl: '',
   sportsM3uUrl: '',
+  telegramUrl: 'https://t.me/',
+  supportUrl: '',
+  appVersion: '0.0.0',
+  announcement: 'Güncel sürüm, duyurular, özel içerikler ve destek için kanalımızı takip edin.',
   liveM3uContent: '',
   sportsM3uContent: '',
 }
@@ -981,6 +989,10 @@ export const api = {
         vodM3uUrl: settings.vodM3uUrl.trim() || VOD_M3U_URL,
         liveM3uUrl: settings.liveM3uUrl.trim(),
         sportsM3uUrl: settings.sportsM3uUrl.trim(),
+        telegramUrl: settings.telegramUrl.trim() || 'https://t.me/',
+        supportUrl: settings.supportUrl.trim(),
+        appVersion: settings.appVersion.trim() || '0.0.0',
+        announcement: settings.announcement.trim(),
         liveM3uContent: settings.liveM3uContent ?? '',
         sportsM3uContent: settings.sportsM3uContent ?? '',
         updatedAt: new Date().toISOString(),

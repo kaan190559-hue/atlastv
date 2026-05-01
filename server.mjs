@@ -38,6 +38,10 @@ const defaultAdminSettings = {
   vodM3uUrl: VOD_M3U_URL,
   liveM3uUrl: LIVE_M3U_URL,
   sportsM3uUrl: '',
+  telegramUrl: 'https://t.me/',
+  supportUrl: '',
+  appVersion: '0.0.0',
+  announcement: 'Güncel sürüm, duyurular, özel içerikler ve destek için kanalımızı takip edin.',
   liveM3uContent: '',
   sportsM3uContent: '',
 }
@@ -105,6 +109,10 @@ function normalizeAdminSettings(settings = {}) {
     vodM3uUrl: settings.vodM3uUrl?.trim() || VOD_M3U_URL,
     liveM3uUrl: settings.liveM3uUrl?.trim() ?? '',
     sportsM3uUrl: settings.sportsM3uUrl?.trim() ?? '',
+    telegramUrl: settings.telegramUrl?.trim() || 'https://t.me/',
+    supportUrl: settings.supportUrl?.trim() ?? '',
+    appVersion: settings.appVersion?.trim() || '0.0.0',
+    announcement: settings.announcement?.trim() ?? '',
     liveM3uContent: settings.liveM3uContent?.trim() ?? '',
     sportsM3uContent: settings.sportsM3uContent?.trim() ?? '',
     updatedAt: new Date().toISOString(),
@@ -457,11 +465,6 @@ async function handleDownload(req, res, requestUrl) {
     return
   }
 
-  if (/\.m3u8(?:$|\?)/i.test(target)) {
-    send(res, 415, 'Bu kaynak HLS/m3u8. MP4 indirme için doğrudan MP4 kaynak gerekir.')
-    return
-  }
-
   const upstreamAbort = new AbortController()
   req.on('aborted', () => upstreamAbort.abort())
   res.on('close', () => upstreamAbort.abort())
@@ -480,15 +483,14 @@ async function handleDownload(req, res, requestUrl) {
     return
   }
 
-  const contentType = upstream.headers.get('content-type') || 'video/mp4'
-  if (/mpegurl|m3u8/i.test(contentType)) {
-    send(res, 415, 'Bu kaynak HLS/m3u8. MP4 indirme için doğrudan MP4 kaynak gerekir.')
-    return
-  }
+  const contentType = upstream.headers.get('content-type') || (/\.m3u8(?:$|\?)/i.test(target) ? 'application/vnd.apple.mpegurl' : 'video/mp4')
+  const finalTitle = /mpegurl|m3u8/i.test(contentType) || /\.m3u8(?:$|\?)/i.test(target)
+    ? title.replace(/\.mp4$/i, '.m3u8')
+    : title
 
   res.writeHead(200, {
     'Content-Type': contentType,
-    'Content-Disposition': `attachment; filename="${title.replace(/"/g, '')}"`,
+    'Content-Disposition': `attachment; filename="${finalTitle.replace(/"/g, '')}"`,
     'Cache-Control': 'no-store',
     ...(upstream.headers.get('content-length') ? { 'Content-Length': upstream.headers.get('content-length') } : {}),
   })

@@ -183,7 +183,7 @@ function getProxiedStreamUrl(item: ContentItem) {
 function getDownloadUrl(item: ContentItem) {
   const params = new URLSearchParams({
     url: item.streamUrl,
-    title: `${item.displayTitle ?? item.title}.mp4`,
+    title: `${item.displayTitle ?? item.title}${/\.m3u8(?:$|\?)/i.test(item.streamUrl) ? '.m3u8' : '.mp4'}`,
     ua: item.httpUserAgent || DEFAULT_PLAYER_USER_AGENT,
   })
   return `/__atlas_download?${params.toString()}`
@@ -350,6 +350,7 @@ function App() {
   const [heroItems, setHeroItems] = useState<ContentItem[]>([])
   const [heroIndex, setHeroIndex] = useState(0)
   const [homeSections, setHomeSections] = useState<HomeSection[]>([])
+  const [publicSettings, setPublicSettings] = useState<AdminSettings | null>(null)
   const [categoryItems, setCategoryItems] = useState<ContentItem[]>([])
   const [categoryTotal, setCategoryTotal] = useState(0)
   const [categoryLoading, setCategoryLoading] = useState(false)
@@ -390,6 +391,7 @@ function App() {
       setIsAuthed(true)
       setShowOnboarding(!user.onboardingCompleted)
     })
+    api.admin.getSettings().then(setPublicSettings)
   }, [])
 
   useEffect(() => {
@@ -697,6 +699,7 @@ function App() {
     return (
       <AuthScreen
         mode={authMode}
+        settings={publicSettings}
         onModeChange={setAuthMode}
         onSubmit={handleAuth}
         error={authError}
@@ -787,6 +790,7 @@ function App() {
         {!detailItem && screen === 'about' ? (
           <SettingsScreen
             appearance={appearance}
+            settings={publicSettings}
             onAppearanceChange={setAppearance}
             onResetAppearance={() => setAppearance(defaultAppearance)}
             onCloseApp={() => window.close()}
@@ -826,7 +830,10 @@ function App() {
             setAdminPanelOpen(false)
             setAdminPassword('')
           }}
-          onSaved={reloadContent}
+          onSaved={async () => {
+            await reloadContent()
+            setPublicSettings(await api.admin.getSettings())
+          }}
         />
       ) : null}
     </div>
@@ -835,6 +842,7 @@ function App() {
 
 function AuthScreen({
   mode,
+  settings,
   theme,
   error,
   onModeChange,
@@ -842,6 +850,7 @@ function AuthScreen({
   onThemeToggle,
 }: {
   mode: AuthMode
+  settings: AdminSettings | null
   theme: Theme
   error: string
   onModeChange: (mode: AuthMode) => void
@@ -849,6 +858,9 @@ function AuthScreen({
   onThemeToggle: () => void
 }) {
   const isRegister = mode === 'register'
+  const telegramUrl = settings?.telegramUrl || 'https://t.me/'
+  const announcement = settings?.announcement || 'Güncel sürüm, duyurular, özel içerikler ve destek için kanalımızı takip edin.'
+  const version = settings?.appVersion || APP_VERSION
 
   return (
     <main className="auth-page">
@@ -867,9 +879,9 @@ function AuthScreen({
         <Sparkles />
         <div>
           <h2>Telegram hesabımıza katılmayı unutmayın!</h2>
-          <p>Güncel sürüm, duyurular, özel içerikler ve destek için kanalımızı takip edin.</p>
+          <p>{announcement}</p>
         </div>
-        <button type="button">Telegram’a Katıl</button>
+        <button type="button" onClick={() => window.open(telegramUrl, '_blank', 'noopener,noreferrer')}>Telegram’a Katıl</button>
       </aside>
 
       <form className="auth-card" onSubmit={onSubmit}>
@@ -907,7 +919,7 @@ function AuthScreen({
         <BadgeInfo />
         <p>
           <strong>Uygulamamız sürekli olarak güncellenmektedir.</strong>
-          <span>En iyi deneyim için AtlasTv’yi güncel tutun.</span>
+          <span>Güncel sürüm: {version}</span>
         </p>
       </footer>
     </main>
@@ -1662,7 +1674,7 @@ function DetailPanel({
           </button>
           {item.isInList && !item.isLive ? (
             <a className="detail-action-link" href={getDownloadUrl(item)} download>
-              <Download /> MP4 İndir
+              <Download /> {item.streamUrl.includes('.m3u8') ? 'M3U8 İndir' : 'MP4 İndir'}
             </a>
           ) : null}
           <button type="button" onClick={() => onToggleFavorite(item)}>
@@ -1686,15 +1698,20 @@ function DetailPanel({
 
 function SettingsScreen({
   appearance,
+  settings,
   onAppearanceChange,
   onResetAppearance,
   onCloseApp,
 }: {
   appearance: AppearanceSettings
+  settings: AdminSettings | null
   onAppearanceChange: (settings: AppearanceSettings) => void
   onResetAppearance: () => void
   onCloseApp: () => void
 }) {
+  const telegramUrl = settings?.telegramUrl || 'https://t.me/'
+  const supportUrl = settings?.supportUrl || ''
+  const version = settings?.appVersion || APP_VERSION
   const updateAppearance = (partial: Partial<AppearanceSettings>) => {
     onAppearanceChange({ ...appearance, ...partial })
   }
@@ -1790,14 +1807,19 @@ function SettingsScreen({
             </div>
           </div>
           <div className="settings-actions">
-            <button type="button" onClick={() => window.open('https://t.me/', '_blank', 'noopener,noreferrer')}>
+            <button type="button" onClick={() => window.open(telegramUrl, '_blank', 'noopener,noreferrer')}>
               <Sparkles /> Telegram’a Katıl
             </button>
+            {supportUrl ? (
+              <button type="button" onClick={() => window.open(supportUrl, '_blank', 'noopener,noreferrer')}>
+                <BadgeInfo /> Destek
+              </button>
+            ) : null}
             <button type="button" onClick={shareApp}>
               <Share2 /> Paylaş
             </button>
             <button type="button">
-              <Info /> Güncel Sürüm: {APP_VERSION}
+              <Info /> Güncel Sürüm: {version}
             </button>
             <button type="button" onClick={onCloseApp}>
               <Power /> Uygulamayı Kapat
@@ -1867,6 +1889,10 @@ function AdminPanel({
     vodM3uUrl: '',
     liveM3uUrl: '',
     sportsM3uUrl: '',
+    telegramUrl: '',
+    supportUrl: '',
+    appVersion: '',
+    announcement: '',
     liveM3uContent: '',
     sportsM3uContent: '',
   })
@@ -1900,6 +1926,43 @@ function AdminPanel({
       .filter((key) => key.startsWith('atlastv.'))
       .forEach((key) => window.localStorage.removeItem(key))
     setStatus('Bu cihazdaki AtlasTV önbelleği temizlendi.')
+  }
+
+  const clearWatchHistory = () => {
+    const usersRaw = window.localStorage.getItem('atlastv.users')
+    if (!usersRaw) {
+      setStatus('Bu cihazda temizlenecek izleme geçmişi yok.')
+      return
+    }
+    try {
+      const users = JSON.parse(usersRaw) as Array<AtlasUser>
+      window.localStorage.setItem('atlastv.users', JSON.stringify(users.map((user) => ({ ...user, history: {} }))))
+      setStatus('Bu cihazdaki izleme geçmişi temizlendi.')
+    } catch {
+      setStatus('İzleme geçmişi temizlenemedi.')
+    }
+  }
+
+  const exportSettings = () => {
+    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `atlastv-admin-settings-${new Date().toISOString().slice(0, 10)}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+    setStatus('Admin ayarları dışa aktarıldı.')
+  }
+
+  const importSettings = async (file?: File) => {
+    if (!file) return
+    try {
+      const parsed = JSON.parse(await file.text()) as Partial<AdminSettings>
+      setSettings((current) => ({ ...current, ...parsed }))
+      setStatus('Ayar dosyası içe aktarıldı. Herkese uygulamak için kaydet.')
+    } catch {
+      setStatus('Ayar dosyası okunamadı.')
+    }
   }
 
   const copyLiveGithubSource = () => {
@@ -1958,7 +2021,67 @@ function AdminPanel({
           <button type="button" onClick={clearLocalCache}>
             Bu Cihaz Önbelleğini Temizle
           </button>
-          <span>Sürüm {APP_VERSION}</span>
+          <button type="button" onClick={clearWatchHistory}>
+            İzleme Geçmişini Temizle
+          </button>
+          <button type="button" onClick={exportSettings}>
+            Ayarları Dışa Aktar
+          </button>
+          <label className="admin-tool-file">
+            Ayarları İçe Aktar
+            <input type="file" accept="application/json,.json" onChange={(event) => importSettings(event.target.files?.[0])} />
+          </label>
+          <button type="button" onClick={() => window.open(settings.telegramUrl || 'https://t.me/', '_blank', 'noopener,noreferrer')}>
+            Telegramı Test Et
+          </button>
+          {settings.supportUrl ? (
+            <button type="button" onClick={() => window.open(settings.supportUrl, '_blank', 'noopener,noreferrer')}>
+              Desteği Test Et
+            </button>
+          ) : null}
+          <span>Sürüm {settings.appVersion || APP_VERSION}</span>
+        </div>
+
+        <div className="admin-section-title">
+          <strong>Giriş ve uygulama bağlantıları</strong>
+          <span>Bu alanlar giriş ekranı ve ayarlar sayfasında herkese görünür.</span>
+        </div>
+        <label>
+          <span>Telegram Linki</span>
+          <input
+            value={settings.telegramUrl}
+            onChange={(event) => update('telegramUrl', event.target.value)}
+            placeholder="https://t.me/kanaliniz"
+          />
+        </label>
+        <label>
+          <span>Destek / İletişim Linki</span>
+          <input
+            value={settings.supportUrl}
+            onChange={(event) => update('supportUrl', event.target.value)}
+            placeholder="https://t.me/destek veya https://..."
+          />
+        </label>
+        <label>
+          <span>Güncel Sürüm Bilgisi</span>
+          <input
+            value={settings.appVersion}
+            onChange={(event) => update('appVersion', event.target.value)}
+            placeholder="1.0.0"
+          />
+        </label>
+        <label>
+          <span>Giriş Ekranı Duyurusu</span>
+          <textarea
+            value={settings.announcement}
+            onChange={(event) => update('announcement', event.target.value)}
+            placeholder="Giriş ekranında görünecek kısa duyuru"
+          />
+        </label>
+
+        <div className="admin-section-title">
+          <strong>Yayın listeleri</strong>
+          <span>M3U linklerini veya dosyalarını buradan yönet.</span>
         </div>
 
         <label>

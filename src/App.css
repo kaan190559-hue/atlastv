@@ -1434,7 +1434,8 @@
 }
 
 .admin-tools button,
-.admin-tools span {
+.admin-tools span,
+.admin-tool-file {
   min-height: 44px;
   border-radius: 10px;
   border: 1px solid var(--border);
@@ -1443,10 +1444,42 @@
   font-weight: 900;
 }
 
-.admin-tools span {
+.admin-tools span,
+.admin-tool-file {
   display: grid;
   place-items: center;
+}
+
+.admin-tools span {
   color: var(--accent);
+}
+
+.admin-tool-file {
+  cursor: pointer;
+  padding: 0 12px;
+  text-align: center;
+}
+
+.admin-tool-file input {
+  display: none;
+}
+
+.admin-section-title {
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.admin-section-title strong {
+  color: var(--accent);
+  font-size: 14px;
+}
+
+.admin-section-title span {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 750;
 }
 
 .admin-panel label {
@@ -1454,6 +1487,18 @@
   gap: 8px;
   color: var(--text-strong);
   font-weight: 950;
+}
+
+.admin-panel textarea {
+  min-height: 92px;
+  width: 100%;
+  border: 1px solid var(--input-border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  color: var(--input-text);
+  background: var(--input);
+  font: inherit;
+  resize: vertical;
 }
 
 .admin-actions {
