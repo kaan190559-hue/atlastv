@@ -53,6 +53,7 @@ type Direction = 'up' | 'down' | 'left' | 'right'
 const DEFAULT_PLAYER_USER_AGENT = 'okhttp/4.12.0'
 const CATEGORY_PAGE_SIZE = 60
 const APP_VERSION = '0.0.0'
+const LIVE_GITHUB_M3U_URL = 'https://raw.githubusercontent.com/kaan190559-hue/atlastv/master/public/vavoo_full_worker.m3u'
 const APPEARANCE_KEY = 'atlastv.appearance'
 const FOCUSABLE_SELECTOR =
   'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
@@ -418,6 +419,7 @@ function App() {
   }, [heroItems.length])
 
   const closePlayer = useCallback(() => {
+    window.screen.orientation?.unlock?.()
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => undefined)
     }
@@ -816,10 +818,10 @@ function AuthScreen({
         <h2>
           Hesabınıza <span>{isRegister ? 'kayıt olun' : 'giriş yapın'}</span>
         </h2>
-        <input data-autofocus="true" name="email" type="email" placeholder="E-posta adresi" defaultValue="atlas@demo.com" required />
-        <input name="password" type="password" placeholder="Şifre" defaultValue="123456" required minLength={4} />
+        <input data-autofocus="true" name="email" type="email" placeholder="E-posta adresi" required />
+        <input name="password" type="password" placeholder="Şifre" required minLength={4} />
         {isRegister ? (
-          <input name="activationCode" placeholder="Aktivasyon kodu" defaultValue="ATLAS-2026" required />
+          <input name="activationCode" placeholder="Aktivasyon kodu" required />
         ) : null}
 
         <div className="auth-row">
@@ -1000,7 +1002,26 @@ function HomeScreen({
 
   return (
     <>
-      <section className="hero-banner" style={{ backgroundImage: `url(${hero.backdropUrl})` }}>
+      <ContentRail
+        title="Daha Önce İzlediklerim"
+        variant="wide"
+        items={historyItems}
+        onPlay={onPlay}
+        onToggleFavorite={onToggleFavorite}
+      />
+
+      {sections.map((section) => (
+        <ContentRail
+          key={section.id}
+          title={section.title}
+          variant={section.variant}
+          items={section.items}
+          onPlay={onPlay}
+          onToggleFavorite={onToggleFavorite}
+        />
+      ))}
+
+      <section className="hero-banner home-watch-now" style={{ backgroundImage: `url(${hero.backdropUrl})` }}>
         <div className="hero-content">
           <div className="tag-row">
             <span>{hero.category}</span>
@@ -1010,7 +1031,7 @@ function HomeScreen({
           <h1>{hero.title}</h1>
           <p>{hero.description}</p>
           <div className="hero-actions">
-            <button data-autofocus="true" type="button" className="watch-button" onClick={() => onPlay(hero)}>
+            <button type="button" className="watch-button" onClick={() => onPlay(hero)}>
               <Play /> İzle
             </button>
             <button type="button" className="detail-button">
@@ -1030,25 +1051,6 @@ function HomeScreen({
           ))}
         </div>
       </section>
-
-      <ContentRail
-        title="Daha Önce İzlediklerim"
-        variant="wide"
-        items={historyItems}
-        onPlay={onPlay}
-        onToggleFavorite={onToggleFavorite}
-      />
-
-      {sections.map((section) => (
-        <ContentRail
-          key={section.id}
-          title={section.title}
-          variant={section.variant}
-          items={section.items}
-          onPlay={onPlay}
-          onToggleFavorite={onToggleFavorite}
-        />
-      ))}
     </>
   )
 }
@@ -1676,6 +1678,25 @@ function AdminPanel({
     setStatus(`${file.name} yüklendi. Kaydetmeyi unutma.`)
   }
 
+  const fillLiveGithubSource = () => {
+    setSettings((current) => ({ ...current, liveM3uUrl: LIVE_GITHUB_M3U_URL }))
+    setStatus('GitHub canlı TV M3U linki eklendi. Kaydetmeyi unutma.')
+  }
+
+  const clearLocalCache = () => {
+    Object.keys(window.localStorage)
+      .filter((key) => key.startsWith('atlastv.'))
+      .forEach((key) => window.localStorage.removeItem(key))
+    setStatus('Bu cihazdaki AtlasTV önbelleği temizlendi.')
+  }
+
+  const copyLiveGithubSource = () => {
+    navigator.clipboard?.writeText(LIVE_GITHUB_M3U_URL).then(
+      () => setStatus('Canlı M3U linki kopyalandı.'),
+      () => setStatus(LIVE_GITHUB_M3U_URL),
+    )
+  }
+
   const save = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setIsSaving(true)
@@ -1707,6 +1728,22 @@ function AdminPanel({
             <p>Gizli Yönetim</p>
             <h2>IPTV Liste Paneli</h2>
           </div>
+        </div>
+
+        <div className="admin-tools" aria-label="Hızlı admin araçları">
+          <button type="button" onClick={fillLiveGithubSource}>
+            GitHub Canlı M3U Kullan
+          </button>
+          <button type="button" onClick={copyLiveGithubSource}>
+            Canlı Linki Kopyala
+          </button>
+          <button type="button" onClick={() => window.open('https://atlastv.onrender.com', '_blank', 'noopener,noreferrer')}>
+            Siteyi Aç
+          </button>
+          <button type="button" onClick={clearLocalCache}>
+            Bu Cihaz Önbelleğini Temizle
+          </button>
+          <span>Sürüm {APP_VERSION}</span>
         </div>
 
         <label>
@@ -1846,9 +1883,12 @@ function PlayerOverlay({
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => undefined)
+      window.screen.orientation?.unlock?.()
       return
     }
-    stageRef.current?.requestFullscreen?.().catch(() => undefined)
+    stageRef.current?.requestFullscreen?.().then(() => {
+      window.screen.orientation?.lock?.('landscape').catch(() => undefined)
+    }).catch(() => undefined)
   }
 
   useEffect(() => {
@@ -1907,7 +1947,20 @@ function PlayerOverlay({
   }, [onPlayingChange, proxiedStreamUrl])
 
   useEffect(() => {
-    stageRef.current?.requestFullscreen?.().catch(() => undefined)
+    const isMobile = window.matchMedia('(max-width: 900px), (pointer: coarse)').matches
+    const stage = stageRef.current
+    if (!stage) return undefined
+
+    const enterImmersive = () => {
+      stage.requestFullscreen?.().then(() => {
+        if (isMobile) window.screen.orientation?.lock?.('landscape').catch(() => undefined)
+      }).catch(() => undefined)
+    }
+
+    enterImmersive()
+    return () => {
+      window.screen.orientation?.unlock?.()
+    }
   }, [])
 
   useEffect(() => {

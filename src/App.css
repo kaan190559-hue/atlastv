@@ -628,6 +628,11 @@
   isolation: isolate;
 }
 
+.home-watch-now {
+  margin-top: 56px;
+  margin-bottom: 0;
+}
+
 .hero-banner::before {
   content: "";
   position: absolute;
@@ -1370,6 +1375,32 @@
 .admin-title h2 {
   margin-top: 2px;
   font-size: clamp(28px, 4vw, 42px);
+}
+
+.admin-tools {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
+}
+
+.admin-tools button,
+.admin-tools span {
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  color: var(--text-strong);
+  font-weight: 900;
+}
+
+.admin-tools span {
+  display: grid;
+  place-items: center;
+  color: var(--accent);
 }
 
 .admin-panel label {
