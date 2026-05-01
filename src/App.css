@@ -628,11 +628,6 @@
   isolation: isolate;
 }
 
-.home-watch-now {
-  margin-top: 56px;
-  margin-bottom: 0;
-}
-
 .hero-banner::before {
   content: "";
   position: absolute;

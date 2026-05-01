@@ -999,29 +999,12 @@ function HomeScreen({
   onToggleFavorite: (item: ContentItem) => void
 }) {
   const historyItems = uniqueById(sections.flatMap((section) => section.items).filter((item) => item.progress))
+  const trendSection = sections.find((section) => section.id === 'trend')
+  const regularSections = sections.filter((section) => section.id !== 'trend')
 
   return (
     <>
-      <ContentRail
-        title="Daha Önce İzlediklerim"
-        variant="wide"
-        items={historyItems}
-        onPlay={onPlay}
-        onToggleFavorite={onToggleFavorite}
-      />
-
-      {sections.map((section) => (
-        <ContentRail
-          key={section.id}
-          title={section.title}
-          variant={section.variant}
-          items={section.items}
-          onPlay={onPlay}
-          onToggleFavorite={onToggleFavorite}
-        />
-      ))}
-
-      <section className="hero-banner home-watch-now" style={{ backgroundImage: `url(${hero.backdropUrl})` }}>
+      <section className="hero-banner" style={{ backgroundImage: `url(${hero.backdropUrl})` }}>
         <div className="hero-content">
           <div className="tag-row">
             <span>{hero.category}</span>
@@ -1031,7 +1014,7 @@ function HomeScreen({
           <h1>{hero.title}</h1>
           <p>{hero.description}</p>
           <div className="hero-actions">
-            <button type="button" className="watch-button" onClick={() => onPlay(hero)}>
+            <button data-autofocus="true" type="button" className="watch-button" onClick={() => onPlay(hero)}>
               <Play /> İzle
             </button>
             <button type="button" className="detail-button">
@@ -1051,6 +1034,35 @@ function HomeScreen({
           ))}
         </div>
       </section>
+
+      <ContentRail
+        title="Daha Önce İzlediklerim"
+        variant="wide"
+        items={historyItems}
+        onPlay={onPlay}
+        onToggleFavorite={onToggleFavorite}
+      />
+
+      {regularSections.map((section) => (
+        <ContentRail
+          key={section.id}
+          title={section.title}
+          variant={section.variant}
+          items={section.items}
+          onPlay={onPlay}
+          onToggleFavorite={onToggleFavorite}
+        />
+      ))}
+
+      {trendSection ? (
+        <ContentRail
+          title={trendSection.title}
+          variant={trendSection.variant}
+          items={trendSection.items}
+          onPlay={onPlay}
+          onToggleFavorite={onToggleFavorite}
+        />
+      ) : null}
     </>
   )
 }
