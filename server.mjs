@@ -20,6 +20,7 @@ const METADATA_PATH = '/__atlas_metadata'
 const ADMIN_SETTINGS_PATH = '/__atlas_admin_settings'
 const ADMIN_AUTH_PATH = '/__atlas_admin_auth'
 const USER_STATS_PATH = '/__atlas_user_stats'
+const CACHE_CONTROL_PATH = '/__atlas_cache_control'
 const DEFAULT_USER_AGENT = 'okhttp/4.12.0'
 const ADMIN_PASSWORD = process.env.ATLAS_ADMIN_PASSWORD || '190559'
 const TMDB_API_KEY = process.env.TMDB_API_KEY || ''
@@ -55,6 +56,11 @@ const liveCatalogCache = new Map()
 const liveCatalogPromise = new Map()
 const metadataCache = new Map()
 const activeUsers = new Map()
+const cacheBotState = {
+  isRunning: false,
+  lastRunAt: '',
+  lastMessage: 'Katalog botu henüz çalıştırılmadı.',
+}
 const ACTIVE_USER_WINDOW_MS = 2 * 60 * 1000
 const PRESET_GENRES = [
   'Aksiyon',
@@ -273,6 +279,84 @@ async function writeMediaDiskCache(bucket, key, value) {
   } catch (error) {
     console.warn('Media disk cache yazılamadı.', error)
   }
+}
+
+async function getMediaCacheStatus() {
+  let diskBuckets = []
+  try {
+    const parsed = JSON.parse(await readFile(MEDIA_CACHE_FILE, 'utf8'))
+    diskBuckets = Object.keys(parsed ?? {})
+  } catch {
+    diskBuckets = []
+  }
+
+  return {
+    ...cacheBotState,
+    memory: {
+      vod: catalogCache.size,
+      vodGrouped: groupedCatalogCache.size,
+      live: liveCatalogCache.size,
+      metadata: metadataCache.size,
+    },
+    diskBuckets,
+  }
+}
+
+async function runMediaCacheBot() {
+  if (cacheBotState.isRunning) return
+  cacheBotState.isRunning = true
+  cacheBotState.lastMessage = 'Katalog botu çalışıyor.'
+  try {
+    const settings = await readAdminSettings()
+    const results = await Promise.allSettled([
+      loadGroupedServerCatalog(settings.vodM3uUrl || VOD_M3U_URL, settings.updatedAt || ''),
+      loadLiveServerCatalog(settings.liveM3uUrl || LIVE_M3U_URL, settings.updatedAt || '', 'live'),
+      settings.sportsM3uUrl ? loadLiveServerCatalog(settings.sportsM3uUrl, settings.updatedAt || '', 'sports') : Promise.resolve([]),
+    ])
+    const okCount = results.filter((result) => result.status === 'fulfilled').length
+    cacheBotState.lastRunAt = new Date().toISOString()
+    cacheBotState.lastMessage = `${okCount}/${results.length} katalog önbelleğe alındı.`
+  } catch (error) {
+    cacheBotState.lastMessage = error instanceof Error ? error.message : 'Katalog botu tamamlanamadı.'
+  } finally {
+    cacheBotState.isRunning = false
+  }
+}
+
+async function handleCacheControl(req, res) {
+  if (req.method === 'GET') {
+    sendJson(res, await getMediaCacheStatus())
+    return
+  }
+
+  if (req.method !== 'POST') {
+    send(res, 405, 'Method not allowed')
+    return
+  }
+
+  const body = await readJsonBody(req)
+  if (body.password !== ADMIN_PASSWORD) {
+    sendJson(res, { ok: false }, 401)
+    return
+  }
+
+  if (body.action === 'clear') {
+    clearMediaCaches()
+    await mkdir(DATA_DIR, { recursive: true })
+    await writeFile(MEDIA_CACHE_FILE, '{}\n')
+    cacheBotState.lastRunAt = new Date().toISOString()
+    cacheBotState.lastMessage = 'Sunucu katalog önbelleği temizlendi.'
+    sendJson(res, await getMediaCacheStatus())
+    return
+  }
+
+  if (body.action === 'warm') {
+    void runMediaCacheBot()
+    sendJson(res, await getMediaCacheStatus())
+    return
+  }
+
+  sendJson(res, await getMediaCacheStatus())
 }
 
 async function handleAdminSettings(req, res) {
@@ -1241,6 +1325,10 @@ const server = createServer(async (req, res) => {
     }
     if (requestUrl.pathname === USER_STATS_PATH) {
       await handleUserStats(req, res)
+      return
+    }
+    if (requestUrl.pathname === CACHE_CONTROL_PATH) {
+      await handleCacheControl(req, res)
       return
     }
     if (requestUrl.pathname === CATALOG_PATH) {

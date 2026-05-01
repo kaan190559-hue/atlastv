@@ -39,6 +39,7 @@ import {
   type AdminSettings,
   type AtlasUser,
   type AuthResult,
+  type CacheBotStatus,
   type CategoryKey,
   type ContentItem,
   type ContentMetadata,
@@ -50,17 +51,25 @@ import './App.css'
 
 type Screen = CategoryKey
 type Theme = 'dark' | 'light'
-type AuthMode = 'login' | 'register'
+type AuthMode = 'login' | 'register' | 'forgot'
 type Direction = 'up' | 'down' | 'left' | 'right'
 
 const DEFAULT_PLAYER_USER_AGENT = 'okhttp/4.12.0'
-const CATEGORY_PAGE_SIZE = 90
-const VOD_CATEGORY_PAGE_SIZE = 120
+const CATEGORY_PAGE_SIZE = 60
+const VOD_CATEGORY_PAGE_SIZE = 60
 const APP_VERSION = '0.0.0'
 const LIVE_GITHUB_M3U_URL = 'https://raw.githubusercontent.com/kaan190559-hue/atlastv/master/public/vavoo_full_worker.m3u'
 const APPEARANCE_KEY = 'atlastv.appearance'
 const FOCUSABLE_SELECTOR =
   'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
+
+const securityQuestions = [
+  'İlk evcil hayvanının adı',
+  'Tuttuğun takım',
+  'Doğduğun şehir',
+  'En sevdiğin film',
+  'İlk okulunun adı',
+]
 
 const navItems: Array<{ id: Screen; label: string; icon: typeof Home }> = [
   { id: 'home', label: 'Anasayfa', icon: Home },
@@ -307,11 +316,15 @@ function useSpatialNavigation(resetKey: string) {
         target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement
       const directionByKey: Record<string, Direction> = {
         ArrowUp: 'up',
+        Up: 'up',
         ArrowDown: 'down',
+        Down: 'down',
         ArrowLeft: 'left',
+        Left: 'left',
         ArrowRight: 'right',
+        Right: 'right',
       }
-      const direction = directionByKey[event.key]
+      const direction = directionByKey[event.key] ?? directionByKey[event.code]
 
       if (direction) {
         if (isTextInput && (direction === 'left' || direction === 'right')) return
@@ -332,7 +345,7 @@ function useSpatialNavigation(resetKey: string) {
         return
       }
 
-      if (event.key === 'Enter' || event.key === 'OK' || event.key === 'Select') {
+      if (event.key === 'Enter' || event.key === 'OK' || event.key === 'Select' || event.code === 'NumpadEnter') {
         const active = document.activeElement
         if (
           active instanceof HTMLElement &&
@@ -411,8 +424,22 @@ function App() {
   useEffect(() => {
     if (!isAuthed) return
 
-    api.content.getHeroItems().then(setHeroItems)
-    api.content.getHomeSections().then(setHomeSections)
+    let isActive = true
+    api.content.getHeroItems().then((items) => {
+      if (isActive) setHeroItems(items)
+    })
+    api.content.getHomeSections().then((sections) => {
+      if (isActive) setHomeSections(sections)
+    })
+    api.content.getHeroItemsFresh().then((items) => {
+      if (isActive) setHeroItems(items)
+    })
+    api.content.getHomeSectionsFresh().then((sections) => {
+      if (isActive) setHomeSections(sections)
+    })
+    return () => {
+      isActive = false
+    }
   }, [isAuthed])
 
   useEffect(() => {
@@ -464,7 +491,7 @@ function App() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' || event.key === 'Backspace') {
+      if (['Escape', 'Backspace', 'BrowserBack', 'GoBack'].includes(event.key) || event.code === 'BrowserBack') {
         if (playerItem) {
           event.preventDefault()
           closePlayer()
@@ -538,6 +565,8 @@ function App() {
     const form = new FormData(event.currentTarget)
     const email = String(form.get('email') ?? '')
     const password = String(form.get('password') ?? '')
+    const securityQuestion = String(form.get('securityQuestion') ?? '')
+    const securityAnswer = String(form.get('securityAnswer') ?? '')
     const remember = form.get('remember') === 'on'
 
     let result: AuthResult
@@ -545,8 +574,10 @@ function App() {
       setAuthError('')
       result =
         authMode === 'register'
-          ? await api.auth.register(email, password)
-          : await api.auth.login(email, password, remember)
+          ? await api.auth.register(email, password, '', securityQuestion, securityAnswer)
+          : authMode === 'forgot'
+            ? await api.auth.resetPassword(email, securityQuestion, securityAnswer, password)
+            : await api.auth.login(email, password, remember)
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Giriş işlemi başarısız.')
       return
@@ -873,6 +904,7 @@ function AuthScreen({
   onThemeToggle: () => void
 }) {
   const isRegister = mode === 'register'
+  const isForgot = mode === 'forgot'
   const telegramUrl = settings?.telegramUrl || 'https://t.me/'
   const announcement = settings?.announcement || 'Güncel sürüm, duyurular, özel içerikler ve destek için kanalımızı takip edin.'
   const version = settings?.appVersion || APP_VERSION
@@ -901,20 +933,39 @@ function AuthScreen({
 
       <form className="auth-card" onSubmit={onSubmit}>
         <h2>
-          Hesabınıza <span>{isRegister ? 'kayıt olun' : 'giriş yapın'}</span>
+          {isForgot ? 'Şifrenizi ' : 'Hesabınıza '}
+          <span>{isForgot ? 'yenileyin' : isRegister ? 'kayıt olun' : 'giriş yapın'}</span>
         </h2>
         <input data-autofocus="true" name="email" type="email" placeholder="E-posta adresi" required />
-        <input name="password" type="password" placeholder="Şifre" required minLength={4} />
+        <input name="password" type="password" placeholder={isForgot ? 'Yeni şifre' : 'Şifre'} required minLength={4} />
 
-        <div className="auth-row">
-          <label>
-            <input name="remember" type="checkbox" /> Beni hatırla
-          </label>
-          <button type="button">Şifremi unuttum?</button>
-        </div>
+        {isRegister || isForgot ? (
+          <>
+            <select name="securityQuestion" required defaultValue="">
+              <option value="" disabled>
+                Güvenlik sorusu seç
+              </option>
+              {securityQuestions.map((question) => (
+                <option key={question} value={question}>
+                  {question}
+                </option>
+              ))}
+            </select>
+            <input name="securityAnswer" placeholder="Güvenlik cevabı" required minLength={2} />
+          </>
+        ) : null}
+
+        {!isForgot ? (
+          <div className="auth-row">
+            <label>
+              <input name="remember" type="checkbox" /> Beni hatırla
+            </label>
+            <button type="button" onClick={() => onModeChange('forgot')}>Şifremi unuttum?</button>
+          </div>
+        ) : null}
 
         <button className="primary-action" type="submit">
-          {isRegister ? 'Kayıt Ol' : 'Giriş Yap'} →
+          {isForgot ? 'Şifreyi Yenile' : isRegister ? 'Kayıt Ol' : 'Giriş Yap'} →
         </button>
 
         {error ? <p className="auth-error">{error}</p> : null}
@@ -923,9 +974,9 @@ function AuthScreen({
           <span>veya</span>
         </div>
         <p className="auth-switch">
-          {isRegister ? 'Zaten hesabın var mı?' : 'Hesabın yok mu?'}
-          <button type="button" onClick={() => onModeChange(isRegister ? 'login' : 'register')}>
-            {isRegister ? 'Giriş yap' : 'Kayıt ol'}
+          {isForgot ? 'Şifreni hatırladın mı?' : isRegister ? 'Zaten hesabın var mı?' : 'Hesabın yok mu?'}
+          <button type="button" onClick={() => onModeChange(isForgot || isRegister ? 'login' : 'register')}>
+            {isForgot || isRegister ? 'Giriş yap' : 'Kayıt ol'}
           </button>
         </p>
       </form>
@@ -1914,10 +1965,18 @@ function AdminPanel({
   const [status, setStatus] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [userStats, setUserStats] = useState<UserStats>({ totalUsers: 0, activeUsers: 0, rememberedUsers: 0 })
+  const [cacheStatus, setCacheStatus] = useState<CacheBotStatus>({
+    isRunning: false,
+    lastRunAt: '',
+    lastMessage: '',
+    memory: {},
+    diskBuckets: [],
+  })
 
   useEffect(() => {
     api.admin.getSettings().then(setSettings)
     api.admin.getUserStats().then(setUserStats)
+    api.admin.getCacheStatus().then(setCacheStatus).catch(() => undefined)
   }, [])
 
   const update = (key: keyof AdminSettings, value: string) => {
@@ -1956,6 +2015,25 @@ function AdminPanel({
     } catch {
       setStatus('İzleme geçmişi temizlenemedi.')
     }
+  }
+
+  const runCatalogBot = async () => {
+    setStatus('Katalog botu başlatıldı. Büyük listelerde birkaç dakika sürebilir.')
+    const nextStatus = await api.admin.runCatalogBot(adminPassword)
+    setCacheStatus(nextStatus)
+  }
+
+  const clearServerCache = async () => {
+    setStatus('Sunucu katalog önbelleği temizleniyor.')
+    const nextStatus = await api.admin.clearServerCache(adminPassword)
+    setCacheStatus(nextStatus)
+    setStatus('Sunucu katalog önbelleği temizlendi.')
+  }
+
+  const refreshCacheStatus = async () => {
+    const nextStatus = await api.admin.getCacheStatus()
+    setCacheStatus(nextStatus)
+    setStatus(nextStatus.lastMessage || 'Katalog botu durumu güncellendi.')
   }
 
   const exportSettings = () => {
@@ -2024,6 +2102,17 @@ function AdminPanel({
           <span>Aktif {userStats.activeUsers}</span>
           <span>Toplam Üye {userStats.totalUsers}</span>
           <span>Hatırlanan {userStats.rememberedUsers}</span>
+          <span>Bot {cacheStatus.isRunning ? 'Çalışıyor' : 'Hazır'}</span>
+          <span>Cache {cacheStatus.diskBuckets.length || Object.values(cacheStatus.memory).reduce((sum, value) => sum + value, 0)}</span>
+          <button type="button" onClick={runCatalogBot}>
+            Katalog Botunu Çalıştır
+          </button>
+          <button type="button" onClick={refreshCacheStatus}>
+            Bot Durumu
+          </button>
+          <button type="button" onClick={clearServerCache}>
+            Sunucu Cache Temizle
+          </button>
           <button type="button" onClick={fillLiveGithubSource}>
             GitHub Canlı M3U Kullan
           </button>

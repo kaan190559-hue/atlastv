@@ -121,7 +121,8 @@
   font-size: clamp(30px, 5vw, 42px);
 }
 
-.auth-card input {
+.auth-card input,
+.auth-card select {
   width: 100%;
   min-height: 66px;
   margin-bottom: 18px;
@@ -609,6 +610,7 @@
 .episode-list button:focus-visible,
 .load-more-row button:focus-visible,
 .auth-card input:focus-visible,
+.auth-card select:focus-visible,
 .search-box input:focus-visible {
   transform: translateY(-2px) scale(1.03);
 }

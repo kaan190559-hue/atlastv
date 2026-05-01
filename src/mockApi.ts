@@ -108,6 +108,8 @@ export type AtlasUser = {
   email: string
   name: string
   activationCode: string
+  securityQuestion?: string
+  securityAnswer?: string
   createdAt?: string
   remember: boolean
   onboardingCompleted: boolean
@@ -132,6 +134,14 @@ export type UserStats = {
   totalUsers: number
   activeUsers: number
   rememberedUsers: number
+}
+
+export type CacheBotStatus = {
+  isRunning: boolean
+  lastRunAt: string
+  lastMessage: string
+  memory: Record<string, number>
+  diskBuckets: string[]
 }
 
 const VOD_M3U_URL = 'https://file.garden/Z-hq5n4Shk27aY58/Wars-vod-iptv.m3u'
@@ -235,9 +245,12 @@ const SESSION_KEY = 'atlastv.sessionId'
 const ADMIN_SETTINGS_KEY = 'atlastv.adminSettings'
 const CONTENT_PAGE_CACHE_PREFIX = 'atlastv.contentPage.'
 const CONTENT_PAGE_CACHE_TTL = 10 * 60 * 1000
+const HOME_SECTIONS_CACHE_KEY = 'atlastv.homeSections'
+const HERO_ITEMS_CACHE_KEY = 'atlastv.heroItems'
 const ADMIN_SETTINGS_ENDPOINT = '/__atlas_admin_settings'
 const ADMIN_AUTH_ENDPOINT = '/__atlas_admin_auth'
 const USER_STATS_ENDPOINT = '/__atlas_user_stats'
+const CACHE_CONTROL_ENDPOINT = '/__atlas_cache_control'
 
 const defaultAdminSettings: AdminSettings = {
   vodM3uUrl: VOD_M3U_URL,
@@ -277,6 +290,25 @@ const cachedFetchJson = async <T,>(url: string, ttl = CONTENT_PAGE_CACHE_TTL): P
     // Storage can be full on TV browsers; the app should still work.
   }
   return value
+}
+
+const readTimedCache = <T,>(key: string, ttl = CONTENT_PAGE_CACHE_TTL): T | null => {
+  try {
+    const cached = window.sessionStorage.getItem(key)
+    if (!cached) return null
+    const parsed = JSON.parse(cached) as { savedAt: number; value: T }
+    return Date.now() - parsed.savedAt < ttl ? parsed.value : null
+  } catch {
+    return null
+  }
+}
+
+const writeTimedCache = <T,>(key: string, value: T) => {
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), value }))
+  } catch {
+    // TV browsers can have tiny storage quotas.
+  }
 }
 
 const getUsers = (): Array<AtlasUser & { password?: string }> => {
@@ -409,6 +441,16 @@ const postAdminSettings = async (payload: { settings?: AdminSettings; reset?: bo
   return settings
 }
 
+const postCacheControl = async (action: 'status' | 'warm' | 'clear', password = ''): Promise<CacheBotStatus> => {
+  const response = await fetch(CACHE_CONTROL_ENDPOINT, {
+    method: action === 'status' ? 'GET' : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: action === 'status' ? undefined : JSON.stringify({ action, password }),
+  })
+  if (!response.ok) throw new Error(`Katalog botu yanıt vermedi: ${response.status}`)
+  return (await response.json()) as CacheBotStatus
+}
+
 const clearCatalogCaches = () => {
   vodCatalogCache = null
   vodCatalogPromise = null
@@ -442,12 +484,23 @@ const updateCurrentUser = (updater: (user: AtlasUser & { password?: string }) =>
   return updated
 }
 
-const createUser = (email: string, password: string, activationCode: string, remember: boolean): AtlasUser & { password: string } => ({
+const normalizeSecurityAnswer = (value = '') => value.trim().toLocaleLowerCase('tr-TR')
+
+const createUser = (
+  email: string,
+  password: string,
+  activationCode: string,
+  remember: boolean,
+  securityQuestion = 'Tuttuğun takım',
+  securityAnswer = 'atlas',
+): AtlasUser & { password: string } => ({
   id: `user-${Date.now()}`,
   email,
   password,
   name: email.split('@')[0] || 'Atlas Kullanıcısı',
   activationCode,
+  securityQuestion,
+  securityAnswer: normalizeSecurityAnswer(securityAnswer),
   createdAt: new Date().toISOString(),
   remember,
   onboardingCompleted: false,
@@ -744,6 +797,19 @@ const rememberPicked = (ids: Set<string>, items: ContentItem[]) => {
   items.forEach((item) => ids.add(item.id))
 }
 
+const matchesAnyTerm = (item: ContentItem, terms: string[]) => {
+  const haystack = `${item.title} ${item.displayTitle ?? ''} ${item.category} ${item.genre ?? ''}`
+    .toLocaleLowerCase('tr-TR')
+  return terms.some((term) => haystack.includes(term.toLocaleLowerCase('tr-TR')))
+}
+
+const buildGenreSection = (vod: ContentItem[], id: string, title: string, terms: string[], pickedIds: Set<string>): HomeSection => ({
+  id,
+  title,
+  variant: 'poster',
+  items: takeRandomContent(vod.filter((item) => matchesAnyTerm(item, terms)), 15, pickedIds),
+})
+
 const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: ContentItem[] = []): HomeSection[] => {
   const vod = catalog.filter((item) => !item.isLive)
   const series = vod.filter((item) => item.type === 'series')
@@ -758,6 +824,13 @@ const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: Content
   const top = takeRandomContent(vod, 10, pickedIds)
   rememberPicked(pickedIds, top)
   const admin = takeRandomContent(vod, 14, pickedIds)
+  const genreSections = [
+    buildGenreSection(vod, 'komedi', 'Komedi', ['komedi', 'comedy'], pickedIds),
+    buildGenreSection(vod, 'macera', 'Macera', ['macera', 'adventure'], pickedIds),
+    buildGenreSection(vod, 'aksiyon', 'Aksiyon', ['aksiyon', 'action'], pickedIds),
+    buildGenreSection(vod, 'korku', 'Korku', ['korku', 'horror'], pickedIds),
+    buildGenreSection(vod, 'yerli', 'Yerli', ['yerli', 'turk', 'türk', 'tr '], pickedIds),
+  ].filter((section) => section.items.length)
 
   return [
     {
@@ -796,6 +869,7 @@ const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: Content
       variant: 'wide',
       items: newSeries,
     },
+    ...genreSections,
     {
       id: 'recommended',
       title: 'Önerilen İçerikler',
@@ -815,6 +889,25 @@ const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: Content
       items: admin,
     },
   ]
+}
+
+const getFallbackHomeCatalog = () => [...fallbackVodCatalog, ...liveCatalog]
+
+const buildFreshHomeSections = async () => {
+  const catalog = await getVodCatalog()
+  const settings = await getAdminSettings()
+  const hasSportsSource = Boolean(settings.sportsM3uUrl.trim() || settings.sportsM3uContent?.trim())
+  const sports = hasSportsSource ? await loadSportsCatalog(0, 24).catch(() => ({ items: [], total: 0 })) : { items: [], total: 0 }
+  const sections = getHomeSectionsFromCatalog(catalog, sports.items)
+  writeTimedCache(HOME_SECTIONS_CACHE_KEY, sections)
+  return sections
+}
+
+const buildFreshHeroItems = async () => {
+  const catalog = await getVodCatalog()
+  const items = takeRandomContent(catalog.filter((item) => !item.isLive), 6)
+  writeTimedCache(HERO_ITEMS_CACHE_KEY, items)
+  return items
 }
 
 export const api = {
@@ -837,16 +930,32 @@ export const api = {
       void reportUserEvent('login', updated)
       return withLatency({ user: updated, needsOnboarding: !updated.onboardingCompleted })
     },
-    register: (email: string, password: string, activationCode = ''): Promise<AuthResult> => {
+    register: (email: string, password: string, activationCode = '', securityQuestion = '', securityAnswer = ''): Promise<AuthResult> => {
       const users = getUsers()
       if (users.some((entry) => entry.email.toLocaleLowerCase('tr-TR') === email.toLocaleLowerCase('tr-TR'))) {
         return Promise.reject(new Error('Bu e-posta ile zaten kayıt var.'))
       }
-      const user = createUser(email, password, activationCode, true)
+      if (!securityQuestion || !securityAnswer.trim()) {
+        return Promise.reject(new Error('Güvenlik sorusu ve cevabı zorunlu.'))
+      }
+      const user = createUser(email, password, activationCode, true, securityQuestion, securityAnswer)
       saveUsers([...users, user])
       saveCurrentUser(user)
       void reportUserEvent('register', user)
       return withLatency({ user, needsOnboarding: true })
+    },
+    resetPassword: (email: string, securityQuestion: string, securityAnswer: string, newPassword: string): Promise<AuthResult> => {
+      const users = getUsers()
+      const user = users.find((entry) => entry.email.toLocaleLowerCase('tr-TR') === email.toLocaleLowerCase('tr-TR'))
+      if (!user) return Promise.reject(new Error('Bu e-posta ile kayıt bulunamadı.'))
+      if (user.securityQuestion !== securityQuestion || user.securityAnswer !== normalizeSecurityAnswer(securityAnswer)) {
+        return Promise.reject(new Error('Güvenlik cevabı doğru değil.'))
+      }
+      const updated = { ...user, password: newPassword, remember: true }
+      saveUsers(users.map((entry) => (entry.id === updated.id ? updated : entry)))
+      saveCurrentUser(updated)
+      void reportUserEvent('login', updated)
+      return withLatency({ user: updated, needsOnboarding: false })
     },
     completeOnboarding: () =>
       withLatency(updateCurrentUser((user) => ({ ...user, onboardingCompleted: true }))),
@@ -860,11 +969,16 @@ export const api = {
   },
   content: {
     getHomeSections: async () => {
-      const catalog = await getVodCatalog()
-      const settings = await getAdminSettings()
-      const hasSportsSource = Boolean(settings.sportsM3uUrl.trim() || settings.sportsM3uContent?.trim())
-      const sports = hasSportsSource ? await loadSportsCatalog(0, 24).catch(() => ({ items: [], total: 0 })) : { items: [], total: 0 }
-      return withLatency(getHomeSectionsFromCatalog(catalog, sports.items))
+      const cached = readTimedCache<HomeSection[]>(HOME_SECTIONS_CACHE_KEY)
+      return withLatency(cached ?? getHomeSectionsFromCatalog(getFallbackHomeCatalog()))
+    },
+    getHomeSectionsFresh: async () => {
+      try {
+        return withLatency(await buildFreshHomeSections())
+      } catch (error) {
+        console.warn('Ana sayfa katalog yenilemesi tamamlanamadı.', error)
+        return withLatency(readTimedCache<HomeSection[]>(HOME_SECTIONS_CACHE_KEY) ?? getHomeSectionsFromCatalog(getFallbackHomeCatalog()))
+      }
     },
     getCategoryPage: async (
       category: CategoryKey,
@@ -970,8 +1084,16 @@ export const api = {
       )
     },
     getHeroItems: async () => {
-      const catalog = await getVodCatalog()
-      return withLatency(takeRandomContent(catalog.filter((item) => !item.isLive), 6))
+      const cached = readTimedCache<ContentItem[]>(HERO_ITEMS_CACHE_KEY)
+      return withLatency(cached ?? takeRandomContent(fallbackVodCatalog, 6))
+    },
+    getHeroItemsFresh: async () => {
+      try {
+        return withLatency(await buildFreshHeroItems())
+      } catch (error) {
+        console.warn('Hero içerikleri yenilenemedi.', error)
+        return withLatency(readTimedCache<ContentItem[]>(HERO_ITEMS_CACHE_KEY) ?? takeRandomContent(fallbackVodCatalog, 6))
+      }
     },
     getMetadata: async (item: ContentItem) => {
       if (item.isLive) return withLatency(null)
@@ -1024,6 +1146,13 @@ export const api = {
       const settings = await postAdminSettings({ reset: true }, password)
       clearCatalogCaches()
       return withLatency(settings)
+    },
+    getCacheStatus: async () => withLatency(await postCacheControl('status')),
+    runCatalogBot: async (password: string) => withLatency(await postCacheControl('warm', password)),
+    clearServerCache: async (password: string) => {
+      const status = await postCacheControl('clear', password)
+      clearCatalogCaches()
+      return withLatency(status)
     },
   },
   user: {
