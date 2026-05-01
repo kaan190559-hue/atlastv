@@ -722,7 +722,21 @@ function App() {
       />
 
       <main className="page-shell">
-        {detailItem ? (
+        {adminPanelOpen ? (
+          <AdminPanel
+            adminPassword={adminPassword}
+            onClose={() => {
+              setAdminPanelOpen(false)
+              setAdminPassword('')
+            }}
+            onSaved={async () => {
+              await reloadContent()
+              setPublicSettings(await api.admin.getSettings())
+            }}
+          />
+        ) : null}
+
+        {!adminPanelOpen && detailItem ? (
           <DetailPanel
             item={detailItem}
             onClose={() => {
@@ -739,7 +753,7 @@ function App() {
           />
         ) : null}
 
-        {!detailItem && screen === 'home' && hero ? (
+        {!adminPanelOpen && !detailItem && screen === 'home' && hero ? (
           <HomeScreen
             hero={hero}
             heroItems={heroItems}
@@ -755,7 +769,7 @@ function App() {
           />
         ) : null}
 
-        {!detailItem && ['live', 'sports', 'series', 'movies', 'list', 'favorites'].includes(screen) ? (
+        {!adminPanelOpen && !detailItem && ['live', 'sports', 'series', 'movies', 'list', 'favorites'].includes(screen) ? (
           <CategoryScreen
             screen={screen}
             items={categoryItems}
@@ -784,10 +798,10 @@ function App() {
           />
         ) : null}
 
-        {!detailItem && screen === 'account' ? (
+        {!adminPanelOpen && !detailItem && screen === 'account' ? (
           <AccountScreen user={currentUser} onLogout={handleLogout} onPasswordChange={handlePasswordChange} />
         ) : null}
-        {!detailItem && screen === 'about' ? (
+        {!adminPanelOpen && !detailItem && screen === 'about' ? (
           <SettingsScreen
             appearance={appearance}
             settings={publicSettings}
@@ -823,19 +837,6 @@ function App() {
         />
       ) : null}
 
-      {adminPanelOpen ? (
-        <AdminPanel
-          adminPassword={adminPassword}
-          onClose={() => {
-            setAdminPanelOpen(false)
-            setAdminPassword('')
-          }}
-          onSaved={async () => {
-            await reloadContent()
-            setPublicSettings(await api.admin.getSettings())
-          }}
-        />
-      ) : null}
     </div>
   )
 }
@@ -1992,8 +1993,8 @@ function AdminPanel({
   }
 
   return (
-    <section className="admin-overlay" role="dialog" aria-modal="true" aria-label="Admin paneli">
-      <form className="admin-card admin-panel" onSubmit={save}>
+    <section className="admin-page" aria-label="Admin paneli">
+      <form className="admin-card admin-panel admin-page-card" onSubmit={save}>
         <button className="detail-close" type="button" onClick={onClose} aria-label="Admin panelini kapat">
           <X />
         </button>
