@@ -286,6 +286,15 @@ async function writeMediaDiskCache(bucket, key, value) {
   }
 }
 
+async function hasMediaDiskCache(bucket) {
+  try {
+    const parsed = JSON.parse(await readFile(MEDIA_CACHE_FILE, 'utf8'))
+    return Boolean(parsed?.[bucket] && Object.keys(parsed[bucket]).length)
+  } catch {
+    return false
+  }
+}
+
 async function readCacheBotState() {
   try {
     const parsed = JSON.parse(await readFile(CACHE_BOT_STATUS_FILE, 'utf8'))
@@ -362,7 +371,13 @@ async function runMediaCacheBot() {
     const tasks = [
       ['Canlı TV', 60_000, () => loadLiveServerCatalog(settings.liveM3uUrl || LIVE_M3U_URL, settings.updatedAt || '', 'live')],
       ['Spor', 60_000, () => (settings.sportsM3uUrl ? loadLiveServerCatalog(settings.sportsM3uUrl, settings.updatedAt || '', 'sports') : Promise.resolve([]))],
-      ['Dizi/Film', 180_000, () => loadGroupedServerCatalog(settings.vodM3uUrl || VOD_M3U_URL, settings.updatedAt || '')],
+      ['Dizi/Film', 180_000, async () => {
+        const grouped = await loadGroupedServerCatalog(settings.vodM3uUrl || VOD_M3U_URL, settings.updatedAt || '')
+        if (!(await hasMediaDiskCache('vodGrouped'))) {
+          await writeMediaDiskCache('vodGrouped', `${settings.vodM3uUrl || VOD_M3U_URL}::${settings.updatedAt || ''}`, grouped)
+        }
+        return grouped
+      }],
     ]
     const results = []
     for (const [label, timeoutMs, task] of tasks) {
