@@ -22,7 +22,7 @@ const ADMIN_SETTINGS_PATH = '/__atlas_admin_settings'
 const ADMIN_AUTH_PATH = '/__atlas_admin_auth'
 const USER_STATS_PATH = '/__atlas_user_stats'
 const CACHE_CONTROL_PATH = '/__atlas_cache_control'
-const CACHE_BOT_BUILD = 'vod-write-check-v3'
+const CACHE_BOT_BUILD = 'vod-run-now-v4'
 const DEFAULT_USER_AGENT = 'okhttp/4.12.0'
 const ADMIN_PASSWORD = process.env.ATLAS_ADMIN_PASSWORD || '190559'
 const TMDB_API_KEY = process.env.TMDB_API_KEY || ''
@@ -370,7 +370,7 @@ async function getMediaCacheStatus() {
 
 async function runMediaCacheBot() {
   await readCacheBotState()
-  if (cacheBotState.isRunning) return
+  if (cacheBotState.isRunning) return await getMediaCacheStatus()
   await writeCacheBotState({
     isRunning: true,
     startedAt: new Date().toISOString(),
@@ -428,6 +428,7 @@ async function runMediaCacheBot() {
       lastMessage: error instanceof Error ? error.message : 'Katalog botu tamamlanamadı.',
     })
   }
+  return await getMediaCacheStatus()
 }
 
 async function handleCacheControl(req, res) {
@@ -463,6 +464,10 @@ async function handleCacheControl(req, res) {
   }
 
   if (body.action === 'warm') {
+    if (body.wait) {
+      sendJson(res, await runMediaCacheBot())
+      return
+    }
     void runMediaCacheBot()
     sendJson(res, await getMediaCacheStatus())
     return
