@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: atlastv
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: ATLAS_DATA_DIR
+        value: /var/data
+      - key: ATLAS_ADMIN_PASSWORD
+        value: "190559"
+    disk:
+      name: atlas-data
+      mountPath: /var/data
+      sizeGB: 1

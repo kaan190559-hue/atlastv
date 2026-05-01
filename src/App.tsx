@@ -1,0 +1,2065 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
+import Hls from 'hls.js'
+import {
+  BadgeInfo,
+  Clapperboard,
+  Film,
+  Heart,
+  Home,
+  Info,
+  KeyRound,
+  ListVideo,
+  LogOut,
+  Maximize,
+  Moon,
+  Pause,
+  Palette,
+  Play,
+  Power,
+  RotateCcw,
+  RotateCw,
+  Search,
+  Settings,
+  Share2,
+  SlidersHorizontal,
+  Sparkles,
+  Star,
+  Sun,
+  Trophy,
+  Tv,
+  User,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react'
+import {
+  api,
+  type AdminSettings,
+  type AtlasUser,
+  type AuthResult,
+  type CategoryKey,
+  type ContentItem,
+  type HomeSection,
+  type LiveFilterOptions,
+} from './mockApi'
+import './App.css'
+
+type Screen = CategoryKey
+type Theme = 'dark' | 'light'
+type AuthMode = 'login' | 'register'
+type Direction = 'up' | 'down' | 'left' | 'right'
+
+const DEFAULT_PLAYER_USER_AGENT = 'okhttp/4.12.0'
+const CATEGORY_PAGE_SIZE = 60
+const APP_VERSION = '0.0.0'
+const APPEARANCE_KEY = 'atlastv.appearance'
+const FOCUSABLE_SELECTOR =
+  'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
+
+const navItems: Array<{ id: Screen; label: string; icon: typeof Home }> = [
+  { id: 'home', label: 'Anasayfa', icon: Home },
+  { id: 'live', label: 'Canlı Kanallar', icon: Tv },
+  { id: 'sports', label: 'Spor Kanalları', icon: Trophy },
+  { id: 'series', label: 'Dizi', icon: Clapperboard },
+  { id: 'movies', label: 'Film', icon: Film },
+  { id: 'list', label: 'Listem', icon: ListVideo },
+  { id: 'favorites', label: 'Favoriler', icon: Heart },
+  { id: 'account', label: 'Hesabım', icon: User },
+  { id: 'about', label: 'Ayarlar', icon: Settings },
+]
+
+const onboardingSlides = [
+  {
+    title: 'AtlasTv’ye hoş geldin',
+    text: 'Canlı yayın, film ve dizi deneyimini tek ekranda, TV kumandasıyla rahat gezilecek şekilde hazırladık.',
+    image:
+      'https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    title: 'Kumanda ile gez',
+    text: 'Ok tuşlarıyla menülerde, kartlarda ve player kontrollerinde dolaş; Enter ile seç.',
+    image:
+      'https://images.unsplash.com/photo-1593305841991-05c297ba4575?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    title: 'Favorilerini kaydet',
+    text: 'Beğendiğin içerikleri favoriye al. Favoriler hesabına özel saklanır ve ana ekranda görünür.',
+    image:
+      'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    title: 'Kaldığın yerden devam et',
+    text: 'İzlediğin içerikler geçmişine eklenir. Sonra geri döndüğünde devam etmek daha kolay olur.',
+    image:
+      'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    title: 'Netflix tarzı player',
+    text: 'Tam ekran player, gizlenen kontroller, ileri/geri sarma ve ses kontrolleriyle yayına odaklan.',
+    image:
+      'https://images.unsplash.com/photo-1535016120720-40c646be5580?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    title: 'Hazırsan başlayalım',
+    text: 'Bu sunum sadece ilk girişinde gösterilir. Sonraki girişlerinde doğrudan ana sayfaya geçersin.',
+    image:
+      'https://images.unsplash.com/photo-1601944179066-29786cb9d32a?auto=format&fit=crop&w=1200&q=80',
+  },
+]
+
+const categoryTitles: Record<Screen, string> = {
+  home: 'Anasayfa',
+  live: 'Canlı Kanallar',
+  sports: 'Spor Kanalları',
+  series: 'Diziler',
+  movies: 'Filmler',
+  list: 'Listem',
+  favorites: 'Favoriler',
+  account: 'Hesabım',
+  about: 'Ayarlar',
+}
+
+type AppearanceSettings = {
+  accent: string
+  accent2: string
+  cardScale: number
+  cardRadius: number
+  cardGlow: number
+}
+
+const defaultAppearance: AppearanceSettings = {
+  accent: '#00e5ff',
+  accent2: '#ff2f92',
+  cardScale: 1,
+  cardRadius: 16,
+  cardGlow: 1,
+}
+
+function loadAppearanceSettings() {
+  try {
+    const raw = window.localStorage.getItem(APPEARANCE_KEY)
+    return raw ? { ...defaultAppearance, ...(JSON.parse(raw) as Partial<AppearanceSettings>) } : defaultAppearance
+  } catch {
+    return defaultAppearance
+  }
+}
+
+function playStartupTone() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext
+  if (!AudioContextClass) return
+
+  const audio = new AudioContextClass()
+  const gain = audio.createGain()
+  const oscillator = audio.createOscillator()
+
+  oscillator.type = 'sine'
+  oscillator.frequency.setValueAtTime(220, audio.currentTime)
+  oscillator.frequency.exponentialRampToValueAtTime(660, audio.currentTime + 0.22)
+  gain.gain.setValueAtTime(0.001, audio.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.16, audio.currentTime + 0.04)
+  gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.42)
+  oscillator.connect(gain)
+  gain.connect(audio.destination)
+  oscillator.start()
+  oscillator.stop(audio.currentTime + 0.45)
+}
+
+function getProxiedStreamUrl(item: ContentItem) {
+  const userAgent = item.httpUserAgent || DEFAULT_PLAYER_USER_AGENT
+  const params = new URLSearchParams({
+    url: item.streamUrl,
+    ua: userAgent,
+  })
+  if (item.isLive && item.referer) params.set('referer', item.referer)
+  if (item.isLive && item.origin) params.set('origin', item.origin)
+  return `/__atlas_proxy?${params.toString()}`
+}
+
+function uniqueById(items: ContentItem[]) {
+  return [...new Map(items.map((item) => [item.id, item])).values()]
+}
+
+function getCountryFlag(country?: string) {
+  const flagByCountry: Record<string, { code?: string; emoji: string; label: string }> = {
+    Albania: { code: 'al', emoji: '🇦🇱', label: 'Arnavutluk bayrağı' },
+    Arabia: { code: 'sa', emoji: '🇸🇦', label: 'Arabistan bayrağı' },
+    Balkans: { code: 'eu', emoji: '🌍', label: 'Balkanlar' },
+    Bulgaria: { code: 'bg', emoji: '🇧🇬', label: 'Bulgaristan bayrağı' },
+    France: { code: 'fr', emoji: '🇫🇷', label: 'Fransa bayrağı' },
+    Germany: { code: 'de', emoji: '🇩🇪', label: 'Almanya bayrağı' },
+    Italy: { code: 'it', emoji: '🇮🇹', label: 'İtalya bayrağı' },
+    Netherlands: { code: 'nl', emoji: '🇳🇱', label: 'Hollanda bayrağı' },
+    Poland: { code: 'pl', emoji: '🇵🇱', label: 'Polonya bayrağı' },
+    Portugal: { code: 'pt', emoji: '🇵🇹', label: 'Portekiz bayrağı' },
+    Romania: { code: 'ro', emoji: '🇷🇴', label: 'Romanya bayrağı' },
+    Russia: { code: 'ru', emoji: '🇷🇺', label: 'Rusya bayrağı' },
+    Spain: { code: 'es', emoji: '🇪🇸', label: 'İspanya bayrağı' },
+    Turkey: { code: 'tr', emoji: '🇹🇷', label: 'Türkiye bayrağı' },
+    'United Kingdom': { code: 'gb', emoji: '🇬🇧', label: 'Birleşik Krallık bayrağı' },
+    Demo: { emoji: '📺', label: 'Demo kanal' },
+  }
+  const flag = country ? flagByCountry[country] : undefined
+  if (!flag) return null
+  return {
+    ...flag,
+    imageUrl: flag.code ? `https://flagcdn.com/w80/${flag.code}.png` : undefined,
+    backdropUrl: flag.code ? `https://flagcdn.com/w640/${flag.code}.png` : undefined,
+  }
+}
+
+function formatTime(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '00:00'
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remainingSeconds = Math.floor(seconds % 60)
+  const paddedMinutes = String(minutes).padStart(2, '0')
+  const paddedSeconds = String(remainingSeconds).padStart(2, '0')
+  return hours > 0 ? `${hours}:${paddedMinutes}:${paddedSeconds}` : `${paddedMinutes}:${paddedSeconds}`
+}
+
+function isVisible(element: HTMLElement) {
+  const rect = element.getBoundingClientRect()
+  const style = window.getComputedStyle(element)
+  return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none'
+}
+
+function getNavigationRoot() {
+  return (
+    document.querySelector<HTMLElement>('.player-overlay') ??
+    document.querySelector<HTMLElement>('.detail-panel') ??
+    document
+  )
+}
+
+function getFocusableElements(root: ParentNode = document) {
+  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(isVisible)
+}
+
+function focusFirstElement(root: ParentNode = document) {
+  window.setTimeout(() => {
+    const preferred = root.querySelector<HTMLElement>('[data-autofocus="true"]')
+    const target = preferred && isVisible(preferred) ? preferred : getFocusableElements(root)[0]
+    target?.focus()
+  }, 80)
+}
+
+function findNextFocus(current: HTMLElement, direction: Direction, elements: HTMLElement[]) {
+  const currentRect = current.getBoundingClientRect()
+  const currentCenter = {
+    x: currentRect.left + currentRect.width / 2,
+    y: currentRect.top + currentRect.height / 2,
+  }
+
+  let best: { element: HTMLElement; score: number } | null = null
+
+  for (const element of elements) {
+    if (element === current) continue
+    const rect = element.getBoundingClientRect()
+    const center = {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    }
+    const dx = center.x - currentCenter.x
+    const dy = center.y - currentCenter.y
+
+    if (direction === 'right' && dx <= 8) continue
+    if (direction === 'left' && dx >= -8) continue
+    if (direction === 'down' && dy <= 8) continue
+    if (direction === 'up' && dy >= -8) continue
+
+    const primary = direction === 'left' || direction === 'right' ? Math.abs(dx) : Math.abs(dy)
+    const cross = direction === 'left' || direction === 'right' ? Math.abs(dy) : Math.abs(dx)
+    const score = primary * 1.6 + cross
+
+    if (!best || score < best.score) {
+      best = { element, score }
+    }
+  }
+
+  return best?.element
+}
+
+function useSpatialNavigation(resetKey: string) {
+  useEffect(() => {
+    focusFirstElement()
+  }, [resetKey])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const directionByKey: Record<string, Direction> = {
+        ArrowUp: 'up',
+        ArrowDown: 'down',
+        ArrowLeft: 'left',
+        ArrowRight: 'right',
+      }
+      const direction = directionByKey[event.key]
+
+      if (direction) {
+        if (document.querySelector('.player-overlay') && (direction === 'left' || direction === 'right')) {
+          return
+        }
+        const elements = getFocusableElements(getNavigationRoot())
+        if (!elements.length) return
+
+        const active = document.activeElement instanceof HTMLElement ? document.activeElement : null
+        const current = active && elements.includes(active) ? active : elements[0]
+        const next = findNextFocus(current, direction, elements)
+        if (next) {
+          event.preventDefault()
+          next.focus()
+          next.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+        }
+        return
+      }
+
+      if (event.key === 'Enter') {
+        const active = document.activeElement
+        if (active instanceof HTMLElement && active.matches('[tabindex]:not(button):not(input)')) {
+          event.preventDefault()
+          active.click()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+}
+
+function App() {
+  const [isAuthed, setIsAuthed] = useState(false)
+  const [currentUser, setCurrentUser] = useState<AtlasUser | null>(null)
+  const [authMode, setAuthMode] = useState<AuthMode>('login')
+  const [authError, setAuthError] = useState('')
+  const [showSplash, setShowSplash] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [screen, setScreen] = useState<Screen>('home')
+  const [theme, setTheme] = useState<Theme>('dark')
+  const [appearance, setAppearance] = useState<AppearanceSettings>(loadAppearanceSettings)
+  const [search, setSearch] = useState('')
+  const [heroItems, setHeroItems] = useState<ContentItem[]>([])
+  const [heroIndex, setHeroIndex] = useState(0)
+  const [homeSections, setHomeSections] = useState<HomeSection[]>([])
+  const [categoryItems, setCategoryItems] = useState<ContentItem[]>([])
+  const [categoryTotal, setCategoryTotal] = useState(0)
+  const [categoryLoading, setCategoryLoading] = useState(false)
+  const [categoryLoadingMore, setCategoryLoadingMore] = useState(false)
+  const [liveFilters, setLiveFilters] = useState<LiveFilterOptions>({ countries: [], categories: [] })
+  const [liveCountry, setLiveCountry] = useState('')
+  const [liveCategory, setLiveCategory] = useState('')
+  const [playerItem, setPlayerItem] = useState<ContentItem | null>(null)
+  const [detailItem, setDetailItem] = useState<ContentItem | null>(null)
+  const [isPlaying, setIsPlaying] = useState(true)
+  const [adminGateOpen, setAdminGateOpen] = useState(false)
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false)
+  const [adminPassword, setAdminPassword] = useState('')
+  useSpatialNavigation(`${isAuthed}-${authMode}-${screen}-${playerItem?.id ?? 'app'}-${categoryItems[0]?.id ?? 'empty'}`)
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+  }, [theme])
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--accent', appearance.accent)
+    document.documentElement.style.setProperty('--accent-2', appearance.accent2)
+    document.documentElement.style.setProperty('--card-scale', String(appearance.cardScale))
+    document.documentElement.style.setProperty('--card-radius', `${appearance.cardRadius}px`)
+    document.documentElement.style.setProperty('--card-glow', String(appearance.cardGlow))
+    window.localStorage.setItem(APPEARANCE_KEY, JSON.stringify(appearance))
+  }, [appearance])
+
+  useEffect(() => {
+    api.auth.getCurrent().then((user) => {
+      if (!user || !user.remember) return
+      setCurrentUser(user)
+      setIsAuthed(true)
+      setShowOnboarding(!user.onboardingCompleted)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!isAuthed) return
+
+    api.content.getHeroItems().then(setHeroItems)
+    api.content.getHomeSections().then(setHomeSections)
+  }, [isAuthed])
+
+  useEffect(() => {
+    if (!isAuthed || screen === 'home' || screen === 'account' || screen === 'about') return
+    let isActive = true
+    api.content
+      .getCategoryPage(screen, 0, CATEGORY_PAGE_SIZE, search, { country: liveCountry, liveCategory })
+      .then((page) => {
+      if (!isActive) return
+      setCategoryItems(page.items)
+      setCategoryTotal(page.total)
+      if (screen === 'live' || screen === 'sports') {
+        setLiveFilters({
+          countries: page.countries ?? [],
+          categories: page.categories ?? [],
+        })
+      }
+      setCategoryLoading(false)
+    })
+
+    return () => {
+      isActive = false
+    }
+  }, [isAuthed, screen, search, liveCountry, liveCategory])
+
+  useEffect(() => {
+    if (heroItems.length < 2) return
+    const timer = window.setInterval(() => {
+      setHeroIndex((index) => (index + 1) % heroItems.length)
+    }, 5200)
+
+    return () => window.clearInterval(timer)
+  }, [heroItems.length])
+
+  const closePlayer = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => undefined)
+    }
+    setPlayerItem(null)
+  }, [])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' || event.key === 'Backspace') {
+        if (playerItem) {
+          event.preventDefault()
+          closePlayer()
+          return
+        }
+        if (detailItem) {
+          event.preventDefault()
+          setDetailItem(null)
+        }
+      }
+
+      if (event.code === 'Space' && playerItem) {
+        event.preventDefault()
+        setIsPlaying((value) => !value)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [closePlayer, detailItem, playerItem])
+
+  const hero = heroItems[heroIndex] ?? heroItems[0]
+
+  const reloadContent = useCallback(async () => {
+    if (!isAuthed) return
+    setHeroIndex(0)
+    setHeroItems(await api.content.getHeroItems())
+    setHomeSections(await api.content.getHomeSections())
+    if (['live', 'sports', 'series', 'movies', 'list', 'favorites'].includes(screen)) {
+      setCategoryItems([])
+      setCategoryTotal(0)
+      setCategoryLoading(true)
+      const page = await api.content.getCategoryPage(screen, 0, CATEGORY_PAGE_SIZE, search, {
+        country: liveCountry,
+        liveCategory,
+      })
+      setCategoryItems(page.items)
+      setCategoryTotal(page.total)
+      if (screen === 'live' || screen === 'sports') {
+        setLiveFilters({
+          countries: page.countries ?? [],
+          categories: page.categories ?? [],
+        })
+      }
+      setCategoryLoading(false)
+    }
+  }, [isAuthed, liveCategory, liveCountry, screen, search])
+
+  useEffect(() => {
+    const onAdminKeyDown = (event: KeyboardEvent) => {
+      const target = event.target
+      const isTyping =
+        target instanceof HTMLElement &&
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+      if (isTyping || event.key !== '9') return
+      event.preventDefault()
+      setAdminGateOpen(true)
+    }
+
+    window.addEventListener('keydown', onAdminKeyDown)
+    return () => window.removeEventListener('keydown', onAdminKeyDown)
+  }, [])
+
+  const handleAuth = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const email = String(form.get('email') ?? '')
+    const password = String(form.get('password') ?? '')
+    const activationCode = String(form.get('activationCode') ?? '')
+    const remember = form.get('remember') === 'on'
+
+    let result: AuthResult
+    try {
+      setAuthError('')
+      result =
+        authMode === 'register'
+          ? await api.auth.register(email, password, activationCode)
+          : await api.auth.login(email, password, remember)
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Giriş işlemi başarısız.')
+      return
+    }
+
+    playStartupTone()
+    setShowSplash(true)
+    window.setTimeout(() => {
+      setCurrentUser(result.user)
+      setIsAuthed(true)
+      setShowOnboarding(result.needsOnboarding)
+      setShowSplash(false)
+    }, 1600)
+  }
+
+  const toggleFavorite = async (item: ContentItem) => {
+    await api.user.toggleFavorite(item.id)
+    const sections = await api.content.getHomeSections()
+    setHomeSections(sections)
+    setCategoryItems((items) =>
+      screen === 'favorites'
+        ? items.filter((entry) => entry.id !== item.id)
+        : items.map((entry) => (entry.id === item.id ? { ...entry, isFavorite: !entry.isFavorite } : entry)),
+    )
+    setDetailItem((entry) =>
+      entry && entry.id === item.id
+        ? {
+            ...entry,
+            isFavorite: !entry.isFavorite,
+          }
+        : entry,
+    )
+  }
+
+  const toggleList = async (item: ContentItem) => {
+    await api.user.toggleList(item)
+    const sections = await api.content.getHomeSections()
+    setHomeSections(sections)
+    setCategoryItems((items) =>
+      items.map((entry) =>
+        (entry.groupId ?? entry.id) === (item.groupId ?? item.id)
+          ? {
+              ...entry,
+              isInList: !entry.isInList,
+              episodes: entry.episodes?.map((episode) => ({ ...episode, isInList: !entry.isInList })),
+            }
+          : entry,
+      ),
+    )
+    setDetailItem((entry) =>
+      entry && (entry.groupId ?? entry.id) === (item.groupId ?? item.id)
+        ? { ...entry, isInList: !entry.isInList }
+        : entry,
+    )
+  }
+
+  const changeScreen = (next: Screen) => {
+    setScreen(next)
+    setSearch('')
+    setDetailItem(null)
+    if (['live', 'sports', 'series', 'movies', 'list', 'favorites'].includes(next)) {
+      setCategoryItems([])
+      setCategoryLoading(true)
+    }
+  }
+
+  const handleLogout = async () => {
+    await api.auth.logout()
+    setCurrentUser(null)
+    setIsAuthed(false)
+    setScreen('home')
+    setSearch('')
+    setDetailItem(null)
+    setPlayerItem(null)
+  }
+
+  const handlePasswordChange = async (password: string) => {
+    const updated = await api.auth.updatePassword(password)
+    setCurrentUser(updated)
+  }
+
+  const changeSearch = (value: string) => {
+    setSearch(value)
+    if (['live', 'sports', 'series', 'movies', 'list', 'favorites'].includes(screen)) {
+      setCategoryItems([])
+      setCategoryTotal(0)
+      setCategoryLoading(true)
+    }
+  }
+
+  const changeLiveCountry = (country: string) => {
+    setLiveCountry(country)
+    setLiveCategory('')
+    setCategoryItems([])
+    setCategoryTotal(0)
+    if (screen === 'live' || screen === 'sports') setCategoryLoading(true)
+  }
+
+  const changeLiveCategory = (category: string) => {
+    setLiveCategory(category)
+    setCategoryItems([])
+    setCategoryTotal(0)
+    if (screen === 'live' || screen === 'sports') setCategoryLoading(true)
+  }
+
+  const loadMoreCategoryItems = async () => {
+    if (categoryLoadingMore || categoryItems.length >= categoryTotal) return
+    setCategoryLoadingMore(true)
+    const page = await api.content.getCategoryPage(screen, categoryItems.length, CATEGORY_PAGE_SIZE, search, {
+      country: liveCountry,
+      liveCategory,
+    })
+    setCategoryItems((items) => [...items, ...page.items])
+    setCategoryTotal(page.total)
+    setCategoryLoadingMore(false)
+  }
+
+  const openPlayer = (item: ContentItem) => {
+    setIsPlaying(true)
+    api.user.markWatched(item.id, Math.max(item.progress ?? 1, 1)).then(() => {
+      api.content.getHomeSections().then(setHomeSections)
+    })
+    flushSync(() => setPlayerItem(item))
+
+    const player = document.querySelector<HTMLElement>('.player-overlay')
+    player?.requestFullscreen?.().catch(() => {
+      // Browser fullscreen can be blocked; the overlay is still fixed to the viewport.
+    })
+  }
+
+  if (showSplash) {
+    return <SplashScreen />
+  }
+
+  if (isAuthed && showOnboarding) {
+    return (
+      <OnboardingScreen
+        user={currentUser}
+        onFinish={async () => {
+          const updated = await api.auth.completeOnboarding()
+          setCurrentUser(updated)
+          setShowOnboarding(false)
+        }}
+      />
+    )
+  }
+
+  if (!isAuthed) {
+    return (
+      <AuthScreen
+        mode={authMode}
+        onModeChange={setAuthMode}
+        onSubmit={handleAuth}
+        error={authError}
+        theme={theme}
+        onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+      />
+    )
+  }
+
+  return (
+    <div className="app-frame">
+      <TopBar
+        screen={screen}
+        search={search}
+        theme={theme}
+        onScreenChange={changeScreen}
+        onSearchChange={changeSearch}
+        onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        onSettingsOpen={() => changeScreen('about')}
+      />
+
+      <main className="page-shell">
+        {screen === 'home' && hero ? (
+          <HomeScreen
+            hero={hero}
+            heroItems={heroItems}
+            heroIndex={heroIndex}
+            sections={homeSections}
+            onHeroIndex={setHeroIndex}
+            onPlay={openPlayer}
+            onToggleFavorite={toggleFavorite}
+          />
+        ) : null}
+
+        {['live', 'sports', 'series', 'movies', 'list', 'favorites'].includes(screen) ? (
+          <CategoryScreen
+            screen={screen}
+            items={categoryItems}
+            total={categoryTotal}
+            isLoading={categoryLoading}
+            isLoadingMore={categoryLoadingMore}
+            search={search}
+            liveFilters={liveFilters}
+            liveCountry={liveCountry}
+            liveCategory={liveCategory}
+            onSearchChange={changeSearch}
+            onLiveCountryChange={changeLiveCountry}
+            onLiveCategoryChange={changeLiveCategory}
+            onLoadMore={loadMoreCategoryItems}
+            onPlay={setDetailItem}
+            onToggleFavorite={toggleFavorite}
+          />
+        ) : null}
+
+        {screen === 'account' ? (
+          <AccountScreen user={currentUser} onLogout={handleLogout} onPasswordChange={handlePasswordChange} />
+        ) : null}
+        {screen === 'about' ? (
+          <SettingsScreen
+            appearance={appearance}
+            onAppearanceChange={setAppearance}
+            onResetAppearance={() => setAppearance(defaultAppearance)}
+            onCloseApp={() => window.close()}
+          />
+        ) : null}
+      </main>
+
+      <MobileNav screen={screen} onScreenChange={changeScreen} />
+
+      {playerItem ? (
+        <PlayerOverlay
+          item={playerItem}
+          isPlaying={isPlaying}
+          onPlayingChange={setIsPlaying}
+          onClose={closePlayer}
+          onToggleFavorite={() => toggleFavorite(playerItem)}
+        />
+      ) : null}
+
+      {detailItem ? (
+        <DetailPanel
+          item={detailItem}
+          onClose={() => setDetailItem(null)}
+          onPlay={(episode) => {
+            setDetailItem(null)
+            openPlayer(episode)
+          }}
+          onToggleFavorite={toggleFavorite}
+          onToggleList={toggleList}
+        />
+      ) : null}
+
+      {adminGateOpen ? (
+        <AdminGate
+          onClose={() => setAdminGateOpen(false)}
+          onUnlock={(password) => {
+            setAdminPassword(password)
+            setAdminGateOpen(false)
+            setAdminPanelOpen(true)
+          }}
+        />
+      ) : null}
+
+      {adminPanelOpen ? (
+        <AdminPanel
+          adminPassword={adminPassword}
+          onClose={() => {
+            setAdminPanelOpen(false)
+            setAdminPassword('')
+          }}
+          onSaved={reloadContent}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function AuthScreen({
+  mode,
+  theme,
+  error,
+  onModeChange,
+  onSubmit,
+  onThemeToggle,
+}: {
+  mode: AuthMode
+  theme: Theme
+  error: string
+  onModeChange: (mode: AuthMode) => void
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
+  onThemeToggle: () => void
+}) {
+  const isRegister = mode === 'register'
+
+  return (
+    <main className="auth-page">
+      <button className="icon-button auth-theme" type="button" onClick={onThemeToggle} aria-label="Tema değiştir">
+        {theme === 'dark' ? <Sun /> : <Moon />}
+      </button>
+
+      <section className="auth-brand" aria-label="AtlasTv giriş">
+        <h1>
+          Atlas<span>Tv</span>
+        </h1>
+        <p>Premium Yayın Deneyimi</p>
+      </section>
+
+      <aside className="notice-card">
+        <Sparkles />
+        <div>
+          <h2>Telegram hesabımıza katılmayı unutmayın!</h2>
+          <p>Güncel sürüm, duyurular, özel içerikler ve destek için kanalımızı takip edin.</p>
+        </div>
+        <button type="button">Telegram’a Katıl</button>
+      </aside>
+
+      <form className="auth-card" onSubmit={onSubmit}>
+        <h2>
+          Hesabınıza <span>{isRegister ? 'kayıt olun' : 'giriş yapın'}</span>
+        </h2>
+        <input data-autofocus="true" name="email" type="email" placeholder="E-posta adresi" defaultValue="atlas@demo.com" required />
+        <input name="password" type="password" placeholder="Şifre" defaultValue="123456" required minLength={4} />
+        {isRegister ? (
+          <input name="activationCode" placeholder="Aktivasyon kodu" defaultValue="ATLAS-2026" required />
+        ) : null}
+
+        <div className="auth-row">
+          <label>
+            <input name="remember" type="checkbox" /> Beni hatırla
+          </label>
+          <button type="button">Şifremi unuttum?</button>
+        </div>
+
+        <button className="primary-action" type="submit">
+          {isRegister ? 'Kayıt Ol' : 'Giriş Yap'} →
+        </button>
+
+        {error ? <p className="auth-error">{error}</p> : null}
+
+        <div className="divider">
+          <span>veya</span>
+        </div>
+        <p className="auth-switch">
+          {isRegister ? 'Zaten hesabın var mı?' : 'Hesabın yok mu?'}
+          <button type="button" onClick={() => onModeChange(isRegister ? 'login' : 'register')}>
+            {isRegister ? 'Giriş yap' : 'Kayıt ol'}
+          </button>
+        </p>
+      </form>
+
+      <footer className="auth-footer">
+        <BadgeInfo />
+        <p>
+          <strong>Uygulamamız sürekli olarak güncellenmektedir.</strong>
+          <span>En iyi deneyim için AtlasTv’yi güncel tutun.</span>
+        </p>
+      </footer>
+    </main>
+  )
+}
+
+function SplashScreen() {
+  return (
+    <main className="splash-screen">
+      <div className="splash-ring" />
+      <h1>
+        Atlas<span>Tv</span>
+      </h1>
+      <p>Yayın deneyiminiz hazırlanıyor</p>
+    </main>
+  )
+}
+
+function OnboardingScreen({ user, onFinish }: { user: AtlasUser | null; onFinish: () => void }) {
+  const [index, setIndex] = useState(0)
+  const slide = onboardingSlides[index]
+  const isLast = index === onboardingSlides.length - 1
+
+  useEffect(() => {
+    focusFirstElement()
+  }, [index])
+
+  return (
+    <main className="onboarding-screen">
+      <div className="onboarding-bg" />
+      <section className="onboarding-slide">
+        <div className="onboarding-visual" aria-hidden="true">
+          <img src={slide.image} alt="" />
+        </div>
+        <div className="onboarding-copy">
+          <p className="eyebrow">Hoş geldin {user?.name ?? 'Atlas kullanıcısı'}</p>
+          <h1>{slide.title}</h1>
+          <p>{slide.text}</p>
+          <div className="onboarding-dots">
+            {onboardingSlides.map((item, dotIndex) => (
+              <button
+                key={item.title}
+                type="button"
+                aria-label={`${dotIndex + 1}. sunum`}
+                className={dotIndex === index ? 'active' : ''}
+                onClick={() => setIndex(dotIndex)}
+              />
+            ))}
+          </div>
+          <div className="onboarding-actions">
+            <button type="button" disabled={index === 0} onClick={() => setIndex((value) => Math.max(0, value - 1))}>
+              Geri
+            </button>
+            <button
+              data-autofocus="true"
+              className="primary-action"
+              type="button"
+              onClick={() => {
+                if (isLast) {
+                  onFinish()
+                  return
+                }
+                setIndex((value) => value + 1)
+              }}
+            >
+              {isLast ? 'Başlayalım' : 'Devam'}
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function TopBar({
+  screen,
+  search,
+  theme,
+  onScreenChange,
+  onSearchChange,
+  onThemeToggle,
+  onSettingsOpen,
+}: {
+  screen: Screen
+  search: string
+  theme: Theme
+  onScreenChange: (screen: Screen) => void
+  onSearchChange: (value: string) => void
+  onThemeToggle: () => void
+  onSettingsOpen: () => void
+}) {
+  return (
+    <header className="top-bar">
+      <div className="brand-lockup">
+        <button className="icon-button menu-button" type="button" onClick={onSettingsOpen} aria-label="Ayarlar">
+          <Settings />
+        </button>
+        <strong>
+          Atlas<span>Tv</span>
+        </strong>
+      </div>
+
+      <nav className="desktop-nav" aria-label="Ana menü">
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={screen === item.id ? 'active' : ''}
+            onClick={() => onScreenChange(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="top-actions">
+        <label className="search-box">
+          <Search />
+          <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Ara" />
+        </label>
+        <button className="icon-button" type="button" onClick={onThemeToggle} aria-label="Tema değiştir">
+          {theme === 'dark' ? <Sun /> : <Moon />}
+        </button>
+      </div>
+    </header>
+  )
+}
+
+function HomeScreen({
+  hero,
+  heroItems,
+  heroIndex,
+  sections,
+  onHeroIndex,
+  onPlay,
+  onToggleFavorite,
+}: {
+  hero: ContentItem
+  heroItems: ContentItem[]
+  heroIndex: number
+  sections: HomeSection[]
+  onHeroIndex: (index: number) => void
+  onPlay: (item: ContentItem) => void
+  onToggleFavorite: (item: ContentItem) => void
+}) {
+  const historyItems = uniqueById(sections.flatMap((section) => section.items).filter((item) => item.progress))
+
+  return (
+    <>
+      <section className="hero-banner" style={{ backgroundImage: `url(${hero.backdropUrl})` }}>
+        <div className="hero-content">
+          <div className="tag-row">
+            <span>{hero.category}</span>
+            <span>★ {hero.rating}</span>
+            <span>{hero.type === 'series' ? 'Dizi' : hero.type === 'movie' ? 'Film' : 'Canlı'}</span>
+          </div>
+          <h1>{hero.title}</h1>
+          <p>{hero.description}</p>
+          <div className="hero-actions">
+            <button data-autofocus="true" type="button" className="watch-button" onClick={() => onPlay(hero)}>
+              <Play /> İzle
+            </button>
+            <button type="button" className="detail-button">
+              <Info /> Detay
+            </button>
+          </div>
+        </div>
+        <div className="hero-dots">
+          {heroItems.map((item, index) => (
+            <button
+              key={item.id}
+              type="button"
+              aria-label={`${index + 1}. öne çıkan içerik`}
+              className={heroIndex === index ? 'active' : ''}
+              onClick={() => onHeroIndex(index)}
+            />
+          ))}
+        </div>
+      </section>
+
+      <ContentRail
+        title="Daha Önce İzlediklerim"
+        variant="wide"
+        items={historyItems}
+        onPlay={onPlay}
+        onToggleFavorite={onToggleFavorite}
+      />
+
+      {sections.map((section) => (
+        <ContentRail
+          key={section.id}
+          title={section.title}
+          variant={section.variant}
+          items={section.items}
+          onPlay={onPlay}
+          onToggleFavorite={onToggleFavorite}
+        />
+      ))}
+    </>
+  )
+}
+
+function CategoryScreen({
+  screen,
+  items,
+  total,
+  isLoading,
+  isLoadingMore,
+  search,
+  liveFilters,
+  liveCountry,
+  liveCategory,
+  onSearchChange,
+  onLiveCountryChange,
+  onLiveCategoryChange,
+  onLoadMore,
+  onPlay,
+  onToggleFavorite,
+}: {
+  screen: Screen
+  items: ContentItem[]
+  total: number
+  isLoading: boolean
+  isLoadingMore: boolean
+  search: string
+  liveFilters: LiveFilterOptions
+  liveCountry: string
+  liveCategory: string
+  onSearchChange: (value: string) => void
+  onLiveCountryChange: (value: string) => void
+  onLiveCategoryChange: (value: string) => void
+  onLoadMore: () => void
+  onPlay: (item: ContentItem) => void
+  onToggleFavorite: (item: ContentItem) => void
+}) {
+  const hasMore = items.length < total
+  const isLiveLike = screen === 'live' || screen === 'sports'
+
+  return (
+    <section className="category-page">
+      <div className="page-heading">
+        <div>
+          <p>AtlasTv Katalog</p>
+          <h1>{categoryTitles[screen]}</h1>
+        </div>
+        <label className="search-box large">
+          <Search />
+          <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="İçerik ara" />
+        </label>
+      </div>
+
+      {isLiveLike ? (
+        <div className="live-filter-panel">
+          <label className="live-select">
+            <span>Ülke</span>
+            <select value={liveCountry} onChange={(event) => onLiveCountryChange(event.target.value)}>
+              <option value="">Tüm ülkeler</option>
+              {liveFilters.countries.map((country) => (
+                <option key={country} value={country}>
+                  {country}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="live-select">
+            <span>Kategori</span>
+            <select value={liveCategory} onChange={(event) => onLiveCategoryChange(event.target.value)}>
+              <option value="">Tüm kategoriler</option>
+              {liveFilters.categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="live-filter-summary">
+            <span>{liveCountry || 'Tüm ülkeler'}</span>
+            <strong>{total} {screen === 'sports' ? 'spor kanalı' : 'canlı kanal'}</strong>
+          </div>
+        </div>
+      ) : (
+        <div className="filter-row">
+          <button type="button">Tümü</button>
+          <button type="button">Yeni</button>
+          <button type="button">Popüler</button>
+          <button type="button">Yüksek Puan</button>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="content-grid loading-grid" aria-label="İçerikler yükleniyor">
+          {Array.from({ length: 18 }, (_, index) => (
+            <div className="card-skeleton" key={index} />
+          ))}
+        </div>
+      ) : (
+        <>
+        <div className="content-grid">
+          {items.map((item, index) => (
+            <ContentCard
+              key={item.id}
+              item={item}
+              autoFocus={index === 0}
+              variant={isLiveLike ? 'channel' : 'poster'}
+              onPlay={onPlay}
+              onToggleFavorite={onToggleFavorite}
+            />
+          ))}
+        </div>
+        <div className="load-more-row">
+          <span>{items.length} / {total} içerik gösteriliyor</span>
+          {hasMore ? (
+            <button type="button" onClick={onLoadMore} disabled={isLoadingMore}>
+              {isLoadingMore ? 'Yükleniyor...' : 'Daha Fazla Göster'}
+            </button>
+          ) : null}
+        </div>
+        </>
+      )}
+    </section>
+  )
+}
+
+function ContentRail({
+  title,
+  items,
+  variant,
+  onPlay,
+  onToggleFavorite,
+}: {
+  title: string
+  items: ContentItem[]
+  variant: HomeSection['variant']
+  onPlay: (item: ContentItem) => void
+  onToggleFavorite: (item: ContentItem) => void
+}) {
+  if (!items.length) return null
+
+  if (variant === 'trend') {
+    return (
+      <section className="content-rail trend-section">
+        <div className="rail-heading trend-heading">
+          <h2>{title}</h2>
+        </div>
+        <div className="trend-list">
+          {items.map((item, index) => (
+            <button
+              key={`${title}-${item.id}`}
+              type="button"
+              className={`trend-row rank-tone-${Math.min(index + 1, 4)}`}
+              onClick={() => onPlay(item)}
+            >
+              <span className="trend-rank">{index + 1}</span>
+              <img src={item.posterUrl} alt="" loading="lazy" />
+              <span className="trend-copy">
+                <strong>{item.title}</strong>
+                <span>
+                  <Star /> {item.rating} - {item.badge ?? item.category}
+                </span>
+                <small>{item.category}</small>
+              </span>
+              <span className="trend-play" aria-hidden="true">
+                <Play />
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section className="content-rail">
+      <div className="rail-heading">
+        <h2>{title}</h2>
+      </div>
+      <div className={`rail-list ${variant}`}>
+        {items.map((item, index) => (
+          <ContentCard
+            key={`${title}-${item.id}`}
+            item={item}
+            rank={variant === 'ranked' ? index + 1 : undefined}
+            variant={variant}
+            onPlay={onPlay}
+            onToggleFavorite={onToggleFavorite}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function ContentCard({
+  item,
+  variant,
+  rank,
+  autoFocus,
+  onPlay,
+  onToggleFavorite,
+}: {
+  item: ContentItem
+  variant: HomeSection['variant']
+  rank?: number
+  autoFocus?: boolean
+  onPlay: (item: ContentItem) => void
+  onToggleFavorite: (item: ContentItem) => void
+}) {
+  const flag = item.isLive ? getCountryFlag(item.country ?? item.category) : null
+  const cardImage = variant === 'wide' || variant === 'channel' ? item.backdropUrl : item.posterUrl
+
+  return (
+    <article
+      className={`content-card ${variant}`}
+      role="button"
+      tabIndex={0}
+      data-autofocus={autoFocus ? 'true' : undefined}
+      onClick={() => onPlay(item)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.code === 'Space') {
+          event.preventDefault()
+          onPlay(item)
+        }
+      }}
+    >
+      {rank ? <span className="rank">{rank}</span> : null}
+      <button type="button" tabIndex={-1} className="poster-button" onClick={() => onPlay(item)} aria-label={`${item.title} izle`}>
+        {item.isLive ? (
+          <img
+            className="country-flag-backdrop"
+            src={flag?.backdropUrl ?? cardImage}
+            alt=""
+            loading="lazy"
+          />
+        ) : (
+          <img src={cardImage} alt="" loading="lazy" />
+        )}
+        {item.isLive && flag ? (
+          <span className="flag-badge" aria-label={flag.label}>
+            {flag.imageUrl ? <img src={flag.imageUrl} alt="" loading="lazy" /> : null}
+            <span>{flag.emoji}</span>
+          </span>
+        ) : null}
+        {!item.isLive && item.badge ? <span className="badge">{item.badge}</span> : null}
+      </button>
+      <div className="card-meta">
+        <h3>{item.title}</h3>
+        <p>
+          {item.isLive ? (
+            <>
+              <Tv /> {item.country ?? item.category}
+            </>
+          ) : (
+            <>
+              <Star /> {item.rating}
+            </>
+          )}
+        </p>
+        {item.isLive && item.liveCategory ? <span>{item.liveCategory}</span> : null}
+        {item.episodeCount && item.episodeCount > 1 ? <span>{item.episodeCount} bölüm</span> : null}
+      </div>
+      {item.progress ? (
+        <div className="progress-line">
+          <span style={{ width: `${item.progress}%` }} />
+        </div>
+      ) : null}
+      <button
+        className={`favorite-button ${item.isFavorite ? 'active' : ''}`}
+        type="button"
+        onKeyDown={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation()
+          onToggleFavorite(item)
+        }}
+        aria-label="Favori durumunu değiştir"
+      >
+        <Heart />
+      </button>
+    </article>
+  )
+}
+
+function AccountScreen({
+  user,
+  onLogout,
+  onPasswordChange,
+}: {
+  user: AtlasUser | null
+  onLogout: () => void
+  onPasswordChange: (password: string) => Promise<void>
+}) {
+  const [passwordStatus, setPasswordStatus] = useState('')
+  const createdAt = user?.createdAt
+    ? new Intl.DateTimeFormat('tr-TR', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(user.createdAt))
+    : 'Demo hesap'
+
+  const submitPassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const password = String(form.get('password') ?? '')
+    if (password.length < 4) {
+      setPasswordStatus('Şifre en az 4 karakter olmalı.')
+      return
+    }
+    await onPasswordChange(password)
+    event.currentTarget.reset()
+    setPasswordStatus('Şifre güncellendi.')
+  }
+
+  return (
+    <section className="utility-page">
+      <div className="page-heading">
+        <div>
+          <p>Kullanıcı Merkezi</p>
+          <h1>Hesabım</h1>
+        </div>
+      </div>
+      <div className="utility-grid">
+        <article>
+          <User />
+          <h2>{user?.name ?? 'Atlas Kullanıcısı'}</h2>
+          <p>{user?.email ?? 'Oturum bilgisi yok'}</p>
+          <div className="account-facts">
+            <span>Kayıt: {createdAt}</span>
+            <span>Kod: {user?.activationCode ?? '-'}</span>
+          </div>
+        </article>
+        <article className="account-form-card">
+          <KeyRound />
+          <h2>Şifre Güncelle</h2>
+          <form onSubmit={submitPassword}>
+            <input name="password" type="password" minLength={4} placeholder="Yeni şifre" required />
+            <button className="watch-button" type="submit">Güncelle</button>
+          </form>
+          {passwordStatus ? <p className="inline-status">{passwordStatus}</p> : null}
+        </article>
+        <article>
+          <LogOut />
+          <h2>Oturum</h2>
+          <p>Bu cihazdaki aktif oturumu kapatır ve giriş ekranına döner.</p>
+          <button className="utility-action danger" type="button" onClick={onLogout}>
+            <LogOut /> Hesaptan Çıkış Yap
+          </button>
+        </article>
+      </div>
+    </section>
+  )
+}
+
+function DetailPanel({
+  item,
+  onClose,
+  onPlay,
+  onToggleFavorite,
+  onToggleList,
+}: {
+  item: ContentItem
+  onClose: () => void
+  onPlay: (item: ContentItem) => void
+  onToggleFavorite: (item: ContentItem) => void
+  onToggleList: (item: ContentItem) => void
+}) {
+  const episodes = item.episodes?.length ? item.episodes : [item]
+  const panelRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (panelRef.current) focusFirstElement(panelRef.current)
+  }, [item.id])
+
+  return (
+    <aside
+      ref={panelRef}
+      className="detail-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${item.title} detay`}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' || event.key === 'Backspace') {
+          event.preventDefault()
+          onClose()
+        }
+      }}
+    >
+      <button className="detail-close" type="button" onClick={onClose} aria-label="Detayı kapat">
+        <X />
+      </button>
+      <div className="detail-art" style={{ backgroundImage: `url(${item.backdropUrl || item.posterUrl})` }} />
+      <div className="detail-body">
+        <p className="eyebrow">{item.category}</p>
+        <h2>{item.displayTitle ?? item.title}</h2>
+        <div className="detail-facts">
+          <span>{item.episodeCount ?? episodes.length} bölüm</span>
+          <span>{item.seasonCount ?? 1} sezon</span>
+          <span>★ {item.rating}</span>
+        </div>
+        <p>{item.description}</p>
+        <div className="detail-actions">
+          <button data-autofocus="true" className="watch-button" type="button" onClick={() => onPlay(episodes[0])}>
+            <Play /> İzle
+          </button>
+          <button type="button" onClick={() => onToggleList(item)}>
+            <ListVideo /> {item.isInList ? 'Listemden Çıkar' : 'Listeme Ekle'}
+          </button>
+          <button type="button" onClick={() => onToggleFavorite(item)}>
+            <Heart /> {item.isFavorite ? 'Favoriden Çıkar' : 'Favoriye Ekle'}
+          </button>
+        </div>
+        <div className="episode-list">
+          <h3>Bölümler</h3>
+          {episodes.map((episode, index) => (
+            <button key={episode.id} type="button" onClick={() => onPlay(episode)}>
+              <span>{episode.episodeNumber ? `Bölüm ${episode.episodeNumber}` : `${index + 1}`}</span>
+              <strong>{episode.title}</strong>
+              <Play />
+            </button>
+          ))}
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+function SettingsScreen({
+  appearance,
+  onAppearanceChange,
+  onResetAppearance,
+  onCloseApp,
+}: {
+  appearance: AppearanceSettings
+  onAppearanceChange: (settings: AppearanceSettings) => void
+  onResetAppearance: () => void
+  onCloseApp: () => void
+}) {
+  const updateAppearance = (partial: Partial<AppearanceSettings>) => {
+    onAppearanceChange({ ...appearance, ...partial })
+  }
+
+  const shareApp = async () => {
+    const url = window.location.href
+    if (navigator.share) {
+      await navigator.share({ title: 'AtlasTv', url }).catch(() => undefined)
+      return
+    }
+    await navigator.clipboard?.writeText(url).catch(() => undefined)
+  }
+
+  return (
+    <section className="utility-page settings-page">
+      <div className="page-heading">
+        <div>
+          <p>Kontrol Merkezi</p>
+          <h1>Ayarlar</h1>
+        </div>
+      </div>
+      <div className="settings-layout">
+        <section className="settings-panel">
+          <div className="settings-title">
+            <Palette />
+            <div>
+              <h2>Görünüm</h2>
+              <p>Renkleri, kart boyutunu ve parlaklık hissini bu cihaz için ayarla.</p>
+            </div>
+          </div>
+          <div className="appearance-controls">
+            <label>
+              <span>Ana renk</span>
+              <input
+                type="color"
+                value={appearance.accent}
+                onChange={(event) => updateAppearance({ accent: event.target.value })}
+              />
+            </label>
+            <label>
+              <span>İkinci renk</span>
+              <input
+                type="color"
+                value={appearance.accent2}
+                onChange={(event) => updateAppearance({ accent2: event.target.value })}
+              />
+            </label>
+            <label>
+              <span>Kart boyutu</span>
+              <input
+                type="range"
+                min="0.82"
+                max="1.22"
+                step="0.02"
+                value={appearance.cardScale}
+                onChange={(event) => updateAppearance({ cardScale: Number(event.target.value) })}
+              />
+            </label>
+            <label>
+              <span>Kart köşesi</span>
+              <input
+                type="range"
+                min="8"
+                max="26"
+                step="1"
+                value={appearance.cardRadius}
+                onChange={(event) => updateAppearance({ cardRadius: Number(event.target.value) })}
+              />
+            </label>
+            <label>
+              <span>Parlama</span>
+              <input
+                type="range"
+                min="0.4"
+                max="1.8"
+                step="0.1"
+                value={appearance.cardGlow}
+                onChange={(event) => updateAppearance({ cardGlow: Number(event.target.value) })}
+              />
+            </label>
+          </div>
+          <button className="utility-action" type="button" onClick={onResetAppearance}>
+            <RotateCcw /> Varsayılana Dön
+          </button>
+        </section>
+
+        <section className="settings-panel">
+          <div className="settings-title">
+            <SlidersHorizontal />
+            <div>
+              <h2>Uygulama</h2>
+              <p>Paylaşım, topluluk ve sürüm bilgileri.</p>
+            </div>
+          </div>
+          <div className="settings-actions">
+            <button type="button" onClick={() => window.open('https://t.me/', '_blank', 'noopener,noreferrer')}>
+              <Sparkles /> Telegram’a Katıl
+            </button>
+            <button type="button" onClick={shareApp}>
+              <Share2 /> Paylaş
+            </button>
+            <button type="button">
+              <Info /> Güncel Sürüm: {APP_VERSION}
+            </button>
+            <button type="button" onClick={onCloseApp}>
+              <Power /> Uygulamayı Kapat
+            </button>
+          </div>
+        </section>
+      </div>
+    </section>
+  )
+}
+
+function AdminGate({ onClose, onUnlock }: { onClose: () => void; onUnlock: (password: string) => void }) {
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [isChecking, setIsChecking] = useState(false)
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setIsChecking(true)
+    const isValid = await api.admin.verifyPassword(password)
+    setIsChecking(false)
+    if (isValid) {
+      setError('')
+      onUnlock(password)
+      return
+    }
+    setError('Şifre hatalı.')
+  }
+
+  return (
+    <section className="admin-overlay" role="dialog" aria-modal="true" aria-label="Admin girişi">
+      <form className="admin-card admin-gate" onSubmit={submit}>
+        <button className="detail-close" type="button" onClick={onClose} aria-label="Admin girişini kapat">
+          <X />
+        </button>
+        <KeyRound />
+        <h2>Admin Girişi</h2>
+        <p>Yönetim paneli kullanıcı menülerinde görünmez.</p>
+        <input
+          data-autofocus="true"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          type="password"
+          inputMode="numeric"
+          placeholder="Şifre"
+          autoFocus
+        />
+        <button className="watch-button" type="submit" disabled={isChecking}>
+          {isChecking ? 'Kontrol ediliyor...' : 'Panele Gir'}
+        </button>
+        {error ? <span className="admin-error">{error}</span> : null}
+      </form>
+    </section>
+  )
+}
+
+function AdminPanel({
+  adminPassword,
+  onClose,
+  onSaved,
+}: {
+  adminPassword: string
+  onClose: () => void
+  onSaved: () => Promise<void>
+}) {
+  const [settings, setSettings] = useState<AdminSettings>({
+    vodM3uUrl: '',
+    liveM3uUrl: '',
+    sportsM3uUrl: '',
+  })
+  const [status, setStatus] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    api.admin.getSettings().then(setSettings)
+  }, [])
+
+  const update = (key: keyof AdminSettings, value: string) => {
+    setSettings((current) => ({ ...current, [key]: value }))
+  }
+
+  const save = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setIsSaving(true)
+    const saved = await api.admin.saveSettings(settings, adminPassword)
+    setSettings(saved)
+    await onSaved()
+    setStatus('Listeler güncellendi.')
+    setIsSaving(false)
+  }
+
+  const reset = async () => {
+    setIsSaving(true)
+    const defaults = await api.admin.resetSettings(adminPassword)
+    setSettings(defaults)
+    await onSaved()
+    setStatus('Varsayılan listelere dönüldü.')
+    setIsSaving(false)
+  }
+
+  return (
+    <section className="admin-overlay" role="dialog" aria-modal="true" aria-label="Admin paneli">
+      <form className="admin-card admin-panel" onSubmit={save}>
+        <button className="detail-close" type="button" onClick={onClose} aria-label="Admin panelini kapat">
+          <X />
+        </button>
+        <div className="admin-title">
+          <Settings />
+          <div>
+            <p>Gizli Yönetim</p>
+            <h2>IPTV Liste Paneli</h2>
+          </div>
+        </div>
+
+        <label>
+          <span>Dizi / Film M3U Linki</span>
+          <input
+            value={settings.vodM3uUrl}
+            onChange={(event) => update('vodM3uUrl', event.target.value)}
+            placeholder="https://.../vod.m3u"
+          />
+        </label>
+        <label>
+          <span>Canlı TV M3U Linki</span>
+          <input
+            value={settings.liveM3uUrl}
+            onChange={(event) => update('liveM3uUrl', event.target.value)}
+            placeholder="Boş bırakırsan yerel vavoo_full_worker.m3u kullanılır"
+          />
+        </label>
+        <label>
+          <span>Spor Kanalları M3U Linki</span>
+          <input
+            value={settings.sportsM3uUrl}
+            onChange={(event) => update('sportsM3uUrl', event.target.value)}
+            placeholder="https://.../sports.m3u"
+          />
+        </label>
+
+        <div className="admin-actions">
+          <button className="watch-button" type="submit" disabled={isSaving}>
+            {isSaving ? 'Güncelleniyor...' : 'Listeleri Güncelle'}
+          </button>
+          <button type="button" onClick={reset} disabled={isSaving}>
+            Varsayılana Dön
+          </button>
+        </div>
+        {status ? <span className="inline-status">{status}</span> : null}
+      </form>
+    </section>
+  )
+}
+
+function PlayerOverlay({
+  item,
+  isPlaying,
+  onPlayingChange,
+  onClose,
+  onToggleFavorite,
+}: {
+  item: ContentItem
+  isPlaying: boolean
+  onPlayingChange: (playing: boolean) => void
+  onClose: () => void
+  onToggleFavorite: () => void
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const stageRef = useRef<HTMLDivElement | null>(null)
+  const controlsTimerRef = useRef<number | null>(null)
+  const hlsRetryRef = useRef(0)
+  const proxiedStreamUrl = getProxiedStreamUrl(item)
+  const playerUserAgent = item.httpUserAgent || DEFAULT_PLAYER_USER_AGENT
+  const playerHeaders = [
+    `UA: ${playerUserAgent}`,
+    item.isLive && item.referer ? `Referer: ${item.referer}` : '',
+    item.isLive && item.origin ? `Origin: ${item.origin}` : '',
+  ].filter(Boolean)
+  const [playerStatus, setPlayerStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [controlsVisible, setControlsVisible] = useState(true)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [volume, setVolume] = useState(1)
+  const [isMuted, setIsMuted] = useState(false)
+  const [hasVideoFrame, setHasVideoFrame] = useState(false)
+
+  const revealControls = useCallback(() => {
+    setControlsVisible(true)
+    if (controlsTimerRef.current) window.clearTimeout(controlsTimerRef.current)
+    controlsTimerRef.current = window.setTimeout(() => {
+      setControlsVisible(false)
+    }, 2800)
+  }, [])
+
+  const seekBy = useCallback((seconds: number) => {
+    const video = videoRef.current
+    if (!video) return
+    video.currentTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + seconds))
+    revealControls()
+  }, [revealControls])
+
+  const seekToPercent = (value: string) => {
+    const video = videoRef.current
+    if (!video || !duration) return
+    const nextTime = (Number(value) / 100) * duration
+    video.currentTime = nextTime
+    setCurrentTime(nextTime)
+    revealControls()
+  }
+
+  const changeVolume = (value: string) => {
+    const nextVolume = Number(value) / 100
+    const video = videoRef.current
+    setVolume(nextVolume)
+    setIsMuted(nextVolume === 0)
+    if (video) {
+      video.volume = nextVolume
+      video.muted = nextVolume === 0
+    }
+    revealControls()
+  }
+
+  const toggleMute = () => {
+    const video = videoRef.current
+    if (!video) return
+    const nextMuted = !video.muted
+    video.muted = nextMuted
+    setIsMuted(nextMuted)
+    revealControls()
+  }
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => undefined)
+      return
+    }
+    stageRef.current?.requestFullscreen?.().catch(() => undefined)
+  }
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    video.muted = false
+    video.volume = 1
+    setIsMuted(false)
+    setVolume(1)
+    setPlayerStatus('loading')
+    setCurrentTime(0)
+    setDuration(0)
+    setHasVideoFrame(false)
+    hlsRetryRef.current = 0
+
+    if (Hls.isSupported()) {
+      const hls = new Hls({
+        lowLatencyMode: true,
+        backBufferLength: 90,
+      })
+
+      hls.loadSource(proxiedStreamUrl)
+      hls.attachMedia(video)
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        setPlayerStatus('ready')
+        video.play().catch(() => onPlayingChange(false))
+      })
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (!data.fatal) return
+
+        if (hlsRetryRef.current < 3 && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+          hlsRetryRef.current += 1
+          setPlayerStatus('loading')
+          hls.startLoad()
+          return
+        }
+
+        if (hlsRetryRef.current < 3 && data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+          hlsRetryRef.current += 1
+          setPlayerStatus('loading')
+          hls.recoverMediaError()
+          return
+        }
+
+        setPlayerStatus('error')
+      })
+
+      return () => {
+        hls.destroy()
+      }
+    }
+
+    video.src = proxiedStreamUrl
+    video.play().catch(() => onPlayingChange(false))
+  }, [onPlayingChange, proxiedStreamUrl])
+
+  useEffect(() => {
+    stageRef.current?.requestFullscreen?.().catch(() => undefined)
+  }, [])
+
+  useEffect(() => {
+    const onPlayerKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        revealControls()
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        seekBy(-10)
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        seekBy(10)
+      }
+    }
+
+    window.addEventListener('keydown', onPlayerKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onPlayerKeyDown)
+      if (controlsTimerRef.current) window.clearTimeout(controlsTimerRef.current)
+    }
+  }, [revealControls, seekBy])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    if (isPlaying) {
+      video.play().catch(() => {
+        onPlayingChange(false)
+      })
+      return
+    }
+
+    video.pause()
+  }, [isPlaying, onPlayingChange])
+
+  return (
+    <section className="player-overlay" role="dialog" aria-modal="true" aria-label={`${item.title} player`}>
+      <div
+        ref={stageRef}
+        data-autofocus="true"
+        tabIndex={0}
+        className={`player-stage ${controlsVisible ? 'controls-visible' : 'controls-hidden'} ${hasVideoFrame ? 'video-visible' : ''}`}
+        style={{ backgroundImage: hasVideoFrame ? undefined : `url(${item.backdropUrl})` }}
+        onMouseMove={revealControls}
+        onPointerMove={revealControls}
+      >
+        <video
+          ref={videoRef}
+          className="player-video"
+          poster={hasVideoFrame ? undefined : item.backdropUrl}
+          playsInline
+          controls={false}
+          onCanPlay={() => {
+            setPlayerStatus('ready')
+            setHasVideoFrame(true)
+          }}
+          onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}
+          onError={() => setPlayerStatus('error')}
+          onLoadedData={() => setHasVideoFrame(true)}
+          onPlaying={() => setHasVideoFrame(true)}
+          onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+          onVolumeChange={(event) => {
+            setVolume(event.currentTarget.volume)
+            setIsMuted(event.currentTarget.muted)
+          }}
+          data-source-url={item.streamUrl}
+          data-proxy-url={proxiedStreamUrl}
+          data-http-user-agent={playerUserAgent}
+          data-referer={item.isLive ? item.referer : undefined}
+          data-origin={item.isLive ? item.origin : undefined}
+        />
+
+        <div className="player-topbar">
+          <button className="player-round-button" type="button" onClick={onClose} aria-label="Player kapat">
+            <X />
+          </button>
+          <div>
+            <strong>AtlasTv</strong>
+            <span>{item.isLive ? 'Canli Yayin' : item.category}</span>
+          </div>
+        </div>
+
+        <div className="player-center">
+          {playerStatus === 'loading' ? <span className="player-state">Yayin hazirlaniyor...</span> : null}
+          {playerStatus === 'error' ? <span className="player-state error">Yayin acilamadi</span> : null}
+          <div className="center-controls">
+            <button type="button" onClick={() => seekBy(-10)} aria-label="10 saniye geri">
+              <RotateCcw />
+              <span>10</span>
+            </button>
+            <button className="giant-play" type="button" onClick={() => onPlayingChange(!isPlaying)}>
+              {isPlaying ? <Pause /> : <Play />}
+            </button>
+            <button type="button" onClick={() => seekBy(10)} aria-label="10 saniye ileri">
+              <RotateCw />
+              <span>10</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="player-controls">
+          <div className="player-progress-row">
+            <span>{formatTime(currentTime)}</span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={duration ? Math.min(100, (currentTime / duration) * 100) : 0}
+              onChange={(event) => seekToPercent(event.target.value)}
+              aria-label="Yayin konumu"
+            />
+            <span>{item.isLive ? 'CANLI' : formatTime(duration)}</span>
+          </div>
+
+          <div className="player-bottom-row">
+            <div className="player-title-block">
+              <p>{item.badge ?? (item.isLive ? 'CANLI' : 'VOD')}</p>
+              <h2>{item.title}</h2>
+              <span className="player-user-agent">Proxy Headers: {playerHeaders.join(' · ')}</span>
+            </div>
+            <div className="control-buttons">
+              <button type="button" onClick={() => onPlayingChange(!isPlaying)} aria-label="Oynat veya duraklat">
+                {isPlaying ? <Pause /> : <Play />}
+              </button>
+              <button type="button" onClick={toggleMute} aria-label="Sesi ac veya kapat">
+                {isMuted ? <VolumeX /> : <Volume2 />}
+              </button>
+              <input
+                className="volume-slider"
+                type="range"
+                min="0"
+                max="100"
+                value={isMuted ? 0 : Math.round(volume * 100)}
+                onChange={(event) => changeVolume(event.target.value)}
+                aria-label="Ses seviyesi"
+              />
+              <button type="button" onClick={onToggleFavorite} aria-label="Favoriye ekle">
+                <Heart />
+              </button>
+              <button type="button" onClick={toggleFullscreen} aria-label="Tam ekran">
+                <Maximize />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function MobileNav({ screen, onScreenChange }: { screen: Screen; onScreenChange: (screen: Screen) => void }) {
+  return (
+    <nav className="mobile-nav" aria-label="Mobil menü">
+      {navItems.map((item) => {
+        const Icon = item.icon
+        return (
+          <button
+            key={item.id}
+            type="button"
+            className={screen === item.id ? 'active' : ''}
+            onClick={() => onScreenChange(item.id)}
+          >
+            <Icon />
+            <span>{item.label}</span>
+          </button>
+        )
+      })}
+    </nav>
+  )
+}
+
+declare global {
+  interface Window {
+    webkitAudioContext?: typeof AudioContext
+  }
+}
+
+export default App
