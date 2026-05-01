@@ -2118,6 +2118,7 @@ function AdminPanel({
           <span>Hatırlanan {userStats.rememberedUsers}</span>
           <span>Bot {cacheStatus.isRunning ? 'Çalışıyor' : 'Hazır'}</span>
           {cacheStatus.currentStep ? <span>Adım {cacheStatus.currentStep}</span> : null}
+          {cacheStatus.buildId ? <span>Bot {cacheStatus.buildId}</span> : null}
           <span>Cache {cacheStatus.diskBuckets.length || Object.values(cacheStatus.memory).reduce((sum, value) => sum + value, 0)}</span>
           <button type="button" onClick={runCatalogBot}>
             Katalog Botunu Çalıştır

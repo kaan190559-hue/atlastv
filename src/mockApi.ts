@@ -137,6 +137,7 @@ export type UserStats = {
 }
 
 export type CacheBotStatus = {
+  buildId?: string
   isRunning: boolean
   lastRunAt: string
   startedAt: string

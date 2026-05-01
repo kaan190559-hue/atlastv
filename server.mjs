@@ -22,6 +22,7 @@ const ADMIN_SETTINGS_PATH = '/__atlas_admin_settings'
 const ADMIN_AUTH_PATH = '/__atlas_admin_auth'
 const USER_STATS_PATH = '/__atlas_user_stats'
 const CACHE_CONTROL_PATH = '/__atlas_cache_control'
+const CACHE_BOT_BUILD = 'vod-write-check-v2'
 const DEFAULT_USER_AGENT = 'okhttp/4.12.0'
 const ADMIN_PASSWORD = process.env.ATLAS_ADMIN_PASSWORD || '190559'
 const TMDB_API_KEY = process.env.TMDB_API_KEY || ''
@@ -281,8 +282,10 @@ async function writeMediaDiskCache(bucket, key, value) {
     parsed[bucket] = parsed[bucket] || {}
     parsed[bucket][getDiskCacheKey(key)] = { savedAt: new Date().toISOString(), value }
     await writeFile(MEDIA_CACHE_FILE, `${JSON.stringify(parsed)}\n`)
+    return true
   } catch (error) {
     console.warn('Media disk cache yazılamadı.', error)
+    return false
   }
 }
 
@@ -293,6 +296,11 @@ async function hasMediaDiskCache(bucket) {
   } catch {
     return false
   }
+}
+
+async function ensureMediaDiskCache(bucket, key, value) {
+  const written = await writeMediaDiskCache(bucket, key, value)
+  return written && (await hasMediaDiskCache(bucket))
 }
 
 async function readCacheBotState() {
@@ -347,6 +355,7 @@ async function getMediaCacheStatus() {
 
   return {
     ...cacheBotState,
+    buildId: CACHE_BOT_BUILD,
     memory: {
       vod: catalogCache.size,
       vodGrouped: groupedCatalogCache.size,
@@ -372,9 +381,12 @@ async function runMediaCacheBot() {
       ['Canlı TV', 60_000, () => loadLiveServerCatalog(settings.liveM3uUrl || LIVE_M3U_URL, settings.updatedAt || '', 'live')],
       ['Spor', 60_000, () => (settings.sportsM3uUrl ? loadLiveServerCatalog(settings.sportsM3uUrl, settings.updatedAt || '', 'sports') : Promise.resolve([]))],
       ['Dizi/Film', 180_000, async () => {
-        const grouped = await loadGroupedServerCatalog(settings.vodM3uUrl || VOD_M3U_URL, settings.updatedAt || '')
+        const sourceKey = settings.vodM3uUrl || VOD_M3U_URL
+        const refreshKey = settings.updatedAt || ''
+        const grouped = await loadGroupedServerCatalog(sourceKey, refreshKey)
         if (!(await hasMediaDiskCache('vodGrouped'))) {
-          await writeMediaDiskCache('vodGrouped', `${settings.vodM3uUrl || VOD_M3U_URL}::${settings.updatedAt || ''}`, grouped)
+          const ok = await ensureMediaDiskCache('vodGrouped', `${sourceKey}::${refreshKey}`, grouped)
+          if (!ok) throw new Error('Dizi/Film cache dosyaya yazılamadı.')
         }
         return grouped
       }],
