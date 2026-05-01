@@ -22,7 +22,7 @@ const ADMIN_SETTINGS_PATH = '/__atlas_admin_settings'
 const ADMIN_AUTH_PATH = '/__atlas_admin_auth'
 const USER_STATS_PATH = '/__atlas_user_stats'
 const CACHE_CONTROL_PATH = '/__atlas_cache_control'
-const CACHE_BOT_BUILD = 'vod-write-check-v2'
+const CACHE_BOT_BUILD = 'vod-write-check-v3'
 const DEFAULT_USER_AGENT = 'okhttp/4.12.0'
 const ADMIN_PASSWORD = process.env.ATLAS_ADMIN_PASSWORD || '190559'
 const TMDB_API_KEY = process.env.TMDB_API_KEY || ''
@@ -317,6 +317,8 @@ async function readCacheBotState() {
       cacheBotState = {
         ...cacheBotState,
         isRunning: false,
+        currentStep: '',
+        startedAt: '',
         lastRunAt: new Date().toISOString(),
         lastMessage: 'Katalog botu yarıda kesildi. Render işlemi yeniden başlatmış olabilir.',
       }
@@ -372,6 +374,7 @@ async function runMediaCacheBot() {
   await writeCacheBotState({
     isRunning: true,
     startedAt: new Date().toISOString(),
+    lastRunAt: '',
     currentStep: 'başlıyor',
     lastMessage: 'Katalog botu çalışıyor.',
   })
@@ -410,6 +413,7 @@ async function runMediaCacheBot() {
     await writeCacheBotState({
       isRunning: false,
       currentStep: '',
+      startedAt: '',
       lastRunAt: new Date().toISOString(),
       lastMessage: errors
         ? `${okCount}/${results.length} katalog hazır. Sorun: ${errors}`
@@ -419,6 +423,7 @@ async function runMediaCacheBot() {
     await writeCacheBotState({
       isRunning: false,
       currentStep: '',
+      startedAt: '',
       lastRunAt: new Date().toISOString(),
       lastMessage: error instanceof Error ? error.message : 'Katalog botu tamamlanamadı.',
     })
@@ -449,6 +454,7 @@ async function handleCacheControl(req, res) {
     await writeCacheBotState({
       isRunning: false,
       currentStep: '',
+      startedAt: '',
       lastRunAt: new Date().toISOString(),
       lastMessage: 'Sunucu katalog önbelleği temizlendi.',
     })
