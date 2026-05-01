@@ -15,6 +15,7 @@ export type ContentItem = {
   title: string
   type: ContentType
   category: string
+  platform?: string
   country?: string
   liveCategory?: string
   streamUrl: string
@@ -71,6 +72,7 @@ export type CategoryPage = {
   total: number
   countries?: string[]
   categories?: string[]
+  platforms?: string[]
 }
 
 export type LiveFilterOptions = {
@@ -81,6 +83,8 @@ export type LiveFilterOptions = {
 export type LiveFilterParams = {
   country?: string
   liveCategory?: string
+  vodCategory?: string
+  platform?: string
 }
 
 export type AdminSettings = {
@@ -560,6 +564,7 @@ const loadLiveCatalog = async () => {
 }
 
 const getCatalog = async () => hydrateUserItems([...(await loadLiveCatalog()), ...(await loadVodCatalog())])
+const getVodCatalog = async () => hydrateUserItems(await loadVodCatalog())
 
 const loadSportsCatalog = async (offset = 0, limit = 160, query = '', filters: LiveFilterParams = {}) => {
   const settings = await getAdminSettings()
@@ -763,7 +768,7 @@ export const api = {
       void reportUserEvent('login', updated)
       return withLatency({ user: updated, needsOnboarding: !updated.onboardingCompleted })
     },
-    register: (email: string, password: string, activationCode: string): Promise<AuthResult> => {
+    register: (email: string, password: string, activationCode = ''): Promise<AuthResult> => {
       const users = getUsers()
       if (users.some((entry) => entry.email.toLocaleLowerCase('tr-TR') === email.toLocaleLowerCase('tr-TR'))) {
         return Promise.reject(new Error('Bu e-posta ile zaten kayıt var.'))
@@ -786,8 +791,10 @@ export const api = {
   },
   content: {
     getHomeSections: async () => {
-      const catalog = await getCatalogWithUserLiveItems()
-      const sports = await loadSportsCatalog(0, 24).catch(() => ({ items: [], total: 0 }))
+      const catalog = await getVodCatalog()
+      const settings = await getAdminSettings()
+      const hasSportsSource = Boolean(settings.sportsM3uUrl.trim() || settings.sportsM3uContent?.trim())
+      const sports = hasSportsSource ? await loadSportsCatalog(0, 24).catch(() => ({ items: [], total: 0 })) : { items: [], total: 0 }
       return withLatency(getHomeSectionsFromCatalog(catalog, sports.items))
     },
     getCategoryPage: async (
@@ -872,6 +879,8 @@ export const api = {
       params.set('source', settings.vodM3uUrl.trim() || VOD_M3U_URL)
       if (settings.updatedAt) params.set('refresh', settings.updatedAt)
       if (query.trim()) params.set('q', query.trim())
+      if (filters.vodCategory) params.set('vodCategory', filters.vodCategory)
+      if (filters.platform) params.set('platform', filters.platform)
 
       const response = await fetch(`/__atlas_catalog?${params.toString()}`)
       if (!response.ok) throw new Error(`Katalog sayfası yüklenemedi: ${response.status}`)
@@ -895,7 +904,7 @@ export const api = {
       )
     },
     getHeroItems: async () => {
-      const catalog = await getCatalog()
+      const catalog = await getVodCatalog()
       return withLatency(takeRandomContent(catalog.filter((item) => !item.isLive), 6))
     },
     getMetadata: async (item: ContentItem) => {

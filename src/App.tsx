@@ -351,6 +351,10 @@ function App() {
   const [liveFilters, setLiveFilters] = useState<LiveFilterOptions>({ countries: [], categories: [] })
   const [liveCountry, setLiveCountry] = useState('')
   const [liveCategory, setLiveCategory] = useState('')
+  const [vodCategories, setVodCategories] = useState<string[]>([])
+  const [vodPlatforms, setVodPlatforms] = useState<string[]>([])
+  const [vodCategory, setVodCategory] = useState('')
+  const [vodPlatform, setVodPlatform] = useState('')
   const [playerItem, setPlayerItem] = useState<ContentItem | null>(null)
   const [detailItem, setDetailItem] = useState<ContentItem | null>(null)
   const [isPlaying, setIsPlaying] = useState(true)
@@ -392,7 +396,7 @@ function App() {
     if (!isAuthed || screen === 'home' || screen === 'account' || screen === 'about') return
     let isActive = true
     api.content
-      .getCategoryPage(screen, 0, CATEGORY_PAGE_SIZE, search, { country: liveCountry, liveCategory })
+      .getCategoryPage(screen, 0, CATEGORY_PAGE_SIZE, search, { country: liveCountry, liveCategory, vodCategory, platform: vodPlatform })
       .then((page) => {
       if (!isActive) return
       setCategoryItems(page.items)
@@ -402,6 +406,9 @@ function App() {
           countries: page.countries ?? [],
           categories: page.categories ?? [],
         })
+      } else if (screen === 'series' || screen === 'movies') {
+        setVodCategories(page.categories ?? [])
+        setVodPlatforms(page.platforms ?? [])
       }
       setCategoryLoading(false)
     })
@@ -409,7 +416,7 @@ function App() {
     return () => {
       isActive = false
     }
-  }, [isAuthed, screen, search, liveCountry, liveCategory])
+  }, [isAuthed, screen, search, liveCountry, liveCategory, vodCategory, vodPlatform])
 
   useEffect(() => {
     if (heroItems.length < 2) return
@@ -466,6 +473,8 @@ function App() {
       const page = await api.content.getCategoryPage(screen, 0, CATEGORY_PAGE_SIZE, search, {
         country: liveCountry,
         liveCategory,
+        vodCategory,
+        platform: vodPlatform,
       })
       setCategoryItems(page.items)
       setCategoryTotal(page.total)
@@ -474,10 +483,13 @@ function App() {
           countries: page.countries ?? [],
           categories: page.categories ?? [],
         })
+      } else if (screen === 'series' || screen === 'movies') {
+        setVodCategories(page.categories ?? [])
+        setVodPlatforms(page.platforms ?? [])
       }
       setCategoryLoading(false)
     }
-  }, [isAuthed, liveCategory, liveCountry, screen, search])
+  }, [isAuthed, liveCategory, liveCountry, screen, search, vodCategory, vodPlatform])
 
   useEffect(() => {
     const onAdminKeyDown = (event: KeyboardEvent) => {
@@ -499,7 +511,6 @@ function App() {
     const form = new FormData(event.currentTarget)
     const email = String(form.get('email') ?? '')
     const password = String(form.get('password') ?? '')
-    const activationCode = String(form.get('activationCode') ?? '')
     const remember = form.get('remember') === 'on'
 
     let result: AuthResult
@@ -507,7 +518,7 @@ function App() {
       setAuthError('')
       result =
         authMode === 'register'
-          ? await api.auth.register(email, password, activationCode)
+          ? await api.auth.register(email, password)
           : await api.auth.login(email, password, remember)
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Giriş işlemi başarısız.')
@@ -568,6 +579,8 @@ function App() {
   const changeScreen = (next: Screen) => {
     setScreen(next)
     setSearch('')
+    setVodCategory('')
+    setVodPlatform('')
     setDetailItem(null)
     if (['live', 'sports', 'series', 'movies', 'list', 'favorites'].includes(next)) {
       setCategoryItems([])
@@ -614,12 +627,28 @@ function App() {
     if (screen === 'live' || screen === 'sports') setCategoryLoading(true)
   }
 
+  const changeVodCategory = (category: string) => {
+    setVodCategory(category)
+    setCategoryItems([])
+    setCategoryTotal(0)
+    if (screen === 'series' || screen === 'movies') setCategoryLoading(true)
+  }
+
+  const changeVodPlatform = (platform: string) => {
+    setVodPlatform(platform)
+    setCategoryItems([])
+    setCategoryTotal(0)
+    if (screen === 'series' || screen === 'movies') setCategoryLoading(true)
+  }
+
   const loadMoreCategoryItems = async () => {
     if (categoryLoadingMore || categoryItems.length >= categoryTotal) return
     setCategoryLoadingMore(true)
     const page = await api.content.getCategoryPage(screen, categoryItems.length, CATEGORY_PAGE_SIZE, search, {
       country: liveCountry,
       liveCategory,
+      vodCategory,
+      platform: vodPlatform,
     })
     setCategoryItems((items) => [...items, ...page.items])
     setCategoryTotal(page.total)
@@ -705,9 +734,15 @@ function App() {
             liveFilters={liveFilters}
             liveCountry={liveCountry}
             liveCategory={liveCategory}
+            vodCategories={vodCategories}
+            vodPlatforms={vodPlatforms}
+            vodCategory={vodCategory}
+            vodPlatform={vodPlatform}
             onSearchChange={changeSearch}
             onLiveCountryChange={changeLiveCountry}
             onLiveCategoryChange={changeLiveCategory}
+            onVodCategoryChange={changeVodCategory}
+            onVodPlatformChange={changeVodPlatform}
             onLoadMore={loadMoreCategoryItems}
             onPlay={setDetailItem}
             onToggleFavorite={toggleFavorite}
@@ -823,9 +858,6 @@ function AuthScreen({
         </h2>
         <input data-autofocus="true" name="email" type="email" placeholder="E-posta adresi" required />
         <input name="password" type="password" placeholder="Şifre" required minLength={4} />
-        {isRegister ? (
-          <input name="activationCode" placeholder="Aktivasyon kodu" required />
-        ) : null}
 
         <div className="auth-row">
           <label>
@@ -1080,9 +1112,15 @@ function CategoryScreen({
   liveFilters,
   liveCountry,
   liveCategory,
+  vodCategories,
+  vodPlatforms,
+  vodCategory,
+  vodPlatform,
   onSearchChange,
   onLiveCountryChange,
   onLiveCategoryChange,
+  onVodCategoryChange,
+  onVodPlatformChange,
   onLoadMore,
   onPlay,
   onToggleFavorite,
@@ -1096,15 +1134,22 @@ function CategoryScreen({
   liveFilters: LiveFilterOptions
   liveCountry: string
   liveCategory: string
+  vodCategories: string[]
+  vodPlatforms: string[]
+  vodCategory: string
+  vodPlatform: string
   onSearchChange: (value: string) => void
   onLiveCountryChange: (value: string) => void
   onLiveCategoryChange: (value: string) => void
+  onVodCategoryChange: (value: string) => void
+  onVodPlatformChange: (value: string) => void
   onLoadMore: () => void
   onPlay: (item: ContentItem) => void
   onToggleFavorite: (item: ContentItem) => void
 }) {
   const hasMore = items.length < total
   const isLiveLike = screen === 'live' || screen === 'sports'
+  const isVodLike = screen === 'series' || screen === 'movies'
 
   return (
     <section className="category-page">
@@ -1148,14 +1193,46 @@ function CategoryScreen({
             <strong>{total} {screen === 'sports' ? 'spor kanalı' : 'canlı kanal'}</strong>
           </div>
         </div>
-      ) : screen === 'favorites' || screen === 'list' ? null : (
-        <div className="filter-row">
-          <button type="button">Tümü</button>
-          <button type="button">Yeni</button>
-          <button type="button">Popüler</button>
-          <button type="button">Yüksek Puan</button>
+      ) : isVodLike ? (
+        <div className="vod-filter-panel">
+          <div>
+            <span>Kategori</span>
+            <div className="filter-box-row">
+              <button className={!vodCategory ? 'active' : ''} type="button" onClick={() => onVodCategoryChange('')}>
+                Tümü
+              </button>
+              {vodCategories.slice(0, 14).map((category) => (
+                <button
+                  className={vodCategory === category ? 'active' : ''}
+                  key={category}
+                  type="button"
+                  onClick={() => onVodCategoryChange(category)}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <span>Platform</span>
+            <div className="filter-box-row">
+              <button className={!vodPlatform ? 'active' : ''} type="button" onClick={() => onVodPlatformChange('')}>
+                Tümü
+              </button>
+              {vodPlatforms.slice(0, 12).map((platform) => (
+                <button
+                  className={vodPlatform === platform ? 'active' : ''}
+                  key={platform}
+                  type="button"
+                  onClick={() => onVodPlatformChange(platform)}
+                >
+                  {platform}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      )}
+      ) : null}
 
       {isLoading ? (
         <div className="content-grid loading-grid" aria-label="İçerikler yükleniyor">
@@ -1391,7 +1468,6 @@ function AccountScreen({
           <p>{user?.email ?? 'Oturum bilgisi yok'}</p>
           <div className="account-facts">
             <span>Kayıt: {createdAt}</span>
-            <span>Kod: {user?.activationCode ?? '-'}</span>
           </div>
         </article>
         <article className="account-form-card">
@@ -1458,6 +1534,9 @@ function DetailPanel({
 
   const detailOverview = metadata?.overview || item.description
   const detailPoster = metadata?.backdropUrl || metadata?.posterUrl || item.backdropUrl || item.posterUrl
+  const trailerEmbedUrl = metadata?.trailerUrl?.includes('watch?v=')
+    ? metadata.trailerUrl.replace('watch?v=', 'embed/')
+    : ''
   const playEpisode = (episode: ContentItem) => onPlay({ ...episode, episodes })
 
   return (
@@ -1490,12 +1569,15 @@ function DetailPanel({
           {metadata?.runtime ? <span>{metadata.runtime} dk</span> : null}
           {metadata?.imdbId ? <span>IMDb {metadata.imdbId}</span> : null}
         </div>
-        <p>{metadataLoading ? 'TMDB bilgileri yukleniyor...' : detailOverview}</p>
+        <section className="detail-section">
+          <h3>Özet</h3>
+          <p>{metadataLoading ? 'TMDB bilgileri yükleniyor...' : detailOverview}</p>
+        </section>
         {metadata ? (
           <div className="metadata-grid">
             {metadata.genres.length ? (
               <article>
-                <strong>Turler</strong>
+                <strong>Tür</strong>
                 <span>{metadata.genres.join(' • ')}</span>
               </article>
             ) : null}
@@ -1518,6 +1600,32 @@ function DetailPanel({
               </article>
             ) : null}
           </div>
+        ) : null}
+        {trailerEmbedUrl ? (
+          <section className="detail-section">
+            <h3>Fragman</h3>
+            <iframe
+              className="trailer-frame"
+              src={trailerEmbedUrl}
+              title={`${metadata?.title ?? item.title} fragman`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </section>
+        ) : null}
+        {metadata?.cast.length ? (
+          <section className="detail-section">
+            <h3>Oyuncu Kadrosu</h3>
+            <div className="cast-strip">
+              {metadata.cast.slice(0, 10).map((actor) => (
+                <article key={`${actor.name}-${actor.character}`}>
+                  {actor.profileUrl ? <img src={actor.profileUrl} alt="" /> : <span>{actor.name.slice(0, 1)}</span>}
+                  <strong>{actor.name}</strong>
+                  {actor.character ? <small>{actor.character}</small> : null}
+                </article>
+              ))}
+            </div>
+          </section>
         ) : null}
         <div className="detail-actions">
           <button data-autofocus="true" className="watch-button" type="button" onClick={() => playEpisode(episodes[0])}>

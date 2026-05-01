@@ -237,20 +237,31 @@ async function handleAdminAuth(req, res) {
 async function handleCatalog(req, res, requestUrl) {
   const category = requestUrl.searchParams.get('category') ?? 'all'
   const query = (requestUrl.searchParams.get('q') ?? '').toLocaleLowerCase('tr-TR')
+  const vodCategory = requestUrl.searchParams.get('vodCategory') ?? ''
+  const platform = requestUrl.searchParams.get('platform') ?? ''
   const sourceUrl = requestUrl.searchParams.get('source') || VOD_M3U_URL
   const refreshKey = requestUrl.searchParams.get('refresh') || ''
   const offset = Number(requestUrl.searchParams.get('offset') ?? '0')
   const limit = Number(requestUrl.searchParams.get('limit') ?? '800')
   const catalog = await loadGroupedServerCatalog(sourceUrl, refreshKey)
+  const scopedCatalog = catalog.filter((item) => {
+    if (category === 'series' && item.type !== 'series') return false
+    if (category === 'movies' && item.type !== 'movie') return false
+    return true
+  })
+  const categories = getSortedValues(scopedCatalog.map((item) => item.category))
+  const platforms = getSortedValues(scopedCatalog.map((item) => item.platform || inferPlatform(item.category, item.title)))
   const filtered = catalog.filter((item) => {
     if (category === 'series' && item.type !== 'series') return false
     if (category === 'movies' && item.type !== 'movie') return false
+    if (vodCategory && item.category !== vodCategory) return false
+    if (platform && (item.platform || inferPlatform(item.category, item.title)) !== platform) return false
     if (query && !`${item.title} ${item.displayTitle ?? ''} ${item.category}`.toLocaleLowerCase('tr-TR').includes(query)) {
       return false
     }
     return true
   })
-  sendJson(res, { items: filtered.slice(offset, offset + limit), total: filtered.length })
+  sendJson(res, { items: filtered.slice(offset, offset + limit), total: filtered.length, categories, platforms })
 }
 
 async function handleLiveCatalog(req, res, requestUrl) {
@@ -446,6 +457,13 @@ async function loadLiveServerCatalog(sourceUrl = '', refreshKey = '', library = 
 
   const playlistPromise = uploadedPlaylist
     ? Promise.resolve(uploadedPlaylist)
+    : effectiveSourceUrl === LIVE_M3U_URL
+      ? readFile(join(DIST_DIR, 'vavoo_full_worker.m3u'), 'utf8').catch(() =>
+          fetch(effectiveSourceUrl).then((response) => {
+            if (!response.ok) throw new Error(`Live M3U failed: ${response.status}`)
+            return response.text()
+          }),
+        )
     : effectiveSourceUrl
     ? fetch(effectiveSourceUrl).then((response) => {
         if (!response.ok) throw new Error(`Live M3U failed: ${response.status}`)
@@ -547,8 +565,29 @@ function cleanMetadataTitle(title) {
   return title
     .replace(/\s+-\s+T[üu]rk[çc]e\s+(Dublaj|Altyaz[ıi])/gi, '')
     .replace(/\s*[-|:]\s*(?:Bölüm|Bolum|Episode|Ep\.?)\s*\d+/gi, '')
+    .replace(/\s*-\s*m3u8\b/gi, '')
+    .replace(/\b(?:m3u8|1080p|720p|4k|web-?dl|bluray|hdtv|x264|x265)\b/gi, '')
+    .replace(/\s*S\d+\s*E\d+\s*/gi, ' ')
+    .replace(/\s+\(\d{4}\)\s*$/g, '')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+function inferPlatform(category = '', title = '') {
+  const source = `${category} ${title}`.toLocaleLowerCase('tr-TR')
+  const platforms = [
+    ['Netflix', /netflix|nf\b/],
+    ['Disney+', /disney|disney\+/],
+    ['Prime Video', /prime|amazon/],
+    ['BluTV', /blutv|blu tv/],
+    ['Exxen', /exxen/],
+    ['Gain', /\bgain\b/],
+    ['TOD', /\btod\b|bein/],
+    ['HBO Max', /hbo|max/],
+    ['Apple TV+', /apple/],
+    ['TRT Tabii', /tabii|trt/],
+  ]
+  return platforms.find(([, pattern]) => pattern.test(source))?.[0] || 'Katalog'
 }
 
 function emptyMetadata(title) {
@@ -668,6 +707,7 @@ function parseVodPlaylist(playlist, sourceKey = 'vod') {
       groupId,
       type,
       category,
+      platform: inferPlatform(category, displayTitle),
       streamUrl,
       posterUrl,
       backdropUrl: logoUrl || PLACEHOLDER_BACKDROP,
@@ -710,6 +750,7 @@ function groupCatalogItems(items) {
       ...representative,
       title: representative.displayTitle ?? representative.title,
       type: sorted.length > 1 ? 'series' : representative.type,
+      platform: representative.platform || inferPlatform(representative.category, representative.displayTitle ?? representative.title),
       episodeCount: sorted.length,
       seasonCount,
       episodes: sorted,
