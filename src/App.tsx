@@ -43,6 +43,7 @@ import {
   type ContentMetadata,
   type HomeSection,
   type LiveFilterOptions,
+  type UserStats,
 } from './mockApi'
 import './App.css'
 
@@ -734,6 +735,7 @@ function App() {
           isPlaying={isPlaying}
           onPlayingChange={setIsPlaying}
           onClose={closePlayer}
+          onSelectEpisode={openPlayer}
           onToggleFavorite={() => toggleFavorite(playerItem)}
         />
       ) : null}
@@ -1146,7 +1148,7 @@ function CategoryScreen({
             <strong>{total} {screen === 'sports' ? 'spor kanalı' : 'canlı kanal'}</strong>
           </div>
         </div>
-      ) : (
+      ) : screen === 'favorites' || screen === 'list' ? null : (
         <div className="filter-row">
           <button type="button">Tümü</button>
           <button type="button">Yeni</button>
@@ -1456,6 +1458,7 @@ function DetailPanel({
 
   const detailOverview = metadata?.overview || item.description
   const detailPoster = metadata?.backdropUrl || metadata?.posterUrl || item.backdropUrl || item.posterUrl
+  const playEpisode = (episode: ContentItem) => onPlay({ ...episode, episodes })
 
   return (
     <aside
@@ -1517,7 +1520,7 @@ function DetailPanel({
           </div>
         ) : null}
         <div className="detail-actions">
-          <button data-autofocus="true" className="watch-button" type="button" onClick={() => onPlay(episodes[0])}>
+          <button data-autofocus="true" className="watch-button" type="button" onClick={() => playEpisode(episodes[0])}>
             <Play /> İzle
           </button>
           {metadata?.trailerUrl ? (
@@ -1535,7 +1538,7 @@ function DetailPanel({
         <div className="episode-list">
           <h3>Bölümler</h3>
           {episodes.map((episode, index) => (
-            <button key={episode.id} type="button" onClick={() => onPlay(episode)}>
+            <button key={episode.id} type="button" onClick={() => playEpisode(episode)}>
               <span>{episode.episodeNumber ? `Bölüm ${episode.episodeNumber}` : `${index + 1}`}</span>
               <strong>{episode.title}</strong>
               <Play />
@@ -1735,9 +1738,11 @@ function AdminPanel({
   })
   const [status, setStatus] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [userStats, setUserStats] = useState<UserStats>({ totalUsers: 0, activeUsers: 0, rememberedUsers: 0 })
 
   useEffect(() => {
     api.admin.getSettings().then(setSettings)
+    api.admin.getUserStats().then(setUserStats)
   }, [])
 
   const update = (key: keyof AdminSettings, value: string) => {
@@ -1804,6 +1809,9 @@ function AdminPanel({
         </div>
 
         <div className="admin-tools" aria-label="Hızlı admin araçları">
+          <span>Aktif {userStats.activeUsers}</span>
+          <span>Toplam Üye {userStats.totalUsers}</span>
+          <span>Hatırlanan {userStats.rememberedUsers}</span>
           <button type="button" onClick={fillLiveGithubSource}>
             GitHub Canlı M3U Kullan
           </button>
@@ -1881,12 +1889,14 @@ function PlayerOverlay({
   isPlaying,
   onPlayingChange,
   onClose,
+  onSelectEpisode,
   onToggleFavorite,
 }: {
   item: ContentItem
   isPlaying: boolean
   onPlayingChange: (playing: boolean) => void
   onClose: () => void
+  onSelectEpisode: (item: ContentItem) => void
   onToggleFavorite: () => void
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -1907,6 +1917,7 @@ function PlayerOverlay({
   const [volume, setVolume] = useState(1)
   const [isMuted, setIsMuted] = useState(false)
   const [hasVideoFrame, setHasVideoFrame] = useState(false)
+  const playerEpisodes = item.episodes?.length ? item.episodes : []
 
   const revealControls = useCallback(() => {
     setControlsVisible(true)
@@ -2182,6 +2193,22 @@ function PlayerOverlay({
               </button>
             </div>
           </div>
+          {playerEpisodes.length > 1 ? (
+            <div className="player-episodes">
+              {playerEpisodes.map((episode, index) => (
+                <button
+                  key={episode.id}
+                  type="button"
+                  className={episode.id === item.id ? 'active' : ''}
+                  onClick={() => onSelectEpisode({ ...episode, episodes: playerEpisodes })}
+                >
+                  <img src={episode.posterUrl || item.posterUrl} alt="" />
+                  <span>{episode.episodeNumber ? `Bölüm ${episode.episodeNumber}` : `${index + 1}`}</span>
+                  <strong>{episode.title}</strong>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
     </section>

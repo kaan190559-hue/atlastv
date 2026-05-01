@@ -110,6 +110,12 @@ export type AuthResult = {
   needsOnboarding: boolean
 }
 
+export type UserStats = {
+  totalUsers: number
+  activeUsers: number
+  rememberedUsers: number
+}
+
 const VOD_M3U_URL = 'https://file.garden/Z-hq5n4Shk27aY58/Wars-vod-iptv.m3u'
 const VAVOO_REFERER = 'https://vavoo.to/'
 const VAVOO_ORIGIN = 'https://vavoo.to'
@@ -207,9 +213,11 @@ let liveCatalogCache: ContentItem[] | null = null
 let liveCatalogPromise: Promise<ContentItem[]> | null = null
 const USERS_KEY = 'atlastv.users'
 const CURRENT_USER_KEY = 'atlastv.currentUser'
+const SESSION_KEY = 'atlastv.sessionId'
 const ADMIN_SETTINGS_KEY = 'atlastv.adminSettings'
 const ADMIN_SETTINGS_ENDPOINT = '/__atlas_admin_settings'
 const ADMIN_AUTH_ENDPOINT = '/__atlas_admin_auth'
+const USER_STATS_ENDPOINT = '/__atlas_user_stats'
 
 const defaultAdminSettings: AdminSettings = {
   vodM3uUrl: VOD_M3U_URL,
@@ -236,6 +244,56 @@ const getUsers = (): Array<AtlasUser & { password?: string }> => {
 
 const saveUsers = (users: Array<AtlasUser & { password?: string }>) => {
   window.localStorage.setItem(USERS_KEY, JSON.stringify(users))
+}
+
+const getSessionId = () => {
+  const existing = window.localStorage.getItem(SESSION_KEY)
+  if (existing) return existing
+  const sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  window.localStorage.setItem(SESSION_KEY, sessionId)
+  return sessionId
+}
+
+const getLocalUserStats = (): UserStats => {
+  const users = getUsers()
+  const current = getCurrentUser()
+  return {
+    totalUsers: users.length,
+    activeUsers: current ? 1 : 0,
+    rememberedUsers: users.filter((user) => user.remember).length,
+  }
+}
+
+const reportUserEvent = async (event: 'register' | 'login' | 'heartbeat' | 'logout', user?: AtlasUser | null) => {
+  try {
+    const response = await fetch(USER_STATS_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event,
+        sessionId: getSessionId(),
+        userId: user?.id,
+        email: user?.email,
+        remember: user?.remember,
+      }),
+    })
+    if (!response.ok) throw new Error(`Kullanıcı istatistiği güncellenemedi: ${response.status}`)
+    return (await response.json()) as UserStats
+  } catch {
+    return getLocalUserStats()
+  }
+}
+
+const fetchUserStats = async (): Promise<UserStats> => {
+  try {
+    const current = getCurrentUser()
+    if (current) void reportUserEvent('heartbeat', current)
+    const response = await fetch(USER_STATS_ENDPOINT)
+    if (!response.ok) throw new Error(`Kullanıcı istatistiği okunamadı: ${response.status}`)
+    return (await response.json()) as UserStats
+  } catch {
+    return getLocalUserStats()
+  }
 }
 
 const getCachedAdminSettings = (): AdminSettings => {
@@ -687,7 +745,11 @@ const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: Content
 
 export const api = {
   auth: {
-    getCurrent: () => withLatency(getCurrentUser()),
+    getCurrent: () => {
+      const user = getCurrentUser()
+      if (user) void reportUserEvent('heartbeat', user)
+      return withLatency(user)
+    },
     login: (email: string, password: string, remember: boolean): Promise<AuthResult> => {
       ensureDemoUser()
       const users = getUsers()
@@ -698,6 +760,7 @@ export const api = {
       const updated = { ...user, remember }
       saveUsers(users.map((entry) => (entry.id === updated.id ? updated : entry)))
       saveCurrentUser(updated)
+      void reportUserEvent('login', updated)
       return withLatency({ user: updated, needsOnboarding: !updated.onboardingCompleted })
     },
     register: (email: string, password: string, activationCode: string): Promise<AuthResult> => {
@@ -708,11 +771,13 @@ export const api = {
       const user = createUser(email, password, activationCode, true)
       saveUsers([...users, user])
       saveCurrentUser(user)
+      void reportUserEvent('register', user)
       return withLatency({ user, needsOnboarding: true })
     },
     completeOnboarding: () =>
       withLatency(updateCurrentUser((user) => ({ ...user, onboardingCompleted: true }))),
     logout: () => {
+      void reportUserEvent('logout', getCurrentUser())
       window.localStorage.removeItem(CURRENT_USER_KEY)
       return withLatency(true)
     },
@@ -847,6 +912,7 @@ export const api = {
   },
   admin: {
     getSettings: async () => withLatency(await getAdminSettings()),
+    getUserStats: async () => withLatency(await fetchUserStats()),
     verifyPassword: async (password: string) => withLatency(await verifyAdminPassword(password)),
     saveSettings: async (settings: AdminSettings, password: string) => {
       const cleaned: AdminSettings = {

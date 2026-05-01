@@ -9,6 +9,7 @@ const PORT = Number(process.env.PORT || 5181)
 const DIST_DIR = resolve(__dirname, 'dist')
 const DATA_DIR = resolve(process.env.ATLAS_DATA_DIR || join(__dirname, '.atlas'))
 const ADMIN_SETTINGS_FILE = resolve(process.env.ATLAS_SETTINGS_FILE || join(DATA_DIR, 'admin-settings.json'))
+const USER_STATS_FILE = resolve(process.env.ATLAS_USER_STATS_FILE || join(DATA_DIR, 'user-stats.json'))
 
 const PROXY_PATH = '/__atlas_proxy'
 const CATALOG_PATH = '/__atlas_catalog'
@@ -16,6 +17,7 @@ const LIVE_CATALOG_PATH = '/__atlas_live_catalog'
 const METADATA_PATH = '/__atlas_metadata'
 const ADMIN_SETTINGS_PATH = '/__atlas_admin_settings'
 const ADMIN_AUTH_PATH = '/__atlas_admin_auth'
+const USER_STATS_PATH = '/__atlas_user_stats'
 const DEFAULT_USER_AGENT = 'okhttp/4.12.0'
 const ADMIN_PASSWORD = process.env.ATLAS_ADMIN_PASSWORD || '190559'
 const TMDB_API_KEY = process.env.TMDB_API_KEY || ''
@@ -45,6 +47,8 @@ const catalogPromise = new Map()
 const liveCatalogCache = new Map()
 const liveCatalogPromise = new Map()
 const metadataCache = new Map()
+const activeUsers = new Map()
+const ACTIVE_USER_WINDOW_MS = 2 * 60 * 1000
 
 function send(res, status, body, headers = {}) {
   res.writeHead(status, headers)
@@ -85,6 +89,83 @@ async function readAdminSettings() {
 async function writeAdminSettings(settings) {
   await mkdir(dirname(ADMIN_SETTINGS_FILE), { recursive: true })
   await writeFile(ADMIN_SETTINGS_FILE, `${JSON.stringify(settings, null, 2)}\n`, 'utf8')
+}
+
+async function readUserStats() {
+  try {
+    const raw = await readFile(USER_STATS_FILE, 'utf8')
+    const parsed = JSON.parse(raw)
+    return {
+      users: parsed.users && typeof parsed.users === 'object' ? parsed.users : {},
+      updatedAt: parsed.updatedAt || '',
+    }
+  } catch {
+    return { users: {}, updatedAt: '' }
+  }
+}
+
+async function writeUserStats(stats) {
+  await mkdir(dirname(USER_STATS_FILE), { recursive: true })
+  await writeFile(USER_STATS_FILE, `${JSON.stringify({ ...stats, updatedAt: new Date().toISOString() }, null, 2)}\n`, 'utf8')
+}
+
+function pruneActiveUsers() {
+  const cutoff = Date.now() - ACTIVE_USER_WINDOW_MS
+  for (const [sessionId, entry] of activeUsers.entries()) {
+    if (!entry.lastSeen || entry.lastSeen < cutoff) activeUsers.delete(sessionId)
+  }
+}
+
+async function handleUserStats(req, res) {
+  if (req.method === 'GET') {
+    pruneActiveUsers()
+    const stats = await readUserStats()
+    sendJson(res, {
+      totalUsers: Object.keys(stats.users).length,
+      activeUsers: activeUsers.size,
+      rememberedUsers: Object.values(stats.users).filter((user) => user.remember).length,
+    })
+    return
+  }
+
+  if (req.method !== 'POST') {
+    send(res, 405, 'Method not allowed')
+    return
+  }
+
+  const body = await readJsonBody(req)
+  const sessionId = String(body.sessionId || '').slice(0, 120)
+  const userId = String(body.userId || '').slice(0, 120)
+  const email = String(body.email || '').toLocaleLowerCase('tr-TR').slice(0, 180)
+  const event = String(body.event || 'heartbeat')
+
+  if (sessionId && event !== 'logout') {
+    activeUsers.set(sessionId, { userId, lastSeen: Date.now() })
+  }
+  if (sessionId && event === 'logout') {
+    activeUsers.delete(sessionId)
+  }
+
+  if ((event === 'register' || event === 'login' || event === 'heartbeat') && (userId || email)) {
+    const stats = await readUserStats()
+    const key = email || userId
+    stats.users[key] = {
+      id: userId,
+      email,
+      remember: Boolean(body.remember),
+      firstSeen: stats.users[key]?.firstSeen || new Date().toISOString(),
+      lastSeen: new Date().toISOString(),
+    }
+    await writeUserStats(stats)
+  }
+
+  pruneActiveUsers()
+  const stats = await readUserStats()
+  sendJson(res, {
+    totalUsers: Object.keys(stats.users).length,
+    activeUsers: activeUsers.size,
+    rememberedUsers: Object.values(stats.users).filter((user) => user.remember).length,
+  })
 }
 
 function readJsonBody(req) {
@@ -867,6 +948,10 @@ const server = createServer(async (req, res) => {
     }
     if (requestUrl.pathname === ADMIN_AUTH_PATH) {
       await handleAdminAuth(req, res)
+      return
+    }
+    if (requestUrl.pathname === USER_STATS_PATH) {
+      await handleUserStats(req, res)
       return
     }
     if (requestUrl.pathname === CATALOG_PATH) {

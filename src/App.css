@@ -2029,6 +2029,71 @@
   margin-top: 18px;
 }
 
+.player-episodes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  max-height: 154px;
+  overflow-y: auto;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.player-episodes button {
+  min-width: 0;
+  min-height: 86px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 4px 10px;
+  align-items: center;
+  background: rgba(7, 11, 20, 0.78);
+  color: white;
+  text-align: left;
+  cursor: pointer;
+}
+
+.player-episodes button:hover,
+.player-episodes button:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, rgba(7, 11, 20, 0.86));
+}
+
+.player-episodes button.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.player-episodes img {
+  grid-row: span 2;
+  width: 54px;
+  height: 70px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.player-episodes span {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.player-episodes strong {
+  overflow: hidden;
+  color: white;
+  font-size: 13px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 .control-buttons {
   display: flex;
   align-items: center;
@@ -2305,6 +2370,31 @@
     right: 16px;
     bottom: 20px;
     grid-template-columns: 1fr;
+    padding: 84px 18px 18px;
+  }
+
+  .player-title-block h2 {
+    max-width: 100%;
+  }
+
+  .player-bottom-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .player-episodes {
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    max-height: 118px;
+  }
+
+  .player-episodes button {
+    min-height: 72px;
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .player-episodes img {
+    width: 42px;
+    height: 56px;
   }
 
   .onboarding-slide {
