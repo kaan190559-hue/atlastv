@@ -13,10 +13,12 @@ const ADMIN_SETTINGS_FILE = resolve(process.env.ATLAS_SETTINGS_FILE || join(DATA
 const PROXY_PATH = '/__atlas_proxy'
 const CATALOG_PATH = '/__atlas_catalog'
 const LIVE_CATALOG_PATH = '/__atlas_live_catalog'
+const METADATA_PATH = '/__atlas_metadata'
 const ADMIN_SETTINGS_PATH = '/__atlas_admin_settings'
 const ADMIN_AUTH_PATH = '/__atlas_admin_auth'
 const DEFAULT_USER_AGENT = 'okhttp/4.12.0'
 const ADMIN_PASSWORD = process.env.ATLAS_ADMIN_PASSWORD || '190559'
+const TMDB_API_KEY = process.env.TMDB_API_KEY || ''
 const VOD_M3U_URL = 'https://file.garden/Z-hq5n4Shk27aY58/Wars-vod-iptv.m3u'
 const LIVE_M3U_URL =
   process.env.ATLAS_LIVE_M3U_URL ||
@@ -42,6 +44,7 @@ const groupedCatalogCache = new Map()
 const catalogPromise = new Map()
 const liveCatalogCache = new Map()
 const liveCatalogPromise = new Map()
+const metadataCache = new Map()
 
 function send(res, status, body, headers = {}) {
   res.writeHead(status, headers)
@@ -204,6 +207,31 @@ async function handleLiveCatalog(req, res, requestUrl) {
   sendJson(res, { items: filtered.slice(offset, offset + limit), total: filtered.length, countries, categories })
 }
 
+async function handleMetadata(req, res, requestUrl) {
+  if (!TMDB_API_KEY) {
+    sendJson(res, { error: 'TMDB_API_KEY is not configured' }, 503)
+    return
+  }
+
+  const title = cleanMetadataTitle(requestUrl.searchParams.get('title') || '')
+  const type = requestUrl.searchParams.get('type') || 'movie'
+  if (!title) {
+    sendJson(res, { error: 'Missing title' }, 400)
+    return
+  }
+
+  const cacheKey = `${type}:${title}`.toLocaleLowerCase('tr-TR')
+  const cached = metadataCache.get(cacheKey)
+  if (cached) {
+    sendJson(res, cached)
+    return
+  }
+
+  const metadata = await loadTmdbMetadata(title, type)
+  metadataCache.set(cacheKey, metadata)
+  sendJson(res, metadata)
+}
+
 async function handleProxy(req, res, requestUrl) {
   const target = requestUrl.searchParams.get('url')
   const userAgent = requestUrl.searchParams.get('ua') || DEFAULT_USER_AGENT
@@ -358,6 +386,102 @@ async function loadLiveServerCatalog(sourceUrl = '', refreshKey = '', library = 
 
   liveCatalogPromise.set(cacheKey, pendingLoad)
   return pendingLoad
+}
+
+async function loadTmdbMetadata(title, type) {
+  const preferredType = type === 'series' ? 'tv' : 'movie'
+  const search = await tmdbFetch(`/search/${preferredType}`, { query: title })
+  let result = search.results?.[0]
+  let mediaType = preferredType
+
+  if (!result) {
+    const multi = await tmdbFetch('/search/multi', { query: title })
+    result = multi.results?.find((entry) => entry.media_type === 'movie' || entry.media_type === 'tv')
+    mediaType = result?.media_type || preferredType
+  }
+
+  if (!result?.id) return emptyMetadata(title)
+
+  const details = await tmdbFetch(`/${mediaType}/${result.id}`, {
+    append_to_response: 'credits,videos,external_ids,watch/providers',
+  })
+  const fallbackDetails = details.overview
+    ? null
+    : await tmdbFetch(`/${mediaType}/${result.id}`, { language: 'en-US', append_to_response: 'videos' })
+  const videos = [...(details.videos?.results ?? []), ...(fallbackDetails?.videos?.results ?? [])]
+  const trailer =
+    videos.find((video) => video.site === 'YouTube' && video.type === 'Trailer') ??
+    videos.find((video) => video.site === 'YouTube')
+  const providers = details['watch/providers']?.results?.TR
+  const providerNames = uniqueStrings([
+    ...(providers?.flatrate ?? []),
+    ...(providers?.buy ?? []),
+    ...(providers?.rent ?? []),
+    ...(providers?.ads ?? []),
+  ].map((provider) => provider.provider_name))
+  const crewJobs = new Set(mediaType === 'tv' ? ['Creator', 'Executive Producer'] : ['Director', 'Writer'])
+
+  return {
+    title: details.title || details.name || result.title || result.name || title,
+    originalTitle: details.original_title || details.original_name || '',
+    overview: details.overview || fallbackDetails?.overview || '',
+    tagline: details.tagline || '',
+    releaseYear: (details.release_date || details.first_air_date || '').slice(0, 4),
+    runtime: details.runtime || details.episode_run_time?.[0] || undefined,
+    tmdbRating: details.vote_average ? Number(details.vote_average.toFixed(1)) : undefined,
+    voteCount: details.vote_count || 0,
+    imdbId: details.external_ids?.imdb_id || '',
+    genres: (details.genres ?? []).map((genre) => genre.name).filter(Boolean),
+    cast: (details.credits?.cast ?? []).slice(0, 12).map((actor) => ({
+      name: actor.name,
+      character: actor.character,
+      profileUrl: actor.profile_path ? `https://image.tmdb.org/t/p/w185${actor.profile_path}` : '',
+    })),
+    crew: (details.credits?.crew ?? [])
+      .filter((person) => crewJobs.has(person.job))
+      .slice(0, 6)
+      .map((person) => ({ name: person.name, job: person.job })),
+    providers: providerNames,
+    trailerUrl: trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : '',
+    posterUrl: details.poster_path ? `https://image.tmdb.org/t/p/w500${details.poster_path}` : '',
+    backdropUrl: details.backdrop_path ? `https://image.tmdb.org/t/p/w1280${details.backdrop_path}` : '',
+    homepage: details.homepage || '',
+  }
+}
+
+async function tmdbFetch(pathname, params = {}) {
+  const url = new URL(`https://api.themoviedb.org/3${pathname}`)
+  url.searchParams.set('api_key', TMDB_API_KEY)
+  url.searchParams.set('language', params.language || 'tr-TR')
+  url.searchParams.set('include_adult', 'false')
+  Object.entries(params).forEach(([key, value]) => {
+    if (value && key !== 'language') url.searchParams.set(key, String(value))
+  })
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`TMDB failed: ${response.status}`)
+  return response.json()
+}
+
+function cleanMetadataTitle(title) {
+  return title
+    .replace(/\s+-\s+T[üu]rk[çc]e\s+(Dublaj|Altyaz[ıi])/gi, '')
+    .replace(/\s*[-|:]\s*(?:Bölüm|Bolum|Episode|Ep\.?)\s*\d+/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function emptyMetadata(title) {
+  return {
+    title,
+    genres: [],
+    cast: [],
+    crew: [],
+    providers: [],
+  }
+}
+
+function uniqueStrings(values) {
+  return Array.from(new Set(values.filter(Boolean)))
 }
 
 function parseLivePlaylist(playlist, sourceKey = 'live') {
@@ -751,6 +875,10 @@ const server = createServer(async (req, res) => {
     }
     if (requestUrl.pathname === LIVE_CATALOG_PATH) {
       await handleLiveCatalog(req, res, requestUrl)
+      return
+    }
+    if (requestUrl.pathname === METADATA_PATH) {
+      await handleMetadata(req, res, requestUrl)
       return
     }
     if (requestUrl.pathname === PROXY_PATH) {

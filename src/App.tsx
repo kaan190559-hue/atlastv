@@ -40,6 +40,7 @@ import {
   type AuthResult,
   type CategoryKey,
   type ContentItem,
+  type ContentMetadata,
   type HomeSection,
   type LiveFilterOptions,
 } from './mockApi'
@@ -1428,10 +1429,33 @@ function DetailPanel({
 }) {
   const episodes = item.episodes?.length ? item.episodes : [item]
   const panelRef = useRef<HTMLElement | null>(null)
+  const [metadata, setMetadata] = useState<ContentMetadata | null>(null)
+  const [metadataLoading, setMetadataLoading] = useState(false)
 
   useEffect(() => {
     if (panelRef.current) focusFirstElement(panelRef.current)
   }, [item.id])
+
+  useEffect(() => {
+    let active = true
+    if (item.isLive) return () => {
+      active = false
+    }
+    window.setTimeout(() => {
+      if (active) setMetadataLoading(true)
+    }, 0)
+    api.content.getMetadata(item).then((nextMetadata) => {
+      if (!active) return
+      setMetadata(nextMetadata)
+      setMetadataLoading(false)
+    })
+    return () => {
+      active = false
+    }
+  }, [item])
+
+  const detailOverview = metadata?.overview || item.description
+  const detailPoster = metadata?.backdropUrl || metadata?.posterUrl || item.backdropUrl || item.posterUrl
 
   return (
     <aside
@@ -1450,20 +1474,57 @@ function DetailPanel({
       <button className="detail-close" type="button" onClick={onClose} aria-label="Detayı kapat">
         <X />
       </button>
-      <div className="detail-art" style={{ backgroundImage: `url(${item.backdropUrl || item.posterUrl})` }} />
+      <div className="detail-art" style={{ backgroundImage: `url(${detailPoster})` }} />
       <div className="detail-body">
         <p className="eyebrow">{item.category}</p>
-        <h2>{item.displayTitle ?? item.title}</h2>
+        <h2>{metadata?.title ?? item.displayTitle ?? item.title}</h2>
+        {metadata?.tagline ? <p className="detail-tagline">{metadata.tagline}</p> : null}
         <div className="detail-facts">
-          <span>{item.episodeCount ?? episodes.length} bölüm</span>
+          <span>{item.episodeCount ?? episodes.length} bolum</span>
           <span>{item.seasonCount ?? 1} sezon</span>
-          <span>★ {item.rating}</span>
+          <span>★ {metadata?.tmdbRating ?? item.rating}</span>
+          {metadata?.releaseYear ? <span>{metadata.releaseYear}</span> : null}
+          {metadata?.runtime ? <span>{metadata.runtime} dk</span> : null}
+          {metadata?.imdbId ? <span>IMDb {metadata.imdbId}</span> : null}
         </div>
-        <p>{item.description}</p>
+        <p>{metadataLoading ? 'TMDB bilgileri yukleniyor...' : detailOverview}</p>
+        {metadata ? (
+          <div className="metadata-grid">
+            {metadata.genres.length ? (
+              <article>
+                <strong>Turler</strong>
+                <span>{metadata.genres.join(' • ')}</span>
+              </article>
+            ) : null}
+            {metadata.providers.length ? (
+              <article>
+                <strong>Platform</strong>
+                <span>{metadata.providers.join(' • ')}</span>
+              </article>
+            ) : null}
+            {metadata.cast.length ? (
+              <article>
+                <strong>Oyuncular</strong>
+                <span>{metadata.cast.slice(0, 8).map((actor) => actor.name).join(' • ')}</span>
+              </article>
+            ) : null}
+            {metadata.crew.length ? (
+              <article>
+                <strong>Ekip</strong>
+                <span>{metadata.crew.map((person) => person.name + ' (' + person.job + ')').join(' • ')}</span>
+              </article>
+            ) : null}
+          </div>
+        ) : null}
         <div className="detail-actions">
           <button data-autofocus="true" className="watch-button" type="button" onClick={() => onPlay(episodes[0])}>
             <Play /> İzle
           </button>
+          {metadata?.trailerUrl ? (
+            <a className="detail-action-link" href={metadata.trailerUrl} target="_blank" rel="noreferrer">
+              <Play /> Fragman
+            </a>
+          ) : null}
           <button type="button" onClick={() => onToggleList(item)}>
             <ListVideo /> {item.isInList ? 'Listemden Çıkar' : 'Listeme Ekle'}
           </button>

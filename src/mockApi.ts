@@ -39,6 +39,26 @@ export type ContentItem = {
   episodes?: ContentItem[]
 }
 
+export type ContentMetadata = {
+  title: string
+  originalTitle?: string
+  overview?: string
+  tagline?: string
+  releaseYear?: string
+  runtime?: number
+  tmdbRating?: number
+  voteCount?: number
+  imdbId?: string
+  genres: string[]
+  cast: Array<{ name: string; character?: string; profileUrl?: string }>
+  crew: Array<{ name: string; job: string }>
+  providers: string[]
+  trailerUrl?: string
+  posterUrl?: string
+  backdropUrl?: string
+  homepage?: string
+}
+
 export type HomeSection = {
   id: string
   title: string
@@ -812,6 +832,17 @@ export const api = {
     getHeroItems: async () => {
       const catalog = await getCatalog()
       return withLatency(takeRandomContent(catalog.filter((item) => !item.isLive), 6))
+    },
+    getMetadata: async (item: ContentItem) => {
+      if (item.isLive) return withLatency(null)
+      const params = new URLSearchParams({
+        title: item.displayTitle ?? item.title,
+        type: item.type,
+        year: String(item.badge ?? ''),
+      })
+      const response = await fetch(`/__atlas_metadata?${params.toString()}`)
+      if (!response.ok) return withLatency(null)
+      return withLatency((await response.json()) as ContentMetadata)
     },
   },
   admin: {
