@@ -1655,6 +1655,8 @@ function AdminPanel({
     vodM3uUrl: '',
     liveM3uUrl: '',
     sportsM3uUrl: '',
+    liveM3uContent: '',
+    sportsM3uContent: '',
   })
   const [status, setStatus] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -1665,6 +1667,13 @@ function AdminPanel({
 
   const update = (key: keyof AdminSettings, value: string) => {
     setSettings((current) => ({ ...current, [key]: value }))
+  }
+
+  const uploadM3uFile = async (key: 'liveM3uContent' | 'sportsM3uContent', file?: File) => {
+    if (!file) return
+    const text = await file.text()
+    setSettings((current) => ({ ...current, [key]: text }))
+    setStatus(`${file.name} yüklendi. Kaydetmeyi unutma.`)
   }
 
   const save = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -1713,8 +1722,17 @@ function AdminPanel({
           <input
             value={settings.liveM3uUrl}
             onChange={(event) => update('liveM3uUrl', event.target.value)}
-            placeholder="Boş bırakırsan yerel vavoo_full_worker.m3u kullanılır"
+            placeholder="https://.../live.m3u veya asagidan dosya yukle"
           />
+        </label>
+        <label>
+          <span>Canli TV M3U Dosyasi</span>
+          <input
+            type="file"
+            accept=".m3u,.m3u8,text/plain"
+            onChange={(event) => uploadM3uFile('liveM3uContent', event.target.files?.[0])}
+          />
+          {settings.liveM3uContent ? <small>Yuklu dosya hazir. Kaydedince herkeste aktif olur.</small> : null}
         </label>
         <label>
           <span>Spor Kanalları M3U Linki</span>
@@ -1723,6 +1741,15 @@ function AdminPanel({
             onChange={(event) => update('sportsM3uUrl', event.target.value)}
             placeholder="https://.../sports.m3u"
           />
+        </label>
+        <label>
+          <span>Spor M3U Dosyasi</span>
+          <input
+            type="file"
+            accept=".m3u,.m3u8,text/plain"
+            onChange={(event) => uploadM3uFile('sportsM3uContent', event.target.files?.[0])}
+          />
+          {settings.sportsM3uContent ? <small>Spor dosyasi hazir. Kaydedince spor bolumunde kullanilir.</small> : null}
         </label>
 
         <div className="admin-actions">

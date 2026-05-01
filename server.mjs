@@ -31,9 +31,12 @@ const defaultAdminSettings = {
   vodM3uUrl: VOD_M3U_URL,
   liveM3uUrl: LIVE_M3U_URL,
   sportsM3uUrl: '',
+  liveM3uContent: '',
+  sportsM3uContent: '',
 }
 
 const catalogCache = new Map()
+const groupedCatalogCache = new Map()
 const catalogPromise = new Map()
 const liveCatalogCache = new Map()
 const liveCatalogPromise = new Map()
@@ -55,6 +58,8 @@ function normalizeAdminSettings(settings = {}) {
     vodM3uUrl: settings.vodM3uUrl?.trim() || VOD_M3U_URL,
     liveM3uUrl: settings.liveM3uUrl?.trim() ?? '',
     sportsM3uUrl: settings.sportsM3uUrl?.trim() ?? '',
+    liveM3uContent: settings.liveM3uContent?.trim() ?? '',
+    sportsM3uContent: settings.sportsM3uContent?.trim() ?? '',
     updatedAt: new Date().toISOString(),
   }
 }
@@ -79,7 +84,7 @@ function readJsonBody(req) {
     req.setEncoding('utf8')
     req.on('data', (chunk) => {
       body += chunk
-      if (body.length > 1_000_000) reject(new Error('Request body too large'))
+      if (body.length > 8_000_000) reject(new Error('Request body too large'))
     })
     req.on('end', () => {
       try {
@@ -94,6 +99,7 @@ function readJsonBody(req) {
 
 function clearMediaCaches() {
   catalogCache.clear()
+  groupedCatalogCache.clear()
   catalogPromise.clear()
   liveCatalogCache.clear()
   liveCatalogPromise.clear()
@@ -145,18 +151,16 @@ async function handleCatalog(req, res, requestUrl) {
   const refreshKey = requestUrl.searchParams.get('refresh') || ''
   const offset = Number(requestUrl.searchParams.get('offset') ?? '0')
   const limit = Number(requestUrl.searchParams.get('limit') ?? '800')
-  const catalog = await loadServerCatalog(sourceUrl, refreshKey)
+  const catalog = await loadGroupedServerCatalog(sourceUrl, refreshKey)
   const filtered = catalog.filter((item) => {
-    if (category === 'series') {
-      const hasRealSeries = catalog.some((entry) => entry.type === 'series')
-      if (hasRealSeries && item.type !== 'series') return false
-    }
+    if (category === 'series' && item.type !== 'series') return false
     if (category === 'movies' && item.type !== 'movie') return false
-    if (query && !`${item.title} ${item.category}`.toLocaleLowerCase('tr-TR').includes(query)) return false
+    if (query && !`${item.title} ${item.displayTitle ?? ''} ${item.category}`.toLocaleLowerCase('tr-TR').includes(query)) {
+      return false
+    }
     return true
   })
-  const grouped = groupCatalogItems(filtered)
-  sendJson(res, { items: grouped.slice(offset, offset + limit), total: grouped.length })
+  sendJson(res, { items: filtered.slice(offset, offset + limit), total: filtered.length })
 }
 
 async function handleLiveCatalog(req, res, requestUrl) {
@@ -164,6 +168,7 @@ async function handleLiveCatalog(req, res, requestUrl) {
   const liveCategory = requestUrl.searchParams.get('liveCategory') ?? ''
   const query = (requestUrl.searchParams.get('q') ?? '').toLocaleLowerCase('tr-TR')
   const sourceUrl = requestUrl.searchParams.get('source') || ''
+  const library = requestUrl.searchParams.get('library') || ''
   const refreshKey = requestUrl.searchParams.get('refresh') || ''
   const ids = (requestUrl.searchParams.get('ids') ?? '')
     .split(',')
@@ -172,7 +177,7 @@ async function handleLiveCatalog(req, res, requestUrl) {
   const idSet = new Set(ids)
   const offset = Number(requestUrl.searchParams.get('offset') ?? '0')
   const limit = Number(requestUrl.searchParams.get('limit') ?? '120')
-  const catalog = await loadLiveServerCatalog(sourceUrl, refreshKey)
+  const catalog = await loadLiveServerCatalog(sourceUrl, refreshKey, library)
   const countries = getSortedValues(catalog.map((item) => item.country ?? item.category))
   const categories = getSortedValues(
     catalog
@@ -296,16 +301,37 @@ function loadServerCatalog(sourceUrl = VOD_M3U_URL, refreshKey = '') {
   return pendingLoad
 }
 
-function loadLiveServerCatalog(sourceUrl = '', refreshKey = '') {
+function loadGroupedServerCatalog(sourceUrl = VOD_M3U_URL, refreshKey = '') {
+  const cacheKey = `${sourceUrl || VOD_M3U_URL}::${refreshKey}`
+  const cached = groupedCatalogCache.get(cacheKey)
+  if (cached) return Promise.resolve(cached)
+
+  return loadServerCatalog(sourceUrl, refreshKey).then((catalog) => {
+    const grouped = groupCatalogItems(catalog)
+    groupedCatalogCache.set(cacheKey, grouped)
+    return grouped
+  })
+}
+
+async function loadLiveServerCatalog(sourceUrl = '', refreshKey = '', library = '') {
+  const settings = await readAdminSettings()
+  const uploadedPlaylist =
+    library === 'sports'
+      ? settings.sportsM3uContent
+      : library === 'live'
+        ? settings.liveM3uContent
+        : ''
   const effectiveSourceUrl = sourceUrl || LIVE_M3U_URL
-  const sourceKey = effectiveSourceUrl || LIVE_M3U_FILE || 'live'
+  const sourceKey = uploadedPlaylist ? `uploaded-${library || 'live'}` : effectiveSourceUrl || LIVE_M3U_FILE || 'live'
   const cacheKey = `${sourceKey}::${refreshKey}`
   const cached = liveCatalogCache.get(cacheKey)
   if (cached) return Promise.resolve(cached)
   const pending = liveCatalogPromise.get(cacheKey)
   if (pending) return pending
 
-  const playlistPromise = effectiveSourceUrl
+  const playlistPromise = uploadedPlaylist
+    ? Promise.resolve(uploadedPlaylist)
+    : effectiveSourceUrl
     ? fetch(effectiveSourceUrl).then((response) => {
         if (!response.ok) throw new Error(`Live M3U failed: ${response.status}`)
         return response.text()

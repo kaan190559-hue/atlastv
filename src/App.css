@@ -1437,6 +1437,16 @@
   color: var(--text-strong);
 }
 
+.admin-card input[type='file'] {
+  padding: 14px;
+  cursor: pointer;
+}
+
+.admin-card small {
+  color: var(--accent);
+  font-weight: 800;
+}
+
 .settings-title p {
   margin-top: 6px;
   color: var(--text);

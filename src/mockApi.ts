@@ -67,6 +67,8 @@ export type AdminSettings = {
   vodM3uUrl: string
   liveM3uUrl: string
   sportsM3uUrl: string
+  liveM3uContent?: string
+  sportsM3uContent?: string
   updatedAt?: string
 }
 
@@ -193,6 +195,8 @@ const defaultAdminSettings: AdminSettings = {
   vodM3uUrl: VOD_M3U_URL,
   liveM3uUrl: '',
   sportsM3uUrl: '',
+  liveM3uContent: '',
+  sportsM3uContent: '',
 }
 
 const withLatency = <T,>(value: T) =>
@@ -455,6 +459,7 @@ const loadLiveCatalog = async () => {
   const settings = await getAdminSettings()
   const params = new URLSearchParams({ limit: '160' })
   if (settings.liveM3uUrl.trim()) params.set('source', settings.liveM3uUrl.trim())
+  if (settings.liveM3uContent?.trim()) params.set('library', 'live')
   if (settings.updatedAt) params.set('refresh', settings.updatedAt)
 
   liveCatalogPromise = fetch(`/__atlas_live_catalog?${params.toString()}`)
@@ -490,6 +495,8 @@ const loadSportsCatalog = async (offset = 0, limit = 160, query = '', filters: L
     if (query.trim()) params.set('q', query.trim())
     if (filters.country) params.set('country', filters.country)
     if (settings.liveM3uUrl.trim()) params.set('source', settings.liveM3uUrl.trim())
+    if (settings.sportsM3uContent?.trim()) params.set('library', 'sports')
+    else if (settings.liveM3uContent?.trim()) params.set('library', 'live')
     if (settings.updatedAt) params.set('refresh', settings.updatedAt)
 
     const response = await fetch(`/__atlas_live_catalog?${params.toString()}`)
@@ -506,6 +513,7 @@ const loadSportsCatalog = async (offset = 0, limit = 160, query = '', filters: L
   if (query.trim()) params.set('q', query.trim())
   if (filters.country) params.set('country', filters.country)
   if (filters.liveCategory) params.set('liveCategory', filters.liveCategory)
+  if (settings.sportsM3uContent?.trim()) params.set('library', 'sports')
   if (settings.updatedAt) params.set('refresh', settings.updatedAt)
 
   const response = await fetch(`/__atlas_live_catalog?${params.toString()}`)
@@ -814,6 +822,8 @@ export const api = {
         vodM3uUrl: settings.vodM3uUrl.trim() || VOD_M3U_URL,
         liveM3uUrl: settings.liveM3uUrl.trim(),
         sportsM3uUrl: settings.sportsM3uUrl.trim(),
+        liveM3uContent: settings.liveM3uContent ?? '',
+        sportsM3uContent: settings.sportsM3uContent ?? '',
         updatedAt: new Date().toISOString(),
       }
       const saved = await postAdminSettings({ settings: cleaned }, password)
