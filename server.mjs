@@ -12,6 +12,7 @@ const ADMIN_SETTINGS_FILE = resolve(process.env.ATLAS_SETTINGS_FILE || join(DATA
 const USER_STATS_FILE = resolve(process.env.ATLAS_USER_STATS_FILE || join(DATA_DIR, 'user-stats.json'))
 
 const PROXY_PATH = '/__atlas_proxy'
+const DOWNLOAD_PATH = '/__atlas_download'
 const CATALOG_PATH = '/__atlas_catalog'
 const LIVE_CATALOG_PATH = '/__atlas_live_catalog'
 const METADATA_PATH = '/__atlas_metadata'
@@ -444,6 +445,66 @@ async function handleProxy(req, res, requestUrl) {
     res.write(Buffer.from(value))
   }
   res.end()
+}
+
+async function handleDownload(req, res, requestUrl) {
+  const target = requestUrl.searchParams.get('url')
+  const userAgent = requestUrl.searchParams.get('ua') || DEFAULT_USER_AGENT
+  const title = sanitizeFilename(requestUrl.searchParams.get('title') || 'atlastv-video.mp4')
+
+  if (!target) {
+    send(res, 400, 'Missing url parameter')
+    return
+  }
+
+  if (/\.m3u8(?:$|\?)/i.test(target)) {
+    send(res, 415, 'Bu kaynak HLS/m3u8. MP4 indirme için doğrudan MP4 kaynak gerekir.')
+    return
+  }
+
+  const upstreamAbort = new AbortController()
+  req.on('aborted', () => upstreamAbort.abort())
+  res.on('close', () => upstreamAbort.abort())
+
+  const upstream = await fetch(target, {
+    signal: upstreamAbort.signal,
+    headers: {
+      'User-Agent': userAgent,
+      'http-user-agent': userAgent,
+      Accept: '*/*',
+    },
+  })
+
+  if (!upstream.ok || !upstream.body) {
+    send(res, upstream.status || 502, 'Video indirilemedi')
+    return
+  }
+
+  const contentType = upstream.headers.get('content-type') || 'video/mp4'
+  if (/mpegurl|m3u8/i.test(contentType)) {
+    send(res, 415, 'Bu kaynak HLS/m3u8. MP4 indirme için doğrudan MP4 kaynak gerekir.')
+    return
+  }
+
+  res.writeHead(200, {
+    'Content-Type': contentType,
+    'Content-Disposition': `attachment; filename="${title.replace(/"/g, '')}"`,
+    'Cache-Control': 'no-store',
+    ...(upstream.headers.get('content-length') ? { 'Content-Length': upstream.headers.get('content-length') } : {}),
+  })
+  upstream.body.pipeTo(new WritableStream({
+    write(chunk) {
+      res.write(Buffer.from(chunk))
+    },
+    close() {
+      res.end()
+    },
+    abort() {
+      res.end()
+    },
+  })).catch(() => {
+    if (!res.destroyed) res.end()
+  })
 }
 
 function loadServerCatalog(sourceUrl = VOD_M3U_URL, refreshKey = '') {
@@ -1041,6 +1102,17 @@ function slugify(value) {
     .replace(/(^-|-$)/g, '')
 }
 
+function sanitizeFilename(value) {
+  const cleaned = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[<>:"/\\|?*\x00-\x1F]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 140)
+  return /\.mp4$/i.test(cleaned) ? cleaned : `${cleaned || 'atlastv-video'}.mp4`
+}
+
 function rewritePlaylist(playlist, playlistUrl, userAgent, referer = '', origin = '') {
   const baseUrl = new URL(playlistUrl)
   const extraParams = new URLSearchParams({ ua: userAgent })
@@ -1128,6 +1200,10 @@ const server = createServer(async (req, res) => {
     }
     if (requestUrl.pathname === PROXY_PATH) {
       await handleProxy(req, res, requestUrl)
+      return
+    }
+    if (requestUrl.pathname === DOWNLOAD_PATH) {
+      await handleDownload(req, res, requestUrl)
       return
     }
     await serveStatic(req, res, requestUrl)

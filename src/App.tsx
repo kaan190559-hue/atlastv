@@ -4,6 +4,7 @@ import Hls from 'hls.js'
 import {
   BadgeInfo,
   Clapperboard,
+  Download,
   Film,
   Heart,
   Home,
@@ -179,8 +180,13 @@ function getProxiedStreamUrl(item: ContentItem) {
   return `/__atlas_proxy?${params.toString()}`
 }
 
-function uniqueById(items: ContentItem[]) {
-  return [...new Map(items.map((item) => [item.id, item])).values()]
+function getDownloadUrl(item: ContentItem) {
+  const params = new URLSearchParams({
+    url: item.streamUrl,
+    title: `${item.displayTitle ?? item.title}.mp4`,
+    ua: item.httpUserAgent || DEFAULT_PLAYER_USER_AGENT,
+  })
+  return `/__atlas_download?${params.toString()}`
 }
 
 function getCountryFlag(country?: string) {
@@ -436,6 +442,10 @@ function App() {
     setPlayerItem(null)
   }, [])
 
+  const refreshHomeSections = useCallback(() => {
+    api.content.getHomeSections().then(setHomeSections)
+  }, [])
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' || event.key === 'Backspace') {
@@ -658,9 +668,6 @@ function App() {
 
   const openPlayer = (item: ContentItem) => {
     setIsPlaying(true)
-    api.user.markWatched(item.id, Math.max(item.progress ?? 1, 1)).then(() => {
-      api.content.getHomeSections().then(setHomeSections)
-    })
     flushSync(() => setPlayerItem(item))
 
     const player = document.querySelector<HTMLElement>('.player-overlay')
@@ -797,6 +804,7 @@ function App() {
           onClose={closePlayer}
           onSelectEpisode={openPlayer}
           onToggleFavorite={() => toggleFavorite(playerItem)}
+          onProgressSaved={refreshHomeSections}
         />
       ) : null}
 
@@ -1047,9 +1055,9 @@ function HomeScreen({
   onDetail: (item: ContentItem) => void
   onToggleFavorite: (item: ContentItem) => void
 }) {
-  const historyItems = uniqueById(sections.flatMap((section) => section.items).filter((item) => item.progress))
+  const historyItems = sections.find((section) => section.id === 'continue')?.items ?? []
   const trendSection = sections.find((section) => section.id === 'trend')
-  const regularSections = sections.filter((section) => section.id !== 'trend')
+  const regularSections = sections.filter((section) => section.id !== 'trend' && section.id !== 'continue')
 
   return (
     <>
@@ -1085,7 +1093,7 @@ function HomeScreen({
       </section>
 
       <ContentRail
-        title="Daha Önce İzlediklerim"
+        title="İzlemeye Devam Et"
         variant="wide"
         items={historyItems}
         onPlay={onPlay}
@@ -1652,6 +1660,11 @@ function DetailPanel({
           <button type="button" onClick={() => onToggleList(item)}>
             <ListVideo /> {item.isInList ? 'Listemden Çıkar' : 'Listeme Ekle'}
           </button>
+          {item.isInList && !item.isLive ? (
+            <a className="detail-action-link" href={getDownloadUrl(item)} download>
+              <Download /> MP4 İndir
+            </a>
+          ) : null}
           <button type="button" onClick={() => onToggleFavorite(item)}>
             <Heart /> {item.isFavorite ? 'Favoriden Çıkar' : 'Favoriye Ekle'}
           </button>
@@ -2012,6 +2025,7 @@ function PlayerOverlay({
   onClose,
   onSelectEpisode,
   onToggleFavorite,
+  onProgressSaved,
 }: {
   item: ContentItem
   isPlaying: boolean
@@ -2019,11 +2033,14 @@ function PlayerOverlay({
   onClose: () => void
   onSelectEpisode: (item: ContentItem) => void
   onToggleFavorite: () => void
+  onProgressSaved: () => void
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
   const controlsTimerRef = useRef<number | null>(null)
   const hlsRetryRef = useRef(0)
+  const lastProgressSaveRef = useRef(0)
+  const resumeAppliedRef = useRef(false)
   const proxiedStreamUrl = getProxiedStreamUrl(item)
   const playerUserAgent = item.httpUserAgent || DEFAULT_PLAYER_USER_AGENT
   const playerHeaders = [
@@ -2096,6 +2113,25 @@ function PlayerOverlay({
     }).catch(() => undefined)
   }
 
+  const applyResumeTime = (video: HTMLVideoElement) => {
+    if (resumeAppliedRef.current || item.isLive || !item.progressSeconds || item.progressSeconds < 5) return
+    const safeDuration = Number.isFinite(video.duration) ? video.duration : 0
+    const resumeTime = safeDuration ? Math.min(item.progressSeconds, Math.max(0, safeDuration - 20)) : item.progressSeconds
+    if (resumeTime > 0) {
+      video.currentTime = resumeTime
+      setCurrentTime(resumeTime)
+      resumeAppliedRef.current = true
+    }
+  }
+
+  const saveProgress = (video: HTMLVideoElement) => {
+    if (item.isLive || !video.duration || video.currentTime < 3) return
+    const now = Date.now()
+    if (now - lastProgressSaveRef.current < 12000) return
+    lastProgressSaveRef.current = now
+    void api.user.markWatched(item.id, video.currentTime, video.duration).then(onProgressSaved)
+  }
+
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
@@ -2109,6 +2145,8 @@ function PlayerOverlay({
     setDuration(0)
     setHasVideoFrame(false)
     hlsRetryRef.current = 0
+    lastProgressSaveRef.current = 0
+    resumeAppliedRef.current = false
 
     if (Hls.isSupported()) {
       const hls = new Hls({
@@ -2143,13 +2181,23 @@ function PlayerOverlay({
       })
 
       return () => {
+        if (!item.isLive && video.currentTime > 3) {
+          void api.user.markWatched(item.id, video.currentTime, video.duration || 0)
+          onProgressSaved()
+        }
         hls.destroy()
       }
     }
 
     video.src = proxiedStreamUrl
     video.play().catch(() => onPlayingChange(false))
-  }, [onPlayingChange, proxiedStreamUrl])
+    return () => {
+      if (!item.isLive && video.currentTime > 3) {
+        void api.user.markWatched(item.id, video.currentTime, video.duration || 0)
+        onProgressSaved()
+      }
+    }
+  }, [item.id, item.isLive, onPlayingChange, onProgressSaved, proxiedStreamUrl])
 
   useEffect(() => {
     const isMobile = window.matchMedia('(max-width: 900px), (pointer: coarse)').matches
@@ -2225,12 +2273,17 @@ function PlayerOverlay({
           onCanPlay={() => {
             setPlayerStatus('ready')
             setHasVideoFrame(true)
+            applyResumeTime(videoRef.current!)
           }}
           onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}
           onError={() => setPlayerStatus('error')}
           onLoadedData={() => setHasVideoFrame(true)}
+          onLoadedMetadata={(event) => applyResumeTime(event.currentTarget)}
           onPlaying={() => setHasVideoFrame(true)}
-          onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+          onTimeUpdate={(event) => {
+            setCurrentTime(event.currentTarget.currentTime)
+            saveProgress(event.currentTarget)
+          }}
           onVolumeChange={(event) => {
             setVolume(event.currentTarget.volume)
             setIsMuted(event.currentTarget.muted)

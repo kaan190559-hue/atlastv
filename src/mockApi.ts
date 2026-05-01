@@ -31,6 +31,8 @@ export type ContentItem = {
   referer?: string
   origin?: string
   progress?: number
+  progressSeconds?: number
+  progressDuration?: number
   badge?: string
   displayTitle?: string
   groupId?: string
@@ -107,7 +109,14 @@ export type AtlasUser = {
   onboardingCompleted: boolean
   favorites: string[]
   list: string[]
-  history: Record<string, number>
+  history: Record<string, number | WatchProgress>
+}
+
+export type WatchProgress = {
+  seconds: number
+  duration: number
+  percent: number
+  updatedAt: string
 }
 
 export type AuthResult = {
@@ -249,6 +258,24 @@ const getUsers = (): Array<AtlasUser & { password?: string }> => {
 
 const saveUsers = (users: Array<AtlasUser & { password?: string }>) => {
   window.localStorage.setItem(USERS_KEY, JSON.stringify(users))
+}
+
+const normalizeWatchProgress = (value?: number | WatchProgress): WatchProgress | null => {
+  if (!value) return null
+  if (typeof value === 'number') {
+    return {
+      seconds: 0,
+      duration: 0,
+      percent: Math.max(0, Math.min(100, value)),
+      updatedAt: '',
+    }
+  }
+  return {
+    seconds: Math.max(0, value.seconds || 0),
+    duration: Math.max(0, value.duration || 0),
+    percent: Math.max(0, Math.min(100, value.percent || 0)),
+    updatedAt: value.updatedAt || '',
+  }
 }
 
 const getSessionId = () => {
@@ -403,12 +430,16 @@ const hydrateUserItems = (items: ContentItem[]) => {
     ...item,
     isFavorite: user.favorites.includes(item.id),
     isInList: user.list.includes(item.groupId ?? item.id),
-    progress: user.history[item.id],
+    progress: normalizeWatchProgress(user.history[item.id])?.percent,
+    progressSeconds: normalizeWatchProgress(user.history[item.id])?.seconds,
+    progressDuration: normalizeWatchProgress(user.history[item.id])?.duration,
     episodes: item.episodes?.map((episode) => ({
       ...episode,
       isFavorite: user.favorites.includes(episode.id),
       isInList: user.list.includes(item.groupId ?? item.id),
-      progress: user.history[episode.id],
+      progress: normalizeWatchProgress(user.history[episode.id])?.percent,
+      progressSeconds: normalizeWatchProgress(user.history[episode.id])?.seconds,
+      progressDuration: normalizeWatchProgress(user.history[episode.id])?.duration,
     })),
   }))
 }
@@ -686,6 +717,7 @@ const rememberPicked = (ids: Set<string>, items: ContentItem[]) => {
 const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: ContentItem[] = []): HomeSection[] => {
   const vod = catalog.filter((item) => !item.isLive)
   const series = vod.filter((item) => item.type === 'series')
+  const continueItems = vod.filter((item) => item.progress && item.progress > 0 && item.progress < 98).slice(0, 18)
   const pickedIds = new Set<string>()
   const trending = takeRandomContent(vod, 8, pickedIds)
   rememberPicked(pickedIds, trending)
@@ -698,6 +730,12 @@ const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: Content
   const admin = takeRandomContent(vod, 14, pickedIds)
 
   return [
+    {
+      id: 'continue',
+      title: 'İzlemeye Devam Et',
+      variant: 'wide',
+      items: continueItems,
+    },
     {
       id: 'favorites',
       title: 'Favorilerim',
@@ -975,7 +1013,21 @@ export const api = {
       return withLatency(true)
     },
     getWatchHistory: async () => withLatency((await getCatalog()).filter((item) => item.progress)),
-    markWatched: async (id: string, progress = 1) =>
-      withLatency(updateCurrentUser((user) => ({ ...user, history: { ...user.history, [id]: progress } }))),
+    markWatched: async (id: string, seconds = 1, duration = 0) =>
+      withLatency(updateCurrentUser((user) => {
+        const percent = duration ? Math.max(1, Math.min(99, Math.round((seconds / duration) * 100))) : Math.max(1, Math.min(99, Math.round(seconds)))
+        return {
+          ...user,
+          history: {
+            ...user.history,
+            [id]: {
+              seconds: Math.max(0, Math.floor(seconds)),
+              duration: Math.max(0, Math.floor(duration)),
+              percent,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        }
+      })),
   },
 }
