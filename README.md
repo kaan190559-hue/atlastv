@@ -16,6 +16,22 @@ npm run build
 npm run start
 ```
 
+Katalog cache dosyalarini yerelde uretmek icin:
+
+```bash
+npm run catalog:build
+```
+
+Bu komut `public/catalog/` altina hazir JSON dosyalari yazar. Render bu dosyalar varsa buyuk M3U listelerini tekrar tekrar parse etmek yerine hazir katalogdan servis eder.
+
+## GitHub katalog botu
+
+`.github/workflows/catalog-cache.yml` isi manuel calistirilabilir ve 6 saatte bir otomatik calisir. Is tamamlaninca `public/catalog/` dosyalarini commitleyip repoya geri push eder. Isterseniz GitHub repo ayarlarinda su Actions Variables degerlerini tanimlayarak kaynaklari degistirebilirsiniz:
+
+- `ATLAS_VOD_M3U_URL`
+- `ATLAS_LIVE_M3U_URL`
+- `ATLAS_SPORTS_M3U_URL`
+
 ## Admin panel
 
 Uygulama açıkken `9` tuşuna basın ve `190559` şifresini girin. Buradan:

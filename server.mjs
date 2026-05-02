@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT || 5181)
 const DIST_DIR = resolve(__dirname, 'dist')
+const PREBUILT_CATALOG_DIRS = [join(DIST_DIR, 'catalog'), join(__dirname, 'public', 'catalog')]
 const DATA_DIR = resolve(process.env.ATLAS_DATA_DIR || join(__dirname, '.atlas'))
 const ADMIN_SETTINGS_FILE = resolve(process.env.ATLAS_SETTINGS_FILE || join(DATA_DIR, 'admin-settings.json'))
 const USER_STATS_FILE = resolve(process.env.ATLAS_USER_STATS_FILE || join(DATA_DIR, 'user-stats.json'))
@@ -22,7 +23,7 @@ const ADMIN_SETTINGS_PATH = '/__atlas_admin_settings'
 const ADMIN_AUTH_PATH = '/__atlas_admin_auth'
 const USER_STATS_PATH = '/__atlas_user_stats'
 const CACHE_CONTROL_PATH = '/__atlas_cache_control'
-const CACHE_BOT_BUILD = 'vod-run-now-v4'
+const CACHE_BOT_BUILD = 'prebuilt-catalog-v1'
 const DEFAULT_USER_AGENT = 'okhttp/4.12.0'
 const ADMIN_PASSWORD = process.env.ATLAS_ADMIN_PASSWORD || '190559'
 const TMDB_API_KEY = process.env.TMDB_API_KEY || ''
@@ -56,6 +57,7 @@ const groupedCatalogPromise = new Map()
 const catalogPromise = new Map()
 const liveCatalogCache = new Map()
 const liveCatalogPromise = new Map()
+const prebuiltCatalogCache = new Map()
 const metadataCache = new Map()
 const activeUsers = new Map()
 const CACHE_BOT_STALE_MS = 6 * 60 * 1000
@@ -254,6 +256,36 @@ function clearMediaCaches() {
   catalogPromise.clear()
   liveCatalogCache.clear()
   liveCatalogPromise.clear()
+  prebuiltCatalogCache.clear()
+}
+
+async function readPrebuiltCatalog(fileName) {
+  if (prebuiltCatalogCache.has(fileName)) return prebuiltCatalogCache.get(fileName)
+
+  for (const catalogDir of PREBUILT_CATALOG_DIRS) {
+    try {
+      const parsed = JSON.parse(await readFile(join(catalogDir, fileName), 'utf8'))
+      prebuiltCatalogCache.set(fileName, parsed)
+      return parsed
+    } catch {
+      // Try the next catalog location.
+    }
+  }
+
+  return null
+}
+
+async function getPrebuiltCatalogStatus() {
+  const manifest = await readPrebuiltCatalog('manifest.json')
+  return manifest?.counts ? { ...manifest.counts, generatedAt: manifest.generatedAt } : null
+}
+
+function isDefaultVodSource(sourceUrl = '') {
+  return !sourceUrl || sourceUrl === VOD_M3U_URL
+}
+
+function isDefaultLiveSource(sourceUrl = '') {
+  return !sourceUrl || sourceUrl === LIVE_M3U_URL
 }
 
 function getDiskCacheKey(key) {
@@ -358,6 +390,7 @@ async function getMediaCacheStatus() {
   return {
     ...cacheBotState,
     buildId: CACHE_BOT_BUILD,
+    prebuilt: await getPrebuiltCatalogStatus(),
     memory: {
       vod: catalogCache.size,
       vodGrouped: groupedCatalogCache.size,
@@ -776,6 +809,14 @@ async function loadGroupedServerCatalog(sourceUrl = VOD_M3U_URL, refreshKey = ''
   const pending = groupedCatalogPromise.get(cacheKey)
   if (pending) return pending
 
+  if (isDefaultVodSource(sourceUrl)) {
+    const prebuilt = await readPrebuiltCatalog('vod-grouped.json')
+    if (Array.isArray(prebuilt) && prebuilt.length) {
+      groupedCatalogCache.set(cacheKey, prebuilt)
+      return prebuilt
+    }
+  }
+
   const diskCached = await readMediaDiskCache('vodGrouped', cacheKey)
   if (diskCached) {
     groupedCatalogCache.set(cacheKey, diskCached)
@@ -809,6 +850,16 @@ async function loadLiveServerCatalog(sourceUrl = '', refreshKey = '', library = 
   const cacheKey = `${sourceKey}::${refreshKey}`
   const cached = liveCatalogCache.get(cacheKey)
   if (cached) return Promise.resolve(cached)
+  if (!uploadedPlaylist) {
+    const prebuiltFile = library === 'sports' ? 'sports.json' : isDefaultLiveSource(effectiveSourceUrl) ? 'live.json' : ''
+    if (prebuiltFile) {
+      const prebuilt = await readPrebuiltCatalog(prebuiltFile)
+      if (Array.isArray(prebuilt) && prebuilt.length) {
+        liveCatalogCache.set(cacheKey, prebuilt)
+        return prebuilt
+      }
+    }
+  }
   const diskCached = await readMediaDiskCache(`live-${library || 'default'}`, cacheKey)
   if (diskCached) {
     liveCatalogCache.set(cacheKey, diskCached)
@@ -1182,17 +1233,18 @@ function groupCatalogItems(items) {
     })
     const representative = sorted[0]
     const seasonCount = new Set(sorted.map((episode) => episode.seasonNumber ?? 1)).size
+    const isEpisodeGroup = sorted.length > 1 && sorted.some((episode) => episode.episodeNumber)
 
     return {
       ...representative,
       title: representative.displayTitle ?? representative.title,
-      type: sorted.length > 1 ? 'series' : representative.type,
+      type: isEpisodeGroup ? 'series' : representative.type,
       platform: representative.platform || inferPlatform(representative.category, representative.displayTitle ?? representative.title),
       genre: representative.genre || inferGenre(representative.category, representative.displayTitle ?? representative.title, representative.type),
-      episodeCount: sorted.length,
+      episodeCount: isEpisodeGroup ? sorted.length : 1,
       seasonCount,
-      episodes: sorted,
-      badge: sorted.length > 1 ? `${sorted.length} Bölüm` : representative.badge,
+      episodes: isEpisodeGroup ? sorted : [representative],
+      badge: isEpisodeGroup ? `${sorted.length} Bölüm` : representative.badge,
     }
   })
 }
@@ -1211,28 +1263,34 @@ function getDisplayTitle(title) {
   return title
     .replace(/\s+-\s+T[üu]rk[cç]e\s+(Dublaj|Altyaz[ıi])/gi, '')
     .replace(/\s+-\s+m3u8/gi, '')
-    .replace(/\s*[-|:]\s*\d+\.?\s*S(?:ezon|eason)?\s+\d+\.?\s*B[öo]l[üu]m/gi, '')
-    .replace(/\s*[-|:]\s*S(?:ezon|eason)?\s*\d+\s*E(?:pisode|p)?\s*\d+/gi, '')
-    .replace(/\s*[-|:]\s*S\d{1,2}\s*E\d{1,3}/gi, '')
-    .replace(/\s*[-|:]\s*\d+x\d+/gi, '')
-    .replace(/\s*[-|:]\s*(?:B[öo]l[üu]m|Bolum|Episode|Ep\.?)\s*\d+/gi, '')
-    .replace(/\s*[-|:]\s*\d+\.?\s*(?:B[öo]l[üu]m|Bolum|Episode|Ep\.?)/gi, '')
-    .replace(/\s*\((?:B[öo]l[üu]m|Bolum|Episode|Ep\.?)\s*\d+\)/gi, '')
-    .replace(/\s+\d+\.?\s*S(?:ezon)?\s+\d+\.?\s*B[öo]l[üu]m/gi, '')
+    .replace(/\s*[-|:]\s*\d+\.?\s*S(?:ezon|eason)?\s+\d+\.?\s*B[öo]l[üu]m\s*$/gi, '')
+    .replace(/\s*[-|:]\s*S(?:ezon|eason)?\s*\d+\s*E(?:pisode|p)?\s*\d+\s*$/gi, '')
+    .replace(/\s*[-|:]\s*S\d{1,2}\s*E\d{1,3}\s*$/gi, '')
+    .replace(/\s*[-|:]\s*\d+x\d+\s*$/gi, '')
+    .replace(/\s*[-|:]\s*(?:B[öo]l[üu]m|Bolum|Episode|Ep\.?)\s*\d+\s*$/gi, '')
+    .replace(/\s*[-|:]\s*\d+\.?\s*(?:B[öo]l[üu]m|Bolum|Episode|Ep\.?)\s*$/gi, '')
+    .replace(/\s*\((?:B[öo]l[üu]m|Bolum|Episode|Ep\.?)\s*\d+\)\s*$/gi, '')
+    .replace(/\s+\d+\.?\s*S(?:ezon)?\s+\d+\.?\s*B[öo]l[üu]m\s*$/gi, '')
+    .replace(/\s*[-|:]\s*\d+\.?\s*S(?:ezon|eason)?\s*(?:Dublaj|Altyaz[ıi])?\s*$/gi, '')
+    .replace(/\s*[-|:]\s*S(?:ezon|eason)?\s*\d+\s*(?:Dublaj|Altyaz[ıi])?\s*$/gi, '')
     .replace(/\s+/g, ' ')
     .trim()
 }
 
 function getEpisodeInfo(title) {
+  const source = title
+    .replace(/\s+-\s+T[üu]rk[cç]e\s+(Dublaj|Altyaz[ıi])/gi, '')
+    .replace(/\s+-\s*m3u8/gi, '')
   const seasonEpisode =
-    title.match(/(\d+)\.?\s*S(?:ezon)?\s+(\d+)\.?\s*B[öo]l[üu]m/i) ??
-    title.match(/S(?:ezon|eason)?\s*(\d+)\s*E(?:pisode|p)?\s*(\d+)/i) ??
-    title.match(/S(\d+)\s*E(\d+)/i) ??
-    title.match(/(\d+)x(\d+)/i)
+    source.match(/(\d+)\.?\s*S(?:ezon|eason)?\b.*?(?:B[öo]l[üu]m|Bolum|Episode|Ep\.?)\s*(\d+)/i) ??
+    source.match(/(\d+)\.?\s*S(?:ezon)?\s+(\d+)\.?\s*B[öo]l[üu]m/i) ??
+    source.match(/S(?:ezon|eason)?\s*(\d+)\s*E(?:pisode|p)?\s*(\d+)/i) ??
+    source.match(/S(\d+)\s*E(\d+)/i) ??
+    source.match(/(\d+)x(\d+)/i)
 
   const standaloneEpisode =
-    title.match(/(?:B[öo]l[üu]m|Bolum|Episode|Ep\.?)\s*(\d+)/i) ??
-    title.match(/(\d+)\.?\s*(?:B[öo]l[üu]m|Bolum|Episode|Ep\.?)/i)
+    source.match(/(?:^|[-|:])\s*(?:B[öo]l[üu]m|Bolum|Episode|Ep\.?)\s*(\d+)\s*$/i) ??
+    source.match(/(?:^|[-|:])\s*(\d+)\.?\s*(?:B[öo]l[üu]m|Bolum|Episode|Ep\.?)\s*$/i)
 
   if (!seasonEpisode) {
     return { season: 1, episode: standaloneEpisode ? Number(standaloneEpisode[1]) || undefined : undefined }
@@ -1347,7 +1405,7 @@ function getSortedValues(values) {
 
 function inferType(groupTitle, title) {
   const source = `${groupTitle} ${title}`.toLocaleLowerCase('tr-TR')
-  if (/(dizi|series|sezon|bölüm|bolum|s\d+\s*e\d+|\d+x\d+)/i.test(source)) return 'series'
+  if (/(\bdizi(?:leri)?\b|\bseries\b|sezon|season|s\d+\s*e\d+|\d+x\d+|(?:^|[-|:])\s*(?:bölüm|bolum|episode|ep\.?)\s*\d+\s*$|(?:^|[-|:])\s*\d+\.?\s*(?:bölüm|bolum|episode|ep\.?)\s*$)/i.test(source)) return 'series'
   return 'movie'
 }
 

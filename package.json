@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "catalog:build": "node scripts/build-catalog-cache.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node server.mjs"

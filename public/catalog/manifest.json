@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-05-02T00:05:49.077Z",
+  "elapsedMs": 4677,
+  "sources": {
+    "vod": "https://file.garden/Z-hq5n4Shk27aY58/Wars-vod-iptv.m3u",
+    "live": "public/vavoo_full_worker.m3u",
+    "sports": ""
+  },
+  "counts": {
+    "vodRaw": 76557,
+    "vodGrouped": 38041,
+    "live": 9166,
+    "sports": 0
+  }
+}
