@@ -68,7 +68,14 @@ async function main() {
   const vodPlaylist = await fetchText(vodM3uUrl)
   const vodItems = parseVodPlaylist(vodPlaylist, vodM3uUrl)
   const vodGrouped = groupCatalogItems(vodItems)
-  await writeJson('vod-grouped.json', vodGrouped)
+  const vodIndex = vodGrouped.map(({ episodes: _episodes, ...item }) => item)
+  const vodEpisodes = Object.fromEntries(
+    vodGrouped
+      .filter((item) => item.episodes?.length)
+      .map((item) => [item.groupId || item.id, item.episodes]),
+  )
+  await writeJson('vod-index.json', vodIndex)
+  await writeJson('vod-episodes.json', vodEpisodes)
 
   console.log('Building live catalog cache...')
   const livePlaylist = await readLivePlaylist()
@@ -94,6 +101,7 @@ async function main() {
     counts: {
       vodRaw: vodItems.length,
       vodGrouped: vodGrouped.length,
+      vodEpisodeGroups: Object.keys(vodEpisodes).length,
       live: liveItems.length,
       sports: sportsItems.length,
     },

@@ -577,7 +577,8 @@ async function handleCatalog(req, res, requestUrl) {
     }
     return true
   })
-  sendJson(res, { items: filtered.slice(offset, offset + limit), total: filtered.length, categories, platforms })
+  const items = await hydrateVodEpisodes(filtered.slice(offset, offset + limit))
+  sendJson(res, { items, total: filtered.length, categories, platforms })
 }
 
 async function handleLiveCatalog(req, res, requestUrl) {
@@ -810,7 +811,7 @@ async function loadGroupedServerCatalog(sourceUrl = VOD_M3U_URL, refreshKey = ''
   if (pending) return pending
 
   if (isDefaultVodSource(sourceUrl)) {
-    const prebuilt = await readPrebuiltCatalog('vod-grouped.json')
+    const prebuilt = (await readPrebuiltCatalog('vod-index.json')) ?? (await readPrebuiltCatalog('vod-grouped.json'))
     if (Array.isArray(prebuilt) && prebuilt.length) {
       groupedCatalogCache.set(cacheKey, prebuilt)
       return prebuilt
@@ -835,6 +836,18 @@ async function loadGroupedServerCatalog(sourceUrl = VOD_M3U_URL, refreshKey = ''
     })
   groupedCatalogPromise.set(cacheKey, pendingLoad)
   return pendingLoad
+}
+
+async function hydrateVodEpisodes(items) {
+  if (!items.some((item) => item.episodeCount > 1)) return items
+
+  const episodesByGroup = await readPrebuiltCatalog('vod-episodes.json')
+  if (!episodesByGroup || Array.isArray(episodesByGroup)) return items
+
+  return items.map((item) => {
+    const episodes = episodesByGroup[item.groupId || item.id]
+    return Array.isArray(episodes) && episodes.length ? { ...item, episodes } : item
+  })
 }
 
 async function loadLiveServerCatalog(sourceUrl = '', refreshKey = '', library = '') {
