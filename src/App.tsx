@@ -62,6 +62,8 @@ const LIVE_GITHUB_M3U_URL = 'https://raw.githubusercontent.com/kaan190559-hue/at
 const APPEARANCE_KEY = 'atlastv.appearance'
 const FOCUSABLE_SELECTOR =
   'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
+const SPATIAL_GROUP_SELECTOR =
+  '.desktop-nav, .top-actions, .hero-actions, .hero-dots, .rail-list, .trend-list, .content-grid, .filter-box-row, .live-filter-panel, .detail-actions, .center-controls, .control-buttons, .player-progress-row, .player-episodes, .auth-card, .onboarding-actions, .utility-grid, .settings-layout, .appearance-controls'
 
 const securityQuestions = [
   'İlk evcil hayvanının adı',
@@ -257,7 +259,9 @@ function getNavigationRoot() {
 }
 
 function getFocusableElements(root: ParentNode = document) {
-  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(isVisible)
+  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (element) => isVisible(element) && element.dataset.spatialIgnore !== 'true',
+  )
 }
 
 function focusFirstElement(root: ParentNode = document) {
@@ -304,6 +308,28 @@ function findNextFocus(current: HTMLElement, direction: Direction, elements: HTM
   return best?.element
 }
 
+function findNextInGroup(current: HTMLElement, direction: Direction, elements: HTMLElement[]) {
+  if (direction !== 'left' && direction !== 'right') return null
+  const group = current.closest<HTMLElement>(SPATIAL_GROUP_SELECTOR)
+  if (!group) return null
+  const groupElements = getFocusableElements(group).filter((element) => elements.includes(element))
+  const currentIndex = groupElements.indexOf(current)
+  if (currentIndex < 0) return null
+  const nextIndex = currentIndex + (direction === 'right' ? 1 : -1)
+  return groupElements[nextIndex] ?? null
+}
+
+function shouldKeepHorizontalKeyInInput(target: EventTarget | null, direction: Direction) {
+  if (direction !== 'left' && direction !== 'right') return false
+  if (!(target instanceof HTMLInputElement)) return target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement
+  if (target.type === 'range') return true
+  const selectionStart = target.selectionStart ?? 0
+  const selectionEnd = target.selectionEnd ?? selectionStart
+  if (selectionStart !== selectionEnd) return true
+  if (direction === 'left') return selectionStart > 0
+  return selectionStart < target.value.length
+}
+
 function useSpatialNavigation(resetKey: string) {
   useEffect(() => {
     focusFirstElement()
@@ -327,16 +353,20 @@ function useSpatialNavigation(resetKey: string) {
       const direction = directionByKey[event.key] ?? directionByKey[event.code]
 
       if (direction) {
-        if (isTextInput && (direction === 'left' || direction === 'right')) return
-        if (document.querySelector('.player-overlay') && (direction === 'left' || direction === 'right')) {
-          return
-        }
+        if (isTextInput && shouldKeepHorizontalKeyInInput(target, direction)) return
         const elements = getFocusableElements(getNavigationRoot())
         if (!elements.length) return
 
         const active = document.activeElement instanceof HTMLElement ? document.activeElement : null
         const current = active && elements.includes(active) ? active : elements[0]
-        const next = findNextFocus(current, direction, elements)
+        if (
+          current.classList.contains('player-stage') &&
+          document.querySelector('.player-overlay') &&
+          (direction === 'left' || direction === 'right')
+        ) {
+          return
+        }
+        const next = findNextInGroup(current, direction, elements) ?? findNextFocus(current, direction, elements)
         if (next) {
           event.preventDefault()
           next.focus()
@@ -1513,7 +1543,8 @@ function ContentCard({
       <button
         className={`favorite-button ${item.isFavorite ? 'active' : ''}`}
         type="button"
-        onKeyDown={(event) => event.stopPropagation()}
+        tabIndex={-1}
+        data-spatial-ignore="true"
         onClick={(event) => {
           event.stopPropagation()
           onToggleFavorite(item)
@@ -2461,15 +2492,22 @@ function PlayerOverlay({
 
   useEffect(() => {
     const onPlayerKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return
+      const active = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      const focusIsOnStage = !active || active === document.body || active === stageRef.current
+      const focusIsPlayerControl = Boolean(active?.closest('.player-controls, .player-topbar, .player-center'))
+
       if (event.key === 'ArrowUp') {
         event.preventDefault()
         revealControls()
       }
       if (event.key === 'ArrowLeft') {
+        if (focusIsPlayerControl && !focusIsOnStage) return
         event.preventDefault()
         seekBy(-10)
       }
       if (event.key === 'ArrowRight') {
+        if (focusIsPlayerControl && !focusIsOnStage) return
         event.preventDefault()
         seekBy(10)
       }

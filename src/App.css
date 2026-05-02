@@ -420,6 +420,7 @@
 
 .app-frame {
   width: var(--atlas-stage-width);
+  max-width: none;
   min-height: var(--atlas-stage-height);
   transform-origin: top left;
   color: var(--text);

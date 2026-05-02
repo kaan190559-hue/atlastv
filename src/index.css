@@ -14,8 +14,9 @@
   --focus: rgba(0, 229, 255, 0.78);
   --card-scale: 1;
   --atlas-stage-scale: 1;
-  --atlas-stage-width: 100%;
+  --atlas-stage-width: 1920px;
   --atlas-stage-height: 100svh;
+  --atlas-root-width: 100%;
   --card-radius: 16px;
   --card-glow: 1;
   --input: #eaf1ff;
@@ -74,7 +75,8 @@ body {
 }
 
 #root {
-  width: 100%;
+  width: var(--atlas-root-width);
+  max-width: 100%;
   min-height: 100svh;
   overflow-x: hidden;
 }
