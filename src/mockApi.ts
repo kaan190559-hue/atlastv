@@ -823,7 +823,7 @@ const rememberPicked = (ids: Set<string>, items: ContentItem[]) => {
 }
 
 const matchesExplicitTerm = (item: ContentItem, terms: string[]) => {
-  const haystack = `${item.title} ${item.displayTitle ?? ''} ${item.category}`
+  const haystack = `${item.title} ${item.displayTitle ?? ''} ${item.category} ${item.genre ?? ''}`
     .toLocaleLowerCase('tr-TR')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -836,7 +836,7 @@ const buildGenreSection = (vod: ContentItem[], id: string, title: string, terms:
   id,
   title,
   variant: 'poster',
-  items: takeRandomContent(vod.filter((item) => matchesExplicitTerm(item, terms)), 15, pickedIds),
+  items: takeRandomContent(vod.filter((item) => matchesExplicitTerm(item, terms)), 24, pickedIds),
 })
 
 const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: ContentItem[] = []): HomeSection[] => {
@@ -854,11 +854,11 @@ const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: Content
   rememberPicked(pickedIds, top)
   const admin = takeRandomContent(vod, 14, pickedIds)
   const genreSections = [
-    buildGenreSection(vod, 'komedi', 'Komedi', ['komedi', 'comedy'], pickedIds),
-    buildGenreSection(vod, 'macera', 'Macera', ['macera', 'adventure'], pickedIds),
-    buildGenreSection(vod, 'aksiyon', 'Aksiyon', ['aksiyon', 'action'], pickedIds),
-    buildGenreSection(vod, 'korku', 'Korku', ['korku', 'horror'], pickedIds),
-    buildGenreSection(vod, 'yerli', 'Yerli', ['yerli', 'turk', 'türk', 'tr '], pickedIds),
+    buildGenreSection(vod, 'komedi', 'Komedi', ['komedi', 'comedy', 'gülmece', 'humor', 'komik'], pickedIds),
+    buildGenreSection(vod, 'macera', 'Macera', ['macera', 'adventure', 'aksiyon macera', 'action adventure'], pickedIds),
+    buildGenreSection(vod, 'aksiyon', 'Aksiyon', ['aksiyon', 'action', 'gerilim aksiyon'], pickedIds),
+    buildGenreSection(vod, 'korku', 'Korku', ['korku', 'horror', 'gerilim', 'thriller', 'gizem', 'mystery', 'canavar', 'karanlık'], pickedIds),
+    buildGenreSection(vod, 'yerli', 'Yerli', ['yerli', 'turk', 'türk', 'tr ', 'turkish', 'anadolu', 'istanbul', 'ankara', 'türkiye'], pickedIds),
   ].filter((section) => section.items.length)
 
   return [
