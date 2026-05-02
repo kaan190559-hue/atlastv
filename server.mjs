@@ -1243,10 +1243,34 @@ function groupCatalogItems(items) {
       genre: representative.genre || inferGenre(representative.category, representative.displayTitle ?? representative.title, representative.type),
       episodeCount: isEpisodeGroup ? sorted.length : 1,
       seasonCount,
-      episodes: isEpisodeGroup ? sorted : [representative],
+      ...(isEpisodeGroup ? { episodes: sorted.map((episode) => compactEpisode(episode, representative)) } : {}),
       badge: isEpisodeGroup ? `${sorted.length} Bölüm` : representative.badge,
     }
   })
+}
+
+function compactEpisode(episode, representative) {
+  return {
+    id: episode.id,
+    title: episode.title,
+    displayTitle: representative.displayTitle ?? representative.title,
+    groupId: representative.groupId,
+    type: 'series',
+    category: representative.category,
+    platform: representative.platform,
+    genre: representative.genre,
+    streamUrl: episode.streamUrl,
+    posterUrl: episode.posterUrl || representative.posterUrl,
+    backdropUrl: episode.backdropUrl || representative.backdropUrl,
+    rating: representative.rating,
+    description: representative.description,
+    isLive: false,
+    isFavorite: false,
+    httpUserAgent: episode.httpUserAgent || representative.httpUserAgent,
+    seasonNumber: episode.seasonNumber,
+    episodeNumber: episode.episodeNumber,
+    badge: episode.episodeNumber ? `Bölüm ${episode.episodeNumber}` : representative.badge,
+  }
 }
 
 function getAttribute(line, name) {
