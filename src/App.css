@@ -447,11 +447,11 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  min-height: 86px;
-  padding: 16px 28px;
+  min-height: 96px;
+  padding: 18px 32px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 18px;
+  gap: 22px;
   align-items: center;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface-strong) 86%, transparent);
@@ -461,16 +461,16 @@
 .brand-lockup {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 
 .brand-lockup strong {
-  font-size: 32px;
+  font-size: 38px;
 }
 
 .icon-button {
-  width: 56px;
-  height: 56px;
+  width: 62px;
+  height: 62px;
   border: 1px solid var(--border);
   border-radius: 999px;
   display: inline-grid;
@@ -487,13 +487,13 @@
 .card-meta svg,
 .player-controls svg,
 .mobile-nav svg {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
 }
 
 .desktop-nav {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   justify-content: center;
   overflow-x: auto;
 }
@@ -502,13 +502,14 @@
 .filter-row button,
 .live-select select,
 .detail-button {
-  min-height: 46px;
+  min-height: 54px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 0 18px;
-  color: var(--text);
-  background: var(--surface);
+  padding: 0 22px;
+  color: var(--text-strong);
+  background: color-mix(in srgb, var(--surface-strong) 76%, black);
   font: inherit;
+  font-size: 16px;
   font-weight: 850;
   white-space: nowrap;
   cursor: pointer;
@@ -587,9 +588,9 @@
 }
 
 .search-box {
-  min-height: 54px;
-  width: min(260px, 24vw);
-  padding: 0 16px;
+  min-height: 60px;
+  width: min(310px, 25vw);
+  padding: 0 18px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -888,23 +889,22 @@
 .rail-list {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: calc(230px * var(--card-scale));
+  grid-auto-columns: calc(253px * var(--card-scale));
   gap: 18px;
-  overflow-x: auto;
   padding: 2px 2px 18px;
   scroll-snap-type: x proximity;
 }
 
 .rail-list.wide {
-  grid-auto-columns: minmax(calc(330px * var(--card-scale)), calc(440px * var(--card-scale)));
+  grid-auto-columns: minmax(calc(363px * var(--card-scale)), calc(484px * var(--card-scale)));
 }
 
 .rail-list.channel {
-  grid-auto-columns: calc(280px * var(--card-scale));
+  grid-auto-columns: calc(308px * var(--card-scale));
 }
 
 .rail-list.circle {
-  grid-auto-columns: calc(184px * var(--card-scale));
+  grid-auto-columns: calc(202px * var(--card-scale));
 }
 
 .content-card {
@@ -1226,7 +1226,7 @@
 
 .content-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(calc(190px * var(--card-scale)), calc(190px * var(--card-scale))));
+  grid-template-columns: repeat(auto-fill, minmax(calc(210px * var(--card-scale)), calc(210px * var(--card-scale))));
   gap: 22px;
 }
 
@@ -2464,19 +2464,19 @@
   .rail-list,
   .rail-list.wide,
   .rail-list.channel {
-    grid-auto-columns: calc(230px * var(--card-scale));
+    grid-auto-columns: calc(253px * var(--card-scale));
   }
 
   .rail-list.wide {
-    grid-auto-columns: calc(330px * var(--card-scale));
+    grid-auto-columns: calc(363px * var(--card-scale));
   }
 
   .rail-list.channel {
-    grid-auto-columns: calc(280px * var(--card-scale));
+    grid-auto-columns: calc(308px * var(--card-scale));
   }
 
   .rail-list.circle {
-    grid-auto-columns: 148px;
+    grid-auto-columns: 163px;
   }
 
   .trend-row {
@@ -2655,13 +2655,13 @@
 
 @media (max-width: 760px) {
   .app-frame .top-bar {
-    min-height: 86px !important;
+    min-height: 96px !important;
     grid-template-columns: auto minmax(0, 1fr) auto !important;
-    padding: 16px 28px !important;
+    padding: 18px 32px !important;
   }
 
   .app-frame .brand-lockup strong {
-    font-size: 32px !important;
+    font-size: 38px !important;
   }
 
   .app-frame .menu-button {
@@ -2677,8 +2677,8 @@
   }
 
   .app-frame .search-box {
-    width: min(260px, 24vw) !important;
-    padding: 0 16px !important;
+    width: min(310px, 25vw) !important;
+    padding: 0 18px !important;
     justify-content: flex-start !important;
   }
 
@@ -2705,19 +2705,19 @@
   }
 
   .app-frame .rail-list {
-    grid-auto-columns: calc(230px * var(--card-scale)) !important;
+    grid-auto-columns: calc(253px * var(--card-scale)) !important;
   }
 
   .app-frame .rail-list.wide {
-    grid-auto-columns: minmax(calc(330px * var(--card-scale)), calc(440px * var(--card-scale))) !important;
+    grid-auto-columns: minmax(calc(363px * var(--card-scale)), calc(484px * var(--card-scale))) !important;
   }
 
   .app-frame .rail-list.channel {
-    grid-auto-columns: calc(280px * var(--card-scale)) !important;
+    grid-auto-columns: calc(308px * var(--card-scale)) !important;
   }
 
   .app-frame .rail-list.circle {
-    grid-auto-columns: calc(184px * var(--card-scale)) !important;
+    grid-auto-columns: calc(202px * var(--card-scale)) !important;
   }
 
   .app-frame .page-heading {
@@ -2757,21 +2757,21 @@
 }
 
 .home-screen .rail-list {
-  grid-auto-columns: calc(178px * var(--card-scale)) !important;
+  grid-auto-columns: calc(196px * var(--card-scale)) !important;
   gap: 14px;
   padding-bottom: 14px;
 }
 
 .home-screen .rail-list.wide {
-  grid-auto-columns: calc(300px * var(--card-scale)) !important;
+  grid-auto-columns: calc(330px * var(--card-scale)) !important;
 }
 
 .home-screen .rail-list.channel {
-  grid-auto-columns: calc(236px * var(--card-scale)) !important;
+  grid-auto-columns: calc(260px * var(--card-scale)) !important;
 }
 
 .home-screen .rail-list.circle {
-  grid-auto-columns: calc(144px * var(--card-scale)) !important;
+  grid-auto-columns: calc(158px * var(--card-scale)) !important;
 }
 
 .home-screen .card-meta {
@@ -2829,4 +2829,55 @@
 .home-screen .trend-play {
   width: 40px;
   height: 40px;
+}
+
+:root[data-tv-performance='true'] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  scroll-behavior: auto !important;
+}
+
+:root[data-tv-performance='true'] .app-frame {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 320px),
+    var(--bg);
+}
+
+:root[data-tv-performance='true'] .content-card,
+:root[data-tv-performance='true'] .poster-button img,
+:root[data-tv-performance='true'] .trend-row,
+:root[data-tv-performance='true'] .player-close,
+:root[data-tv-performance='true'] .player-topbar,
+:root[data-tv-performance='true'] .player-controls,
+:root[data-tv-performance='true'] .player-center {
+  transition: none !important;
+}
+
+:root[data-tv-performance='true'] .content-card:hover,
+:root[data-tv-performance='true'] .content-card:focus,
+:root[data-tv-performance='true'] .content-card:focus-within {
+  filter: none !important;
+  transform: none !important;
+}
+
+:root[data-tv-performance='true'] .content-card:focus,
+:root[data-tv-performance='true'] .content-card:focus-within {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+}
+
+:root[data-tv-performance='true'] .poster-button:hover img,
+:root[data-tv-performance='true'] .content-card:focus .poster-button img,
+:root[data-tv-performance='true'] .poster-button:hover .live-channel-art,
+:root[data-tv-performance='true'] .content-card:focus .poster-button .live-channel-art {
+  transform: none !important;
+}
+
+:root[data-tv-performance='true'] .top-bar,
+:root[data-tv-performance='true'] .search-box,
+:root[data-tv-performance='true'] .desktop-nav button,
+:root[data-tv-performance='true'] .content-card .card-meta,
+:root[data-tv-performance='true'] .poster-button,
+:root[data-tv-performance='true'] .trend-row {
+  box-shadow: none !important;
 }

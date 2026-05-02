@@ -272,12 +272,23 @@ const withLatency = <T,>(value: T) =>
     window.setTimeout(() => resolve(value), 20)
   })
 
+const isUnexpectedEmptyCatalogPage = (url: string, value: unknown) => {
+  if (!url.includes('__atlas_catalog') && !url.includes('__atlas_live_catalog')) return false
+  if (url.includes('q=') || url.includes('ids=') || url.includes('country=') || url.includes('liveCategory=')) return false
+  if (url.includes('vodCategory=') || url.includes('platform=')) return false
+  if (url.includes('category=list') || url.includes('category=favorites') || url.includes('category=sports')) return false
+  const page = value as Partial<CategoryPage>
+  return Array.isArray(page.items) && page.items.length === 0 && Number(page.total ?? 0) === 0
+}
+
 const cachedFetchJson = async <T,>(url: string, ttl = CONTENT_PAGE_CACHE_TTL): Promise<T> => {
   const key = `${CONTENT_PAGE_CACHE_PREFIX}${url}`
+  let staleValue: T | null = null
   try {
     const cached = window.sessionStorage.getItem(key)
     if (cached) {
       const parsed = JSON.parse(cached) as { savedAt: number; value: T }
+      staleValue = parsed.value
       if (Date.now() - parsed.savedAt < ttl) return parsed.value
     }
   } catch {
@@ -287,6 +298,17 @@ const cachedFetchJson = async <T,>(url: string, ttl = CONTENT_PAGE_CACHE_TTL): P
   const response = await fetch(url)
   if (!response.ok) throw new Error(`Katalog yÃ¼klenemedi: ${response.status}`)
   const value = (await response.json()) as T
+  if (isUnexpectedEmptyCatalogPage(url, value)) {
+    if (staleValue) {
+      // Refresh the stale entry's timestamp so it remains valid while the server
+      // keeps returning an empty response, preventing the cache from going cold.
+      try {
+        window.sessionStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), value: staleValue }))
+      } catch {}
+      return staleValue
+    }
+    throw new Error('Katalog bos dondu; eski M3U verisi korunuyor.')
+  }
   try {
     window.sessionStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), value }))
   } catch {
@@ -906,15 +928,15 @@ const buildFreshHomeSections = async () => {
   const hasSportsSource = Boolean(settings.sportsM3uUrl.trim() || settings.sportsM3uContent?.trim())
   const sports = hasSportsSource ? await loadSportsCatalog(0, 24).catch(() => ({ items: [], total: 0 })) : { items: [], total: 0 }
   const sections = getHomeSectionsFromCatalog(catalog, sports.items)
-  writeTimedCache(HOME_SECTIONS_CACHE_KEY, sections)
+  if (sections.some((section) => section.items.length > 0)) writeTimedCache(HOME_SECTIONS_CACHE_KEY, sections)
   return sections
 }
 
 const buildFreshHeroItems = async () => {
   const catalog = await getVodCatalog()
   const items = takeRandomContent(catalog.filter((item) => !item.isLive), 6)
-  writeTimedCache(HERO_ITEMS_CACHE_KEY, items)
-  return items
+  if (items.length) writeTimedCache(HERO_ITEMS_CACHE_KEY, items)
+  return items.length ? items : readTimedCache<ContentItem[]>(HERO_ITEMS_CACHE_KEY) ?? takeRandomContent(fallbackVodCatalog, 6)
 }
 
 export const api = {

@@ -243,6 +243,19 @@ function getCategoryPageSize(screen: Screen) {
   return screen === 'series' || screen === 'movies' ? VOD_CATEGORY_PAGE_SIZE : CATEGORY_PAGE_SIZE
 }
 
+function hasHomeSectionContent(sections: HomeSection[]) {
+  return sections.some((section) => section.items.length > 0)
+}
+
+function acceptsEmptyCategoryPage(
+  screen: Screen,
+  search: string,
+  filters: { liveCountry: string; liveCategory: string; vodCategory: string; vodPlatform: string },
+) {
+  if (screen === 'list' || screen === 'favorites' || screen === 'sports') return true
+  return Boolean(search.trim() || filters.liveCountry || filters.liveCategory || filters.vodCategory || filters.vodPlatform)
+}
+
 function isVisible(element: HTMLElement) {
   const rect = element.getBoundingClientRect()
   const style = window.getComputedStyle(element)
@@ -428,6 +441,10 @@ function App() {
   const [adminPassword, setAdminPassword] = useState('')
   useSpatialNavigation(`${isAuthed}-${authMode}-${screen}-${playerItem?.id ?? 'app'}-${categoryItems[0]?.id ?? 'empty'}`)
 
+  const applyHomeSections = useCallback((sections: HomeSection[]) => {
+    if (hasHomeSectionContent(sections)) setHomeSections(sections)
+  }, [])
+
   useEffect(() => {
     document.documentElement.dataset.theme = theme
   }, [theme])
@@ -459,39 +476,47 @@ function App() {
       if (isActive) setHeroItems(items)
     })
     api.content.getHomeSections().then((sections) => {
-      if (isActive) setHomeSections(sections)
+      if (isActive) applyHomeSections(sections)
     })
     api.content.getHeroItemsFresh().then((items) => {
       if (isActive) setHeroItems(items)
     })
     api.content.getHomeSectionsFresh().then((sections) => {
-      if (isActive) setHomeSections(sections)
+      if (isActive) applyHomeSections(sections)
     })
     return () => {
       isActive = false
     }
-  }, [isAuthed])
+  }, [applyHomeSections, isAuthed])
 
   useEffect(() => {
     if (!isAuthed || screen === 'home' || screen === 'account' || screen === 'about') return
     let isActive = true
+    const allowEmptyPage = acceptsEmptyCategoryPage(screen, search, { liveCountry, liveCategory, vodCategory, vodPlatform })
     api.content
       .getCategoryPage(screen, 0, getCategoryPageSize(screen), search, { country: liveCountry, liveCategory, vodCategory, platform: vodPlatform })
       .then((page) => {
-      if (!isActive) return
-      setCategoryItems(page.items)
-      setCategoryTotal(page.total)
-      if (screen === 'live' || screen === 'sports') {
-        setLiveFilters({
-          countries: page.countries ?? [],
-          categories: page.categories ?? [],
-        })
-      } else if (screen === 'series' || screen === 'movies') {
-        setVodCategories(page.categories ?? [])
-        setVodPlatforms(page.platforms ?? [])
-      }
-      setCategoryLoading(false)
-    })
+        if (!isActive) return
+        if (!allowEmptyPage && page.items.length === 0 && page.total === 0) {
+          setCategoryLoading(false)
+          return
+        }
+        setCategoryItems(page.items)
+        setCategoryTotal(page.total)
+        if (screen === 'live' || screen === 'sports') {
+          setLiveFilters({
+            countries: page.countries ?? [],
+            categories: page.categories ?? [],
+          })
+        } else if (screen === 'series' || screen === 'movies') {
+          setVodCategories(page.categories ?? [])
+          setVodPlatforms(page.platforms ?? [])
+        }
+        setCategoryLoading(false)
+      })
+      .catch(() => {
+        if (isActive) setCategoryLoading(false)
+      })
 
     return () => {
       isActive = false
@@ -516,8 +541,11 @@ function App() {
   }, [])
 
   const refreshHomeSections = useCallback(() => {
-    api.content.getHomeSections().then(setHomeSections)
-  }, [])
+    void api.content
+      .getHomeSectionsFresh()
+      .then(applyHomeSections)
+      .catch(() => void api.content.getHomeSections().then(applyHomeSections))
+  }, [applyHomeSections])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -549,7 +577,7 @@ function App() {
     if (!isAuthed) return
     setHeroIndex(0)
     setHeroItems(await api.content.getHeroItems())
-    setHomeSections(await api.content.getHomeSections())
+    applyHomeSections(await api.content.getHomeSections())
     if (['live', 'sports', 'series', 'movies', 'list', 'favorites'].includes(screen)) {
       setCategoryItems([])
       setCategoryTotal(0)
@@ -560,6 +588,10 @@ function App() {
         vodCategory,
         platform: vodPlatform,
       })
+      if (!acceptsEmptyCategoryPage(screen, search, { liveCountry, liveCategory, vodCategory, vodPlatform }) && page.items.length === 0 && page.total === 0) {
+        setCategoryLoading(false)
+        return
+      }
       setCategoryItems(page.items)
       setCategoryTotal(page.total)
       if (screen === 'live' || screen === 'sports') {
@@ -573,7 +605,7 @@ function App() {
       }
       setCategoryLoading(false)
     }
-  }, [isAuthed, liveCategory, liveCountry, screen, search, vodCategory, vodPlatform])
+  }, [applyHomeSections, isAuthed, liveCategory, liveCountry, screen, search, vodCategory, vodPlatform])
 
   useEffect(() => {
     const onAdminKeyDown = (event: KeyboardEvent) => {
@@ -626,7 +658,7 @@ function App() {
   const toggleFavorite = async (item: ContentItem) => {
     await api.user.toggleFavorite(item.id)
     const sections = await api.content.getHomeSections()
-    setHomeSections(sections)
+    applyHomeSections(sections)
     setCategoryItems((items) =>
       screen === 'favorites'
         ? items.filter((entry) => entry.id !== item.id)
@@ -645,7 +677,7 @@ function App() {
   const toggleList = async (item: ContentItem) => {
     await api.user.toggleList(item)
     const sections = await api.content.getHomeSections()
-    setHomeSections(sections)
+    applyHomeSections(sections)
     setCategoryItems((items) =>
       items.map((entry) =>
         (entry.groupId ?? entry.id) === (item.groupId ?? item.id)
