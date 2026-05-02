@@ -2622,3 +2622,110 @@
     padding: 0 18px;
   }
 }
+
+/*
+  AtlasTV is a TV-first interface. Keep the main app on the same desktop/TV
+  stage even when Android WebView or emulators report a narrow CSS viewport.
+*/
+@media (max-width: 1180px) {
+  .app-frame .top-bar {
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+  }
+
+  .app-frame .desktop-nav {
+    order: initial !important;
+    grid-column: auto !important;
+    justify-content: center !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-frame .top-bar {
+    min-height: 86px !important;
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+    padding: 16px 28px !important;
+  }
+
+  .app-frame .brand-lockup strong {
+    font-size: 32px !important;
+  }
+
+  .app-frame .menu-button {
+    display: inline-grid !important;
+  }
+
+  .app-frame .desktop-nav {
+    display: flex !important;
+  }
+
+  .app-frame .top-actions {
+    justify-content: flex-end !important;
+  }
+
+  .app-frame .search-box {
+    width: min(260px, 24vw) !important;
+    padding: 0 16px !important;
+    justify-content: flex-start !important;
+  }
+
+  .app-frame .search-box input {
+    display: block !important;
+  }
+
+  .app-frame .page-shell {
+    padding: 0 28px 110px !important;
+  }
+
+  .app-frame .hero-banner {
+    min-height: min(620px, 72svh) !important;
+    margin: 0 -28px 36px !important;
+  }
+
+  .app-frame .hero-content {
+    width: min(760px, calc(100% - 48px)) !important;
+    padding: 0 0 86px 54px !important;
+  }
+
+  .app-frame .hero-actions {
+    flex-direction: row !important;
+  }
+
+  .app-frame .rail-list {
+    grid-auto-columns: calc(230px * var(--card-scale)) !important;
+  }
+
+  .app-frame .rail-list.wide {
+    grid-auto-columns: minmax(calc(330px * var(--card-scale)), calc(440px * var(--card-scale))) !important;
+  }
+
+  .app-frame .rail-list.channel {
+    grid-auto-columns: calc(280px * var(--card-scale)) !important;
+  }
+
+  .app-frame .rail-list.circle {
+    grid-auto-columns: calc(184px * var(--card-scale)) !important;
+  }
+
+  .app-frame .page-heading {
+    display: flex !important;
+  }
+
+  .app-frame .search-box.large {
+    width: min(420px, 36vw) !important;
+    margin-top: 0 !important;
+  }
+
+  .app-frame .utility-grid,
+  .app-frame .settings-layout,
+  .app-frame .appearance-controls {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+  }
+
+  .app-frame .live-filter-panel {
+    grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto !important;
+  }
+
+  .app-frame .mobile-nav {
+    display: none !important;
+  }
+}
