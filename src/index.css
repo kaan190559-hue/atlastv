@@ -13,6 +13,9 @@
   --accent-glow: rgba(0, 229, 255, 0.34);
   --focus: rgba(0, 229, 255, 0.78);
   --card-scale: 1;
+  --atlas-stage-scale: 1;
+  --atlas-stage-width: 100%;
+  --atlas-stage-height: 100svh;
   --card-radius: 16px;
   --card-glow: 1;
   --input: #eaf1ff;
@@ -60,12 +63,20 @@
 
 html {
   background: var(--bg);
+  overflow-x: hidden;
 }
 
 body {
-  min-width: 320px;
+  min-width: 0;
   margin: 0;
   background: var(--bg);
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+  min-height: 100svh;
+  overflow-x: hidden;
 }
 
 button,

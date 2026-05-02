@@ -3,28 +3,39 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta id="atlas-viewport" name="viewport" content="width=1920, viewport-fit=cover" />
+    <meta
+      id="atlas-viewport"
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
     <script>
       (function () {
         var designWidth = 1920
-        var meta = document.getElementById('atlas-viewport')
-        if (!meta) return
-        var isCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches
-        if (!isCoarse) return
-        var screenWidth = Math.max(window.screen && window.screen.width ? window.screen.width : 0, window.innerWidth || 0)
-        var scale = Math.min(1, Math.max(0.25, screenWidth / designWidth))
-        meta.setAttribute(
-          'content',
-          'width=' +
-            designWidth +
-            ', initial-scale=' +
-            scale +
-            ', minimum-scale=' +
-            scale +
-            ', maximum-scale=' +
-            scale +
-            ', user-scalable=no, viewport-fit=cover',
-        )
+        function applyStageScale() {
+          var viewportWidth =
+            window.visualViewport && window.visualViewport.width ? window.visualViewport.width : window.innerWidth || designWidth
+          var viewportHeight =
+            window.visualViewport && window.visualViewport.height ? window.visualViewport.height : window.innerHeight || 1080
+          var dpr = Math.max(1, window.devicePixelRatio || 1)
+          var fitScale = viewportWidth / designWidth
+          var densityScale = 1 / dpr
+          var scale = Math.min(1, Math.max(0.32, Math.min(fitScale, densityScale)))
+          var stageWidth = Math.max(designWidth, Math.ceil(viewportWidth / scale))
+          var stageHeight = Math.ceil(viewportHeight / scale)
+
+          document.documentElement.style.setProperty('--atlas-stage-scale', String(scale))
+          document.documentElement.style.setProperty('--atlas-stage-width', stageWidth + 'px')
+          document.documentElement.style.setProperty('--atlas-stage-height', stageHeight + 'px')
+        }
+
+        applyStageScale()
+        window.addEventListener('resize', applyStageScale)
+        window.addEventListener('orientationchange', function () {
+          window.setTimeout(applyStageScale, 120)
+        })
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener('resize', applyStageScale)
+        }
       })()
     </script>
     <title>localde-bir-uygulama-kuracag-z-sonra</title>
