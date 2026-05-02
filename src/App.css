@@ -2742,3 +2742,90 @@
     display: none !important;
   }
 }
+
+.home-screen .content-rail {
+  margin: 24px 0;
+}
+
+.home-screen .rail-heading {
+  margin-bottom: 12px;
+}
+
+.home-screen .rail-heading h2 {
+  font-size: 30px;
+}
+
+.home-screen .rail-list {
+  grid-auto-columns: calc(178px * var(--card-scale)) !important;
+  gap: 14px;
+  padding-bottom: 14px;
+}
+
+.home-screen .rail-list.wide {
+  grid-auto-columns: calc(300px * var(--card-scale)) !important;
+}
+
+.home-screen .rail-list.channel {
+  grid-auto-columns: calc(236px * var(--card-scale)) !important;
+}
+
+.home-screen .rail-list.circle {
+  grid-auto-columns: calc(144px * var(--card-scale)) !important;
+}
+
+.home-screen .card-meta {
+  margin-top: 7px;
+  padding: 8px;
+}
+
+.home-screen .card-meta h3 {
+  min-height: 40px;
+  font-size: 15px;
+}
+
+.home-screen .card-meta p,
+.home-screen .card-meta span {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.home-screen .trend-section {
+  margin-top: 30px;
+}
+
+.home-screen .trend-heading h2 {
+  font-size: 36px;
+}
+
+.home-screen .trend-row {
+  min-height: 104px;
+  grid-template-columns: 42px 66px minmax(0, 1fr) 42px;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.home-screen .trend-rank {
+  font-size: 38px;
+}
+
+.home-screen .trend-row img {
+  width: 66px;
+  height: 82px;
+}
+
+.home-screen .trend-copy strong {
+  font-size: 22px;
+}
+
+.home-screen .trend-copy span {
+  font-size: 15px;
+}
+
+.home-screen .trend-copy small {
+  font-size: 13px;
+}
+
+.home-screen .trend-play {
+  width: 40px;
+  height: 40px;
+}

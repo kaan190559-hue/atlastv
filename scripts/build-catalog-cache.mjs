@@ -385,7 +385,7 @@ function inferPlatform(category = '', title = '') {
     ['MUBI', /mubi/],
     ['YouTube', /youtube/],
   ]
-  return platforms.find(([, pattern]) => pattern.test(source))?.[0] || stablePick(PRESET_PLATFORMS, title || category)
+  return platforms.find(([, pattern]) => pattern.test(source))?.[0] || 'Katalog'
 }
 
 function inferGenre(category = '', title = '', type = 'movie') {
@@ -410,7 +410,7 @@ function inferGenre(category = '', title = '', type = 'movie') {
     ['Western', /western|cowboy/],
     ['Yerli', /yerli|turkish|turk|t\u00fcrk/],
   ]
-  return genreRules.find(([, pattern]) => pattern.test(source))?.[0] || stablePick(PRESET_GENRES, `${type}-${title || category}`)
+  return genreRules.find(([, pattern]) => pattern.test(source))?.[0] || 'Katalog'
 }
 
 function getCountryFlag(country = '') {

@@ -6,26 +6,32 @@
     <meta
       id="atlas-viewport"
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+      content="width=1920, user-scalable=no, viewport-fit=cover"
     />
     <script>
       (function () {
         var designWidth = 1920
+        var touchFallbackScale = 0.46
         function applyStageScale() {
           var viewportWidth =
             window.visualViewport && window.visualViewport.width ? window.visualViewport.width : window.innerWidth || designWidth
           var viewportHeight =
             window.visualViewport && window.visualViewport.height ? window.visualViewport.height : window.innerHeight || 1080
+          var viewportScale = window.visualViewport && window.visualViewport.scale ? window.visualViewport.scale : 1
           var dpr = Math.max(1, window.devicePixelRatio || 1)
+          var hasTouch =
+            (window.navigator && window.navigator.maxTouchPoints > 0) ||
+            (window.matchMedia && window.matchMedia('(pointer: coarse)').matches)
           var fitScale = viewportWidth / designWidth
-          var densityScale = 1 / dpr
-          var scale = Math.min(1, Math.max(0.32, Math.min(fitScale, densityScale)))
+          var densityScale = viewportScale < 0.98 ? 1 : dpr > 1.05 ? 1 / dpr : hasTouch ? touchFallbackScale : 1
+          var scale = Math.min(1, Math.max(0.26, Math.min(fitScale, densityScale)))
           var stageWidth = Math.max(designWidth, Math.ceil(viewportWidth / scale))
           var stageHeight = Math.ceil(viewportHeight / scale)
 
           document.documentElement.style.setProperty('--atlas-stage-scale', String(scale))
           document.documentElement.style.setProperty('--atlas-stage-width', stageWidth + 'px')
           document.documentElement.style.setProperty('--atlas-stage-height', stageHeight + 'px')
+          document.documentElement.setAttribute('data-atlas-stage-scale', scale.toFixed(3))
         }
 
         applyStageScale()

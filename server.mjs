@@ -563,22 +563,22 @@ async function handleCatalog(req, res, requestUrl) {
     if (category === 'movies' && item.type !== 'movie') return false
     return true
   })
-  const categories = getSortedValues(scopedCatalog.map((item) => item.genre || inferGenre(item.category, item.title, item.type)))
-  const platforms = getSortedValues(scopedCatalog.map((item) => item.platform || inferPlatform(item.category, item.title)))
+  const categories = getSortedValues(scopedCatalog.map(resolveVodGenre).filter((value) => value !== 'Katalog'))
+  const platforms = getSortedValues(scopedCatalog.map(resolveVodPlatform).filter(Boolean))
   const filtered = catalog.filter((item) => {
     if (category === 'series' && item.type !== 'series') return false
     if (category === 'movies' && item.type !== 'movie') return false
-    if (vodCategory && item.category !== vodCategory && (item.genre || inferGenre(item.category, item.title, item.type)) !== vodCategory) {
+    if (vodCategory && item.category !== vodCategory && resolveVodGenre(item) !== vodCategory) {
       return false
     }
-    if (platform && (item.platform || inferPlatform(item.category, item.title)) !== platform) return false
+    if (platform && resolveVodPlatform(item) !== platform) return false
     if (query && !`${item.title} ${item.displayTitle ?? ''} ${item.category}`.toLocaleLowerCase('tr-TR').includes(query)) {
       return false
     }
     return true
   })
   const items = await hydrateVodEpisodes(filtered.slice(offset, offset + limit))
-  sendJson(res, { items, total: filtered.length, categories, platforms })
+  sendJson(res, { items: items.map(normalizeVodFacets), total: filtered.length, categories, platforms })
 }
 
 async function handleLiveCatalog(req, res, requestUrl) {
@@ -1029,7 +1029,7 @@ function inferPlatform(category = '', title = '') {
     ['Apple TV+', /apple/],
     ['TRT Tabii', /tabii|trt/],
   ]
-  return platforms.find(([, pattern]) => pattern.test(source))?.[0] || stablePick(PRESET_PLATFORMS.filter((platform) => platform !== 'Katalog'), title || category)
+  return platforms.find(([, pattern]) => pattern.test(source))?.[0] || 'Katalog'
 }
 
 function inferGenre(category = '', title = '', type = 'movie') {
@@ -1054,7 +1054,28 @@ function inferGenre(category = '', title = '', type = 'movie') {
     ['Western', /western|cowboy/],
     ['Yerli', /yerli|turkish|türk|turk/],
   ]
-  return genreRules.find(([, pattern]) => pattern.test(source))?.[0] || stablePick(PRESET_GENRES, `${type}-${title || category}`)
+  return genreRules.find(([, pattern]) => pattern.test(source))?.[0] || 'Katalog'
+}
+
+function resolveVodGenre(item) {
+  return inferGenre(item.category, item.displayTitle ?? item.title, item.type)
+}
+
+function resolveVodPlatform(item) {
+  return inferPlatform(item.category, item.displayTitle ?? item.title)
+}
+
+function normalizeVodFacets(item) {
+  return {
+    ...item,
+    genre: resolveVodGenre(item),
+    platform: resolveVodPlatform(item),
+    episodes: item.episodes?.map((episode) => ({
+      ...episode,
+      genre: resolveVodGenre(episode),
+      platform: resolveVodPlatform(episode),
+    })),
+  }
 }
 
 function isGenericVodCategory(category = '') {

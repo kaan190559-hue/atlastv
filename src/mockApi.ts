@@ -246,10 +246,10 @@ const USERS_KEY = 'atlastv.users'
 const CURRENT_USER_KEY = 'atlastv.currentUser'
 const SESSION_KEY = 'atlastv.sessionId'
 const ADMIN_SETTINGS_KEY = 'atlastv.adminSettings'
-const CONTENT_PAGE_CACHE_PREFIX = 'atlastv.contentPage.'
+const CONTENT_PAGE_CACHE_PREFIX = 'atlastv.contentPage.v3.'
 const CONTENT_PAGE_CACHE_TTL = 10 * 60 * 1000
-const HOME_SECTIONS_CACHE_KEY = 'atlastv.homeSections'
-const HERO_ITEMS_CACHE_KEY = 'atlastv.heroItems'
+const HOME_SECTIONS_CACHE_KEY = 'atlastv.homeSections.v3'
+const HERO_ITEMS_CACHE_KEY = 'atlastv.heroItems.v3'
 const ADMIN_SETTINGS_ENDPOINT = '/__atlas_admin_settings'
 const ADMIN_AUTH_ENDPOINT = '/__atlas_admin_auth'
 const USER_STATS_ENDPOINT = '/__atlas_user_stats'
@@ -800,17 +800,21 @@ const rememberPicked = (ids: Set<string>, items: ContentItem[]) => {
   items.forEach((item) => ids.add(item.id))
 }
 
-const matchesAnyTerm = (item: ContentItem, terms: string[]) => {
-  const haystack = `${item.title} ${item.displayTitle ?? ''} ${item.category} ${item.genre ?? ''}`
+const matchesExplicitTerm = (item: ContentItem, terms: string[]) => {
+  const haystack = `${item.title} ${item.displayTitle ?? ''} ${item.category}`
     .toLocaleLowerCase('tr-TR')
-  return terms.some((term) => haystack.includes(term.toLocaleLowerCase('tr-TR')))
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+  return terms.some((term) =>
+    haystack.includes(term.toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[\u0300-\u036f]/g, '')),
+  )
 }
 
 const buildGenreSection = (vod: ContentItem[], id: string, title: string, terms: string[], pickedIds: Set<string>): HomeSection => ({
   id,
   title,
   variant: 'poster',
-  items: takeRandomContent(vod.filter((item) => matchesAnyTerm(item, terms)), 15, pickedIds),
+  items: takeRandomContent(vod.filter((item) => matchesExplicitTerm(item, terms)), 15, pickedIds),
 })
 
 const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: ContentItem[] = []): HomeSection[] => {

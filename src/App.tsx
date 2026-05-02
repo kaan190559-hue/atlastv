@@ -1138,7 +1138,7 @@ function HomeScreen({
   const regularSections = sections.filter((section) => section.id !== 'trend' && section.id !== 'continue')
 
   return (
-    <>
+    <div className="home-screen">
       <section className="hero-banner" style={{ backgroundImage: `url(${hero.backdropUrl})` }}>
         <div className="hero-content">
           <div className="tag-row">
@@ -1198,7 +1198,7 @@ function HomeScreen({
           onToggleFavorite={onToggleFavorite}
         />
       ) : null}
-    </>
+    </div>
   )
 }
 
