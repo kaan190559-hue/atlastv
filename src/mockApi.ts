@@ -823,7 +823,7 @@ const rememberPicked = (ids: Set<string>, items: ContentItem[]) => {
 }
 
 const matchesExplicitTerm = (item: ContentItem, terms: string[]) => {
-  const haystack = `${item.title} ${item.displayTitle ?? ''} ${item.category} ${item.genre ?? ''}`
+  const haystack = `${item.title} ${item.displayTitle ?? ''} ${item.category} ${item.genre ?? ''} ${item.description ?? ''}`
     .toLocaleLowerCase('tr-TR')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -854,11 +854,29 @@ const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: Content
   rememberPicked(pickedIds, top)
   const admin = takeRandomContent(vod, 14, pickedIds)
   const genreSections = [
-    buildGenreSection(vod, 'komedi', 'Komedi', ['komedi', 'comedy', 'gülmece', 'humor', 'komik'], pickedIds),
-    buildGenreSection(vod, 'macera', 'Macera', ['macera', 'adventure', 'aksiyon macera', 'action adventure'], pickedIds),
-    buildGenreSection(vod, 'aksiyon', 'Aksiyon', ['aksiyon', 'action', 'gerilim aksiyon'], pickedIds),
-    buildGenreSection(vod, 'korku', 'Korku', ['korku', 'horror', 'gerilim', 'thriller', 'gizem', 'mystery', 'canavar', 'karanlık'], pickedIds),
-    buildGenreSection(vod, 'yerli', 'Yerli', ['yerli', 'turk', 'türk', 'tr ', 'turkish', 'anadolu', 'istanbul', 'ankara', 'türkiye'], pickedIds),
+    buildGenreSection(vod, 'komedi', 'Komedi', [
+      'komedi', 'comedy', 'gülmece', 'humor', 'komik', 'eğlenceli', 'neşeli',
+      'romantic comedy', 'rom-com', 'romcom', 'aile komedisi', 'sitcom',
+    ], pickedIds),
+    buildGenreSection(vod, 'macera', 'Macera', [
+      'macera', 'adventure', 'aksiyon macera', 'action adventure',
+      'fantastik', 'fantasy', 'bilim kurgu', 'sci-fi', 'scifi', 'epik',
+      'keşif', 'yolculuk', 'quest',
+    ], pickedIds),
+    buildGenreSection(vod, 'aksiyon', 'Aksiyon', [
+      'aksiyon', 'action', 'gerilim aksiyon', 'savaş', 'war', 'spionage',
+      'ajan', 'spy', 'suç', 'crime', 'polis', 'police',
+    ], pickedIds),
+    buildGenreSection(vod, 'korku', 'Korku', [
+      'korku', 'horror', 'gerilim', 'thriller', 'gizem', 'mystery',
+      'canavar', 'karanlık', 'psikolojik', 'psychological', 'supernatural',
+      'doğaüstü', 'hayalet', 'ghost', 'zombie', 'slasher',
+    ], pickedIds),
+    buildGenreSection(vod, 'yerli', 'Yerli', [
+      'yerli', 'turk', 'türk', 'tr ', 'turkish', 'anadolu', 'istanbul',
+      'ankara', 'türkiye', 'turkey', 'türkçe', 'turkce', 'yeşilçam',
+      'trt', 'atv', 'show tv', 'kanal d', 'star tv', 'fox tr',
+    ], pickedIds),
   ].filter((section) => section.items.length)
 
   return [
