@@ -1066,14 +1066,17 @@ function resolveVodPlatform(item) {
 }
 
 function normalizeVodFacets(item) {
+  // Prefer stored genre (e.g. from pre-built catalog) over inferred; only fall back when absent.
+  const inferred = resolveVodGenre(item)
+  const genre = (item.genre && item.genre !== 'Katalog') ? item.genre : inferred
   return {
     ...item,
-    genre: resolveVodGenre(item),
-    platform: resolveVodPlatform(item),
+    genre,
+    platform: item.platform || resolveVodPlatform(item),
     episodes: item.episodes?.map((episode) => ({
       ...episode,
-      genre: resolveVodGenre(episode),
-      platform: resolveVodPlatform(episode),
+      genre: (episode.genre && episode.genre !== 'Katalog') ? episode.genre : resolveVodGenre(episode),
+      platform: episode.platform || resolveVodPlatform(episode),
     })),
   }
 }
