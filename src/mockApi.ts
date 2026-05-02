@@ -832,11 +832,15 @@ const matchesExplicitTerm = (item: ContentItem, terms: string[]) => {
   )
 }
 
-const buildGenreSection = (vod: ContentItem[], id: string, title: string, terms: string[], pickedIds: Set<string>): HomeSection => ({
+const buildGenreSection = (vod: ContentItem[], id: string, title: string, genreName: string, fallbackTerms: string[], pickedIds: Set<string>): HomeSection => ({
   id,
   title,
   variant: 'poster',
-  items: takeRandomContent(vod.filter((item) => matchesExplicitTerm(item, terms)), 24, pickedIds),
+  items: takeRandomContent(
+    vod.filter((item) => item.genre === genreName || matchesExplicitTerm(item, fallbackTerms)),
+    24,
+    pickedIds,
+  ),
 })
 
 const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: ContentItem[] = []): HomeSection[] => {
@@ -854,25 +858,25 @@ const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: Content
   rememberPicked(pickedIds, top)
   const admin = takeRandomContent(vod, 14, pickedIds)
   const genreSections = [
-    buildGenreSection(vod, 'komedi', 'Komedi', [
+    buildGenreSection(vod, 'komedi', 'Komedi', 'Komedi', [
       'komedi', 'comedy', 'gülmece', 'humor', 'komik', 'eğlenceli', 'neşeli',
       'romantic comedy', 'rom-com', 'romcom', 'aile komedisi', 'sitcom',
     ], pickedIds),
-    buildGenreSection(vod, 'macera', 'Macera', [
+    buildGenreSection(vod, 'macera', 'Macera', 'Macera', [
       'macera', 'adventure', 'aksiyon macera', 'action adventure',
       'fantastik', 'fantasy', 'bilim kurgu', 'sci-fi', 'scifi', 'epik',
       'keşif', 'yolculuk', 'quest',
     ], pickedIds),
-    buildGenreSection(vod, 'aksiyon', 'Aksiyon', [
+    buildGenreSection(vod, 'aksiyon', 'Aksiyon', 'Aksiyon', [
       'aksiyon', 'action', 'gerilim aksiyon', 'savaş', 'war', 'spionage',
       'ajan', 'spy', 'suç', 'crime', 'polis', 'police',
     ], pickedIds),
-    buildGenreSection(vod, 'korku', 'Korku', [
+    buildGenreSection(vod, 'korku', 'Korku', 'Korku', [
       'korku', 'horror', 'gerilim', 'thriller', 'gizem', 'mystery',
       'canavar', 'karanlık', 'psikolojik', 'psychological', 'supernatural',
       'doğaüstü', 'hayalet', 'ghost', 'zombie', 'slasher',
     ], pickedIds),
-    buildGenreSection(vod, 'yerli', 'Yerli', [
+    buildGenreSection(vod, 'yerli', 'Yerli', 'Yerli', [
       'yerli', 'turk', 'türk', 'tr ', 'turkish', 'anadolu', 'istanbul',
       'ankara', 'türkiye', 'turkey', 'türkçe', 'turkce', 'yeşilçam',
       'trt', 'atv', 'show tv', 'kanal d', 'star tv', 'fox tr',
