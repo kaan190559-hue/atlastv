@@ -26,7 +26,8 @@ const CACHE_CONTROL_PATH = '/__atlas_cache_control'
 const SCRAPED_M3U_PATH = '/scraped.m3u'
 const SCRAPED_M3U_FILE = resolve(__dirname, 'public', 'scraped.m3u')
 const SPORTS_M3U_DEFAULT =
-  process.env.ATLAS_SPORTS_M3U_URL || 'betmatik://live'
+  process.env.ATLAS_SPORTS_M3U_URL ||
+  'https://raw.githubusercontent.com/kaan190559-hue/atlastv/master/public/scraped.m3u'
 const CACHE_BOT_BUILD = 'prebuilt-catalog-v1'
 const DEFAULT_USER_AGENT = 'okhttp/4.12.0'
 const ADMIN_PASSWORD = process.env.ATLAS_ADMIN_PASSWORD || '190559'
@@ -728,7 +729,7 @@ async function handleProxy(req, res, requestUrl) {
     (target.includes('.avif') || target.includes('.jpg')) &&
     (contentType.startsWith('image/') || contentType === '') &&
     !target.includes('.m3u8') &&
-    (referer || origin)
+    (referer || origin || target.includes('workers.dev') || target.includes('yesbefere') || target.includes('.cfd/'))
   if (isDisguisedSegment) contentType = 'video/MP2T'
 
   const shouldRewritePlaylist =
