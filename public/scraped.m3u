@@ -25,7 +25,3 @@ https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.he
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/a-spor.m3u8
 #EXTINF:-1 tvg-id="static_ht-spor" tvg-name="HT Spor" tvg-logo="/logos/ht-spor.svg" group-title="Spor",HT Spor
 https://ciner.daioncdn.net/ht-spor/ht-spor.m3u8?app=web
-#EXTINF:-1 tvg-id="trgoals_trt-2" tvg-name="TRT 2" tvg-logo="/logos/trt-2.svg" group-title="Spor",TRT 2
-https://tv-trt2.medya.trt.com.tr/master.m3u8
-#EXTINF:-1 tvg-id="trgoals_trt-yıldız" tvg-name="TRT Yıldız" tvg-logo="/logos/trt-yildiz.svg" group-title="Spor",TRT Yıldız
-https://tv-trtspor2.medya.trt.com.tr/master.m3u8
