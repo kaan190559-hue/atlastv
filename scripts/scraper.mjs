@@ -20,7 +20,16 @@ const PAGE_TIMEOUT = 30_000
 const STREAM_VALIDATE_TIMEOUT = 8_000
 const STREAM_CAPTURE_WAIT = 12_000
 
-// ── Yardımcı: domain sayısını değiştir
+// ── Yardımcı: Geçerli stream URL mi?
+const isStreamUrl = (u) => {
+  try {
+    const url = new URL(u)
+    const path = url.pathname.toLowerCase()
+    return path.endsWith('.m3u8') || path.endsWith('.ts') || path.endsWith('.m3u')
+  } catch {
+    return false
+  }
+}
 const buildUrl = (source, n) => {
   const domain = source.domainPattern.replace('{N}', n)
   return `${source.scheme}://${domain}${source.sectionPath}`
@@ -81,14 +90,7 @@ const collectStreamsFromPage = async (browser, url, source) => {
   await page.setRequestInterception(true)
   page.on('request', (req) => {
     const u = req.url()
-    if (
-      u.includes('.m3u8') ||
-      u.includes('/live') ||
-      u.includes('/stream') ||
-      u.includes('/hls')
-    ) {
-      captured.add(u)
-    }
+    if (isStreamUrl(u)) captured.add(u)
     // Gereksiz kaynakları engelle (hız için)
     const rt = req.resourceType()
     if (['image', 'font', 'stylesheet', 'media'].includes(rt)) {
@@ -100,13 +102,13 @@ const collectStreamsFromPage = async (browser, url, source) => {
 
   page.on('response', async (res) => {
     const u = res.url()
-    if (u.includes('.m3u8') || u.includes('playlist')) {
+    if (isStreamUrl(u)) {
       captured.add(u)
       // Yanıt içindeyse parse et
       try {
         const text = await res.text().catch(() => '')
         const matches = text.match(/https?:\/\/[^\s"'<>]+\.m3u8[^\s"'<>]*/g) ?? []
-        matches.forEach((m) => captured.add(m))
+        matches.filter(isStreamUrl).forEach((m) => captured.add(m))
       } catch {}
     }
   })
@@ -136,7 +138,7 @@ const collectStreamsFromPage = async (browser, url, source) => {
     // Inline script ve sayfa kaynağından m3u8 çek
     const pageContent = await page.content().catch(() => '')
     const srcMatches = pageContent.match(/https?:\/\/[^"'<>\s]+\.m3u8[^"'<>\s]*/g) ?? []
-    srcMatches.forEach((m) => captured.add(m))
+    srcMatches.filter(isStreamUrl).forEach((m) => captured.add(m))
 
     // Script tag içindeki değişkenler
     const scriptUrls = await page.evaluate(() => {
@@ -149,7 +151,7 @@ const collectStreamsFromPage = async (browser, url, source) => {
       })
       return results
     }).catch(() => [])
-    scriptUrls.forEach((m) => captured.add(m))
+    scriptUrls.filter(isStreamUrl).forEach((m) => captured.add(m))
 
     // iframe src içinden de bak
     const iframeSrcs = await page.evaluate(() =>
@@ -169,7 +171,7 @@ const collectStreamsFromPage = async (browser, url, source) => {
         await new Promise((r) => setTimeout(r, 5000))
         const ic = await iframePage.content().catch(() => '')
         const im = ic.match(/https?:\/\/[^"'<>\s]+\.m3u8[^"'<>\s]*/g) ?? []
-        im.forEach((m) => captured.add(m))
+        im.filter(isStreamUrl).forEach((m) => captured.add(m))
         await iframePage.close()
       } catch {}
     }
