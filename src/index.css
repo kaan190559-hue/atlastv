@@ -13,6 +13,7 @@
   --accent-glow: rgba(0, 229, 255, 0.34);
   --focus: rgba(0, 229, 255, 0.78);
   --card-scale: 1;
+  --ui-scale: 1;
   --rail-poster-width: clamp(178px, 14vw, 230px);
   --rail-wide-width: clamp(290px, 23vw, 390px);
   --rail-channel-width: clamp(220px, 17vw, 280px);

@@ -71,6 +71,7 @@ const LIVE_GITHUB_M3U_URL = 'https://raw.githubusercontent.com/kaan190559-hue/at
 const IPTV_TURKEY_M3U_URL = 'https://iptv-org.github.io/iptv/countries/tr.m3u'
 const APPEARANCE_KEY = 'atlastv.appearance'
 const NOTIFICATION_READ_KEY = 'atlastv.notificationRead'
+const DISPLAY_SETUP_KEY_PREFIX = 'atlastv.displaySetup'
 const FOCUSABLE_SELECTOR =
   'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 const SPATIAL_GROUP_SELECTOR =
@@ -242,6 +243,24 @@ function loadAppearanceSettings() {
   } catch {
     return defaultAppearance
   }
+}
+
+function getDisplaySetupKey(user: AtlasUser | null) {
+  return `${DISPLAY_SETUP_KEY_PREFIX}.${user?.email ?? 'guest'}`
+}
+
+function hasDisplaySetup(user: AtlasUser | null) {
+  try {
+    return window.localStorage.getItem(getDisplaySetupKey(user)) === 'done'
+  } catch {
+    return false
+  }
+}
+
+function markDisplaySetup(user: AtlasUser | null) {
+  try {
+    window.localStorage.setItem(getDisplaySetupKey(user), 'done')
+  } catch {}
 }
 
 function playStartupTone() {
@@ -497,6 +516,7 @@ function App() {
   const [authMode, setAuthMode] = useState<AuthMode>('login')
   const [authError, setAuthError] = useState('')
   const [showSplash, setShowSplash] = useState(false)
+  const [showDisplaySetup, setShowDisplaySetup] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [screen, setScreen] = useState<Screen>('home')
   const [theme, setTheme] = useState<Theme>('dark')
@@ -547,6 +567,7 @@ function App() {
     document.documentElement.style.setProperty('--accent', appearance.accent)
     document.documentElement.style.setProperty('--accent-2', appearance.accent2)
     document.documentElement.style.setProperty('--card-scale', String(appearance.cardScale))
+    document.documentElement.style.setProperty('--ui-scale', String(appearance.cardScale))
     document.documentElement.style.setProperty('--card-radius', `${appearance.cardRadius}px`)
     document.documentElement.style.setProperty('--card-glow', String(appearance.cardGlow))
     window.localStorage.setItem(APPEARANCE_KEY, JSON.stringify(appearance))
@@ -557,6 +578,7 @@ function App() {
       if (!user || !user.remember) return
       setCurrentUser(user)
       setIsAuthed(true)
+      setShowDisplaySetup(!hasDisplaySetup(user))
       setShowOnboarding(!user.onboardingCompleted)
     })
     api.admin.getSettings().then(setPublicSettings)
@@ -741,6 +763,7 @@ function App() {
     window.setTimeout(() => {
       setCurrentUser(result.user)
       setIsAuthed(true)
+      setShowDisplaySetup(!hasDisplaySetup(result.user))
       setShowOnboarding(result.needsOnboarding)
       setShowSplash(false)
     }, 1600)
@@ -857,6 +880,8 @@ function App() {
     await api.auth.logout()
     setCurrentUser(null)
     setIsAuthed(false)
+    setShowDisplaySetup(false)
+    setShowOnboarding(false)
     setScreen('home')
     setSearch('')
     setDetailItem(null)
@@ -944,6 +969,19 @@ function App() {
 
   if (showSplash) {
     return <SplashScreen />
+  }
+
+  if (isAuthed && showDisplaySetup) {
+    return (
+      <DisplaySetupScreen
+        appearance={appearance}
+        onAppearanceChange={setAppearance}
+        onFinish={() => {
+          markDisplaySetup(currentUser)
+          setShowDisplaySetup(false)
+        }}
+      />
+    )
   }
 
   if (isAuthed && showOnboarding) {
@@ -1235,6 +1273,96 @@ function SplashScreen() {
         Atlas<span>Tv</span>
       </h1>
       <p>Yayın deneyiminiz hazırlanıyor</p>
+    </main>
+  )
+}
+
+function DisplaySetupScreen({
+  appearance,
+  onAppearanceChange,
+  onFinish,
+}: {
+  appearance: AppearanceSettings
+  onAppearanceChange: (settings: AppearanceSettings) => void
+  onFinish: () => void
+}) {
+  const scalePercent = Math.round(appearance.cardScale * 100)
+  const setScale = (percent: number) => {
+    onAppearanceChange({ ...appearance, cardScale: percent / 100 })
+  }
+  const presets = [
+    { label: 'Uzak', value: 80 },
+    { label: 'Rahat', value: 90 },
+    { label: 'Standart', value: 100 },
+    { label: 'Yakın', value: 110 },
+    { label: 'Büyük', value: 120 },
+  ]
+
+  useEffect(() => {
+    focusFirstElement()
+  }, [])
+
+  return (
+    <main className="display-setup-page">
+      <section className="display-setup-copy">
+        <p className="eyebrow">Ekran ayarı</p>
+        <h1>Görünümü ekranına göre ayarla</h1>
+        <p>Menü ve kart boyutlarını rahat izleme mesafene göre seç.</p>
+      </section>
+
+      <section className="display-preview" aria-label="Görünüm önizlemesi">
+        <div className="display-preview-nav">
+          <button type="button" className="active">Anasayfa</button>
+          <button type="button">Canlı</button>
+          <button type="button">Film</button>
+        </div>
+        <div className="display-preview-hero">
+          <span>AtlasTv</span>
+          <strong>Önizleme</strong>
+        </div>
+        <div className="display-preview-rail">
+          {['Canlı', 'Film', 'Dizi'].map((item, index) => (
+            <article key={item} className="display-preview-card">
+              <div />
+              <strong>{item}</strong>
+              <span>{index === 0 ? 'HD Yayın' : index === 1 ? 'Yeni' : 'Sezon'}</span>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="display-setup-controls">
+        <div className="display-scale-readout">
+          <Maximize />
+          <strong>%{scalePercent}</strong>
+          <span>{scalePercent < 100 ? 'Uzak görünüm' : scalePercent > 100 ? 'Yakın görünüm' : 'Standart'}</span>
+        </div>
+        <input
+          data-autofocus="true"
+          type="range"
+          min="80"
+          max="120"
+          step="5"
+          value={scalePercent}
+          onChange={(event) => setScale(Number(event.target.value))}
+          aria-label="Ekran yakınlığı"
+        />
+        <div className="display-preset-row">
+          {presets.map((preset) => (
+            <button
+              key={preset.value}
+              type="button"
+              className={Math.abs(scalePercent - preset.value) < 3 ? 'active' : undefined}
+              onClick={() => setScale(preset.value)}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+        <button className="primary-action" type="button" onClick={onFinish}>
+          Böyle Kalsın
+        </button>
+      </section>
     </main>
   )
 }
@@ -2331,7 +2459,7 @@ function SettingsScreen({
             <Palette />
             <div>
               <h2>Görünüm</h2>
-              <p>Renkleri, kart boyutunu ve parlaklık hissini bu cihaz için ayarla.</p>
+              <p>Renkleri, ekran yakınlığını ve parlaklık hissini bu cihaz için ayarla.</p>
             </div>
           </div>
           <div className="appearance-controls">
@@ -2352,12 +2480,12 @@ function SettingsScreen({
               />
             </label>
             <label>
-              <span>Kart boyutu</span>
+              <span>Ekran yakınlığı %{Math.round(appearance.cardScale * 100)}</span>
               <input
                 type="range"
-                min="0.82"
-                max="1.22"
-                step="0.02"
+                min="0.8"
+                max="1.2"
+                step="0.05"
                 value={appearance.cardScale}
                 onChange={(event) => updateAppearance({ cardScale: Number(event.target.value) })}
               />
