@@ -896,9 +896,9 @@ async function loadGroupedServerCatalog(sourceUrl = VOD_M3U_URL, refreshKey = ''
 
 
 // ─── Betmatik live kanal scraper ─────────────────────────────────────────────
-const BETMATIK_DOMAIN_URL = 'https://data-reality.com/domain.php'
-const BETMATIK_CHANNELS_URL = 'https://data-reality.com/channels.php'
-const BETMATIK_REFERER = 'https://betmatiktv144.com/'
+const BETMATIK_HOST_PATTERN = 'betmatiktv'
+const BETMATIK_START_INDEX = 144
+const BETMATIK_MAX_INDEX_DELTA = 30
 const BETMATIK_CACHE_TTL = 55 * 60 * 1000 // 55 dakika
 
 const BETMATIK_LOGOS = {
@@ -927,27 +927,74 @@ const BETMATIK_LOGOS = {
   'ATV': '/logos/a-spor.svg',
   'TV 8': '/logos/trt-1.svg',
 }
+const BETMATIK_CHANNELS = [
+  { id: 'zirve', name: 'BEIN SPORTS 1' },
+  { id: 'b2', name: 'BEIN SPORTS 2' },
+  { id: 'b3', name: 'BEIN SPORTS 3' },
+  { id: 'b4', name: 'BEIN SPORTS 4' },
+  { id: 'b5', name: 'BEIN SPORTS 5' },
+  { id: 'bm1', name: 'BEIN SPORTS MAX 1' },
+  { id: 'bm2', name: 'BEIN SPORTS MAX 2' },
+  { id: 'ss', name: 'S SPORT' },
+  { id: 'ss2', name: 'S SPORT 2' },
+  { id: 'smarts', name: 'SMART SPOR' },
+  { id: 'sms2', name: 'SMART SPOR 2' },
+  { id: 't1', name: 'TIVIBU SPOR 1' },
+  { id: 't2', name: 'TIVIBU SPOR 2' },
+  { id: 't3', name: 'TIVIBU SPOR 3' },
+  { id: 't4', name: 'TIVIBU SPOR 4' },
+  { id: 'trtspor', name: 'TRT SPOR' },
+  { id: 'trtspor2', name: 'TRT SPOR YILDIZ' },
+  { id: 'trt1', name: 'TRT 1' },
+  { id: 'as', name: 'A SPOR' },
+  { id: 'tabii', name: 'TABII SPOR' },
+  { id: 'atv', name: 'ATV' },
+  { id: 'tv8', name: 'TV 8' },
+  { id: 'tv85', name: 'TV 8.5' },
+  { id: 'eu1', name: 'EURO SPORT 1' },
+  { id: 'eu2', name: 'EURO SPORT 2' },
+]
 
-let betmatikBaseUrlCache = { url: '', fetchedAt: 0 }
+let betmatikHostCache = { host: `${BETMATIK_HOST_PATTERN}${BETMATIK_START_INDEX}.com`, fetchedAt: 0 }
 let betmatikCatalogCache = { items: null, fetchedAt: 0 }
 
-async function fetchBetmatikBaseUrl() {
-  const now = Date.now()
-  if (betmatikBaseUrlCache.url && now - betmatikBaseUrlCache.fetchedAt < BETMATIK_CACHE_TTL) {
-    return betmatikBaseUrlCache.url
-  }
+async function fetchBetmatikText(url, referer) {
+  const abort = new AbortController()
+  const timeout = setTimeout(() => abort.abort(), 10_000)
   try {
-    const resp = await fetch(BETMATIK_DOMAIN_URL, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', Referer: BETMATIK_REFERER },
+    const response = await fetch(url, {
+      signal: abort.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        Referer: referer,
+      },
     })
-    const data = await resp.json()
-    const baseUrl = data.baseurl || ''
-    betmatikBaseUrlCache = { url: baseUrl, fetchedAt: now }
-    return baseUrl
-  } catch (e) {
-    console.error('[betmatik] base URL fetch failed:', e.message)
-    return betmatikBaseUrlCache.url || ''
+    if (!response.ok) return ''
+    return await response.text()
+  } catch {
+    return ''
+  } finally {
+    clearTimeout(timeout)
   }
+}
+
+async function resolveBetmatikHost() {
+  const now = Date.now()
+  if (betmatikHostCache.host && now - betmatikHostCache.fetchedAt < BETMATIK_CACHE_TTL) {
+    return betmatikHostCache.host
+  }
+
+  for (let offset = 0; offset < BETMATIK_MAX_INDEX_DELTA; offset += 1) {
+    const host = `${BETMATIK_HOST_PATTERN}${BETMATIK_START_INDEX + offset}.com`
+    const referer = `https://${host}/`
+    const html = await fetchBetmatikText(`https://${host}/channels.php`, referer)
+    if (html.includes('channel?id=')) {
+      betmatikHostCache = { host, fetchedAt: now }
+      return host
+    }
+  }
+
+  return betmatikHostCache.host
 }
 
 function parseBetmatikHtml(html) {
@@ -966,17 +1013,12 @@ async function loadBetmatikCatalog() {
     return betmatikCatalogCache.items
   }
 
-  const [baseUrl, channelsHtml] = await Promise.all([
-    fetchBetmatikBaseUrl(),
-    fetch(BETMATIK_CHANNELS_URL, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', Referer: BETMATIK_REFERER },
-    }).then((r) => r.text()).catch(() => ''),
-  ])
-
-  const channels = parseBetmatikHtml(channelsHtml)
+  const host = await resolveBetmatikHost()
+  const referer = `https://${host}/`
+  const channels = BETMATIK_CHANNELS
   const items = channels.map((ch, idx) => {
     const logo = BETMATIK_LOGOS[ch.name] || '/favicon.svg'
-    const streamUrl = baseUrl ? `${baseUrl}${ch.id}/mono.m3u8` : ''
+    const streamUrl = `https://${host}/channel?id=${encodeURIComponent(ch.id)}`
     return {
       id: `betmatik-${ch.id}`,
       title: ch.name,
@@ -993,11 +1035,11 @@ async function loadBetmatikCatalog() {
       isLive: true,
       isFavorite: false,
       httpUserAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      referer: BETMATIK_REFERER,
-      noProxy: false,
+      referer,
+      noProxy: true,
       badge: 'Spor',
     }
-  }).filter((item) => item.streamUrl)
+  })
 
   betmatikCatalogCache = { items, fetchedAt: now }
   console.log(`[betmatik] ${items.length} kanal yüklendi`)

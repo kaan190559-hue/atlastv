@@ -2980,12 +2980,15 @@ function PlayerOverlay({
   const lastProgressSaveRef = useRef(0)
   const resumeAppliedRef = useRef(false)
   const proxiedStreamUrl = getProxiedStreamUrl(item)
+  const isEmbeddedBetmatikPlayer = /betmatiktv\d+\.com\/channel\?id=/i.test(proxiedStreamUrl)
   const playerUserAgent = item.httpUserAgent || DEFAULT_PLAYER_USER_AGENT
-  const playerHeaders = [
-    `UA: ${playerUserAgent}`,
-    item.isLive && item.referer ? `Referer: ${item.referer}` : '',
-    item.isLive && item.origin ? `Origin: ${item.origin}` : '',
-  ].filter(Boolean)
+  const playerHeaders = isEmbeddedBetmatikPlayer
+    ? ['Kaynak: Betmatik gömülü oynatıcı']
+    : [
+      `UA: ${playerUserAgent}`,
+      item.isLive && item.referer ? `Referer: ${item.referer}` : '',
+      item.isLive && item.origin ? `Origin: ${item.origin}` : '',
+    ].filter(Boolean)
   const [playerStatus, setPlayerStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [playerRetryKey, setPlayerRetryKey] = useState(0)
   const [controlsVisible, setControlsVisible] = useState(true)
@@ -3070,6 +3073,12 @@ function PlayerOverlay({
     lastProgressSaveRef.current = now
     void api.user.markWatched(item.id, video.currentTime, video.duration).then(onProgressSaved)
   }
+
+  useEffect(() => {
+    if (!isEmbeddedBetmatikPlayer) return
+    setPlayerStatus('ready')
+    setHasVideoFrame(true)
+  }, [isEmbeddedBetmatikPlayer, item.id])
 
   useEffect(() => {
     const video = videoRef.current
@@ -3212,36 +3221,47 @@ function PlayerOverlay({
         onMouseMove={revealControls}
         onPointerMove={revealControls}
       >
-        <video
-          ref={videoRef}
-          className="player-video"
-          poster={hasVideoFrame ? undefined : item.backdropUrl}
-          playsInline
-          controls={false}
-          onCanPlay={() => {
-            setPlayerStatus('ready')
-            setHasVideoFrame(true)
-            applyResumeTime(videoRef.current!)
-          }}
-          onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}
-          onError={() => setPlayerStatus('error')}
-          onLoadedData={() => setHasVideoFrame(true)}
-          onLoadedMetadata={(event) => applyResumeTime(event.currentTarget)}
-          onPlaying={() => setHasVideoFrame(true)}
-          onTimeUpdate={(event) => {
-            setCurrentTime(event.currentTarget.currentTime)
-            saveProgress(event.currentTarget)
-          }}
-          onVolumeChange={(event) => {
-            setVolume(event.currentTarget.volume)
-            setIsMuted(event.currentTarget.muted)
-          }}
-          data-source-url={item.streamUrl}
-          data-proxy-url={proxiedStreamUrl}
-          data-http-user-agent={playerUserAgent}
-          data-referer={item.isLive ? item.referer : undefined}
-          data-origin={item.isLive ? item.origin : undefined}
-        />
+        {isEmbeddedBetmatikPlayer ? (
+          <iframe
+            className="player-video"
+            src={proxiedStreamUrl}
+            title={`${item.title} yayın`}
+            allow="autoplay; fullscreen; picture-in-picture"
+            allowFullScreen
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            className="player-video"
+            poster={hasVideoFrame ? undefined : item.backdropUrl}
+            playsInline
+            controls={false}
+            onCanPlay={() => {
+              setPlayerStatus('ready')
+              setHasVideoFrame(true)
+              applyResumeTime(videoRef.current!)
+            }}
+            onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}
+            onError={() => setPlayerStatus('error')}
+            onLoadedData={() => setHasVideoFrame(true)}
+            onLoadedMetadata={(event) => applyResumeTime(event.currentTarget)}
+            onPlaying={() => setHasVideoFrame(true)}
+            onTimeUpdate={(event) => {
+              setCurrentTime(event.currentTarget.currentTime)
+              saveProgress(event.currentTarget)
+            }}
+            onVolumeChange={(event) => {
+              setVolume(event.currentTarget.volume)
+              setIsMuted(event.currentTarget.muted)
+            }}
+            data-source-url={item.streamUrl}
+            data-proxy-url={proxiedStreamUrl}
+            data-http-user-agent={playerUserAgent}
+            data-referer={item.isLive ? item.referer : undefined}
+            data-origin={item.isLive ? item.origin : undefined}
+          />
+        )}
 
         <div className="player-topbar">
           <button className="player-round-button" type="button" onClick={onClose} aria-label="Player kapat">
@@ -3253,7 +3273,7 @@ function PlayerOverlay({
           </div>
         </div>
 
-        <div className="player-center">
+        {!isEmbeddedBetmatikPlayer ? <div className="player-center">
           {playerStatus === 'loading' ? <span className="player-state">Yayin hazirlaniyor...</span> : null}
           {playerStatus === 'error' ? (
             <span className="player-state error">
@@ -3282,9 +3302,9 @@ function PlayerOverlay({
               <span>10</span>
             </button>
           </div>
-        </div>
+        </div> : null}
 
-        <div className="player-controls">
+        {!isEmbeddedBetmatikPlayer ? <div className="player-controls">
           <div className="player-progress-row">
             <span>{formatTime(currentTime)}</span>
             <input
@@ -3344,7 +3364,7 @@ function PlayerOverlay({
               ))}
             </div>
           ) : null}
-        </div>
+        </div> : null}
       </div>
     </section>
   )
