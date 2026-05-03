@@ -89,6 +89,7 @@ export type LiveFilterParams = {
   liveCategory?: string
   vodCategory?: string
   platform?: string
+  sourceOverride?: string
 }
 
 export type SectionVariant = 'poster' | 'wide' | 'ranked' | 'channel' | 'trend' | 'circle'
@@ -1087,7 +1088,9 @@ export const api = {
         if (query.trim()) params.set('q', query.trim())
         if (filters.country) params.set('country', filters.country)
         if (filters.liveCategory) params.set('liveCategory', filters.liveCategory)
-        if (settings.liveM3uUrl.trim()) params.set('source', settings.liveM3uUrl.trim())
+        // sourceOverride (provider toggle) takes priority over admin settings
+        const effectiveSource = filters.sourceOverride ?? settings.liveM3uUrl.trim()
+        if (effectiveSource) params.set('source', effectiveSource)
         if (settings.liveM3uContent?.trim()) params.set('library', 'live')
         if (settings.updatedAt) params.set('refresh', settings.updatedAt)
 

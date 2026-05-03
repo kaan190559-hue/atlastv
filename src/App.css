@@ -529,7 +529,7 @@
   border: 1px solid var(--border);
   border-radius: 18px;
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
+  grid-template-columns: auto minmax(180px, 1fr) minmax(180px, 1fr) auto;
   gap: 14px;
   align-items: end;
   background:
@@ -537,6 +537,15 @@
     var(--surface);
   box-shadow: 0 16px 46px rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(16px);
+}
+
+.live-provider-toggle {
+  display: grid;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 950;
+  text-transform: uppercase;
 }
 
 .live-select {

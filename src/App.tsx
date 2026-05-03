@@ -67,6 +67,7 @@ const CATEGORY_PAGE_SIZE = 60
 const VOD_CATEGORY_PAGE_SIZE = 60
 const APP_VERSION = '0.0.0'
 const LIVE_GITHUB_M3U_URL = 'https://raw.githubusercontent.com/kaan190559-hue/atlastv/master/public/vavoo_full_worker.m3u'
+const IPTV_TURKEY_M3U_URL = 'https://iptv-org.github.io/iptv/countries/tr.m3u'
 const APPEARANCE_KEY = 'atlastv.appearance'
 const NOTIFICATION_READ_KEY = 'atlastv.notificationRead'
 const FOCUSABLE_SELECTOR =
@@ -438,6 +439,7 @@ function App() {
   const [liveFilters, setLiveFilters] = useState<LiveFilterOptions>({ countries: [], categories: [] })
   const [liveCountry, setLiveCountry] = useState('')
   const [liveCategory, setLiveCategory] = useState('')
+  const [liveProvider, setLiveProvider] = useState<'vavoo' | 'iptv-turkey'>('vavoo')
   const [vodCategories, setVodCategories] = useState<string[]>([])
   const [vodPlatforms, setVodPlatforms] = useState<string[]>([])
   const [vodCategory, setVodCategory] = useState('')
@@ -520,9 +522,10 @@ function App() {
   useEffect(() => {
     if (!isAuthed || screen === 'home' || screen === 'account' || screen === 'about') return
     let isActive = true
+    const liveSourceOverride = screen === 'live' && liveProvider === 'iptv-turkey' ? IPTV_TURKEY_M3U_URL : undefined
     const allowEmptyPage = acceptsEmptyCategoryPage(screen, search, { liveCountry, liveCategory, vodCategory, vodPlatform })
     api.content
-      .getCategoryPage(screen, 0, getCategoryPageSize(screen), search, { country: liveCountry, liveCategory, vodCategory, platform: vodPlatform })
+      .getCategoryPage(screen, 0, getCategoryPageSize(screen), search, { country: liveCountry, liveCategory, vodCategory, platform: vodPlatform, sourceOverride: liveSourceOverride })
       .then((page) => {
         if (!isActive) return
         if (!allowEmptyPage && page.items.length === 0 && page.total === 0) {
@@ -549,7 +552,7 @@ function App() {
     return () => {
       isActive = false
     }
-  }, [isAuthed, screen, search, liveCountry, liveCategory, vodCategory, vodPlatform])
+  }, [isAuthed, screen, search, liveCountry, liveCategory, liveProvider, vodCategory, vodPlatform])
 
   useEffect(() => {
     if (heroItems.length < 2) return
@@ -583,6 +586,7 @@ function App() {
     setHeroItems(await api.content.getHeroItems())
     applyHomeSections(await api.content.getHomeSections())
     if (['live', 'sports', 'series', 'movies', 'list', 'favorites'].includes(screen)) {
+      const liveSourceOverride = screen === 'live' && liveProvider === 'iptv-turkey' ? IPTV_TURKEY_M3U_URL : undefined
       setCategoryItems([])
       setCategoryTotal(0)
       setCategoryLoading(true)
@@ -591,6 +595,7 @@ function App() {
         liveCategory,
         vodCategory,
         platform: vodPlatform,
+        sourceOverride: liveSourceOverride,
       })
       if (!acceptsEmptyCategoryPage(screen, search, { liveCountry, liveCategory, vodCategory, vodPlatform }) && page.items.length === 0 && page.total === 0) {
         setCategoryLoading(false)
@@ -609,7 +614,7 @@ function App() {
       }
       setCategoryLoading(false)
     }
-  }, [applyHomeSections, isAuthed, liveCategory, liveCountry, screen, search, vodCategory, vodPlatform])
+  }, [applyHomeSections, isAuthed, liveCategory, liveCountry, liveProvider, screen, search, vodCategory, vodPlatform])
 
   useEffect(() => {
     const onAdminKeyDown = (event: KeyboardEvent) => {
@@ -798,6 +803,15 @@ function App() {
     if (screen === 'live' || screen === 'sports') setCategoryLoading(true)
   }
 
+  const changeLiveProvider = (provider: 'vavoo' | 'iptv-turkey') => {
+    setLiveProvider(provider)
+    setLiveCountry('')
+    setLiveCategory('')
+    setCategoryItems([])
+    setCategoryTotal(0)
+    if (screen === 'live') setCategoryLoading(true)
+  }
+
   const changeLiveCategory = (category: string) => {
     setLiveCategory(category)
     setCategoryItems([])
@@ -822,11 +836,13 @@ function App() {
   const loadMoreCategoryItems = async () => {
     if (categoryLoadingMore || categoryItems.length >= categoryTotal) return
     setCategoryLoadingMore(true)
+    const liveSourceOverride = screen === 'live' && liveProvider === 'iptv-turkey' ? IPTV_TURKEY_M3U_URL : undefined
     const page = await api.content.getCategoryPage(screen, categoryItems.length, getCategoryPageSize(screen), search, {
       country: liveCountry,
       liveCategory,
       vodCategory,
       platform: vodPlatform,
+      sourceOverride: liveSourceOverride,
     })
     setCategoryItems((items) => [...items, ...page.items])
     setCategoryTotal(page.total)
@@ -951,6 +967,7 @@ function App() {
             liveFilters={liveFilters}
             liveCountry={liveCountry}
             liveCategory={liveCategory}
+            liveProvider={liveProvider}
             vodCategories={vodCategories}
             vodPlatforms={vodPlatforms}
             vodCategory={vodCategory}
@@ -958,6 +975,7 @@ function App() {
             onSearchChange={changeSearch}
             onLiveCountryChange={changeLiveCountry}
             onLiveCategoryChange={changeLiveCategory}
+            onLiveProviderChange={changeLiveProvider}
             onVodCategoryChange={changeVodCategory}
             onVodPlatformChange={changeVodPlatform}
             onLoadMore={loadMoreCategoryItems}
@@ -1484,6 +1502,7 @@ function CategoryScreen({
   liveFilters,
   liveCountry,
   liveCategory,
+  liveProvider,
   vodCategories,
   vodPlatforms,
   vodCategory,
@@ -1491,6 +1510,7 @@ function CategoryScreen({
   onSearchChange,
   onLiveCountryChange,
   onLiveCategoryChange,
+  onLiveProviderChange,
   onVodCategoryChange,
   onVodPlatformChange,
   onLoadMore,
@@ -1506,6 +1526,7 @@ function CategoryScreen({
   liveFilters: LiveFilterOptions
   liveCountry: string
   liveCategory: string
+  liveProvider: 'vavoo' | 'iptv-turkey'
   vodCategories: string[]
   vodPlatforms: string[]
   vodCategory: string
@@ -1513,6 +1534,7 @@ function CategoryScreen({
   onSearchChange: (value: string) => void
   onLiveCountryChange: (value: string) => void
   onLiveCategoryChange: (value: string) => void
+  onLiveProviderChange: (provider: 'vavoo' | 'iptv-turkey') => void
   onVodCategoryChange: (value: string) => void
   onVodPlatformChange: (value: string) => void
   onLoadMore: () => void
@@ -1538,6 +1560,27 @@ function CategoryScreen({
 
       {isLiveLike ? (
         <div className="live-filter-panel">
+          {screen === 'live' && (
+            <div className="live-provider-toggle">
+              <span>Kaynak</span>
+              <div className="filter-box-row">
+                <button
+                  type="button"
+                  className={liveProvider === 'vavoo' ? 'active' : ''}
+                  onClick={() => onLiveProviderChange('vavoo')}
+                >
+                  Vavoo
+                </button>
+                <button
+                  type="button"
+                  className={liveProvider === 'iptv-turkey' ? 'active' : ''}
+                  onClick={() => onLiveProviderChange('iptv-turkey')}
+                >
+                  IPTV Türkiye
+                </button>
+              </div>
+            </div>
+          )}
           <label className="live-select">
             <span>Ülke</span>
             <select value={liveCountry} onChange={(event) => onLiveCountryChange(event.target.value)}>
