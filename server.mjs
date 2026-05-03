@@ -182,6 +182,11 @@ async function readAdminSettings() {
     if (!settings.sportsM3uUrl?.trim() && !settings.sportsM3uContent?.trim()) {
       settings.sportsM3uUrl = SPORTS_M3U_DEFAULT
     }
+    // Eski GitHub URL'si kayıtlıysa yeni kaynağa geç
+    const OLD_SPORTS_URL = 'https://raw.githubusercontent.com/kaan190559-hue/atlastv/master/public/scraped.m3u'
+    if (settings.sportsM3uUrl === OLD_SPORTS_URL) {
+      settings.sportsM3uUrl = SPORTS_M3U_DEFAULT
+    }
     return settings
   } catch {
     return defaultAdminSettings
@@ -947,7 +952,7 @@ async function fetchBetmatikBaseUrl() {
 
 function parseBetmatikHtml(html) {
   const channels = []
-  const re = /href="channel\?id=([^"]+)"[^>]*>[\s\S]*?<div class="home">([^<]+)<\/div>/g
+  const re = /href="channel\?id=([^"]+)"[\s\S]*?<div class="home">([^<]+)<\/div>/g
   let m
   while ((m = re.exec(html)) !== null) {
     channels.push({ id: m[1].trim(), name: m[2].trim().toUpperCase() })
