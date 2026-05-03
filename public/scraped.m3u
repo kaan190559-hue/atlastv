@@ -1,1 +1,21 @@
 #EXTM3U
+#EXTINF:-1 tvg-id="atomsport_1" tvg-name="AtomSport Kanallar 1" tvg-logo="" group-title="Spor",AtomSport Kanallar 1
+https://cdnjs.cloudflare.com/ajax/libs/hls.js/0.14.0/hls.min.js
+#EXTINF:-1 tvg-id="atomsport_2" tvg-name="AtomSport Kanallar 2" tvg-logo="" group-title="Spor",AtomSport Kanallar 2
+https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/bein-sports-11.m3u8
+#EXTINF:-1 tvg-id="atomsport_3" tvg-name="AtomSport Kanallar 3" tvg-logo="" group-title="Spor",AtomSport Kanallar 3
+https://tsss.yesbefere.workers.dev/hls/bein-sports-11-1777783345806.avif
+#EXTINF:-1 tvg-id="atomsport_4" tvg-name="AtomSport Kanallar 4" tvg-logo="" group-title="Spor",AtomSport Kanallar 4
+https://tsss.yesbefere.workers.dev/hls/bein-sports-11-1777783349924.avif
+#EXTINF:-1 tvg-id="atomsport_5" tvg-name="AtomSport Kanallar 5" tvg-logo="" group-title="Spor",AtomSport Kanallar 5
+https://tsss.yesbefere.workers.dev/hls/bein-sports-11-1777783353813.avif
+#EXTINF:-1 tvg-id="atomsport_6" tvg-name="AtomSport Kanallar 6" tvg-logo="" group-title="Spor",AtomSport Kanallar 6
+https://tsss.yesbefere.workers.dev/hls/bein-sports-11-1777783357798.avif
+#EXTINF:-1 tvg-id="atomsport_7" tvg-name="AtomSport Kanallar 7" tvg-logo="" group-title="Spor",AtomSport Kanallar 7
+https://tsss.yesbefere.workers.dev/hls/bein-sports-11-1777783362968.avif
+#EXTINF:-1 tvg-id="atomsport_8" tvg-name="AtomSport Kanallar 8" tvg-logo="" group-title="Spor",AtomSport Kanallar 8
+https://tsss.yesbefere.workers.dev/hls/bein-sports-11-1777783365842.avif
+#EXTINF:-1 tvg-id="atomsport_9" tvg-name="AtomSport Kanallar 9" tvg-logo="" group-title="Spor",AtomSport Kanallar 9
+https://tsss.yesbefere.workers.dev/hls/bein-sports-11-1777783371064.avif
+#EXTINF:-1 tvg-id="atomsport_10" tvg-name="AtomSport Kanallar 10" tvg-logo="" group-title="Spor",AtomSport Kanallar 10
+https://tsss.yesbefere.workers.dev/hls/bein-sports-11-1777783373856.avif
