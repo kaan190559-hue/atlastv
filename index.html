@@ -11,6 +11,17 @@
     <script>
       (function () {
         var designWidth = 1920
+        function applyTvPerformanceMode() {
+          var ua = window.navigator && window.navigator.userAgent ? window.navigator.userAgent : ''
+          var hasCoarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches
+          var isTvBrowser = /tizen|webos|smart-tv|smarttv|android tv|aft|bravia|netcast/i.test(ua)
+          var isLowMemory = window.navigator && window.navigator.deviceMemory ? window.navigator.deviceMemory <= 4 : false
+          document.documentElement.setAttribute(
+            'data-tv-performance',
+            hasCoarsePointer || isTvBrowser || isLowMemory ? 'true' : 'false',
+          )
+        }
+
         function applyStageScale() {
           var viewportWidth =
             window.visualViewport && window.visualViewport.width ? window.visualViewport.width : window.innerWidth || designWidth
@@ -28,6 +39,7 @@
           document.documentElement.setAttribute('data-atlas-stage-scale', scale.toFixed(3))
         }
 
+        applyTvPerformanceMode()
         applyStageScale()
         window.addEventListener('resize', applyStageScale)
         window.addEventListener('orientationchange', function () {

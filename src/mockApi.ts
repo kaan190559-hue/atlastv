@@ -129,6 +129,7 @@ export type AtlasUser = {
   favorites: string[]
   list: string[]
   history: Record<string, number | WatchProgress>
+  avatar?: { emoji: string; color: string }
 }
 
 export type WatchProgress = {
@@ -940,9 +941,45 @@ const buildFreshHomeSections = async () => {
 
 const buildFreshHeroItems = async () => {
   const catalog = await getVodCatalog()
-  const items = takeRandomContent(catalog.filter((item) => !item.isLive), 6)
+  const user = getCurrentUser()
+  const recentGenres = new Set<string>()
+  if (user) {
+    const historyIds = Object.keys(user.history).slice(-20)
+    historyIds.forEach((id) => {
+      const found = catalog.find((c) => c.id === id)
+      if (found?.genre) recentGenres.add(found.genre)
+    })
+  }
+  const pool = catalog.filter((item) => !item.isLive)
+  const preferred = pool.filter((item) => item.genre != null && recentGenres.has(item.genre))
+  const rest = pool.filter((item) => item.genre == null || !recentGenres.has(item.genre))
+  const merged = [...preferred, ...rest]
+  const items = takeRandomContent(merged, 6)
   if (items.length) writeTimedCache(HERO_ITEMS_CACHE_KEY, items)
   return items.length ? items : readTimedCache<ContentItem[]>(HERO_ITEMS_CACHE_KEY) ?? takeRandomContent(fallbackVodCatalog, 6)
+}
+
+const STATS_KEY = 'atlastv.stats.v1'
+type ViewStats = { genres: Record<string, number>; categories: Record<string, number>; totalViews: number }
+
+export const trackView = (item: ContentItem) => {
+  try {
+    const raw = window.localStorage.getItem(STATS_KEY)
+    const stats: ViewStats = raw ? JSON.parse(raw) : { genres: {}, categories: {}, totalViews: 0 }
+    if (item.genre) stats.genres[item.genre] = (stats.genres[item.genre] ?? 0) + 1
+    if (item.category) stats.categories[item.category] = (stats.categories[item.category] ?? 0) + 1
+    stats.totalViews++
+    window.localStorage.setItem(STATS_KEY, JSON.stringify(stats))
+  } catch {}
+}
+
+export const getViewStats = (): ViewStats => {
+  try {
+    const raw = window.localStorage.getItem(STATS_KEY)
+    return raw ? (JSON.parse(raw) as ViewStats) : { genres: {}, categories: {}, totalViews: 0 }
+  } catch {
+    return { genres: {}, categories: {}, totalViews: 0 }
+  }
 }
 
 export const api = {
@@ -1227,5 +1264,9 @@ export const api = {
           },
         }
       })),
+    updateAvatar: async (emoji: string, color: string) => {
+      const updated = updateCurrentUser((user) => ({ ...user, avatar: { emoji, color } }))
+      return withLatency(updated)
+    },
   },
 }

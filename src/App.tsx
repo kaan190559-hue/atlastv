@@ -50,6 +50,8 @@ import {
   type SectionVariant,
   type UserStats,
   DEFAULT_HOME_SECTIONS_CONFIG,
+  trackView,
+  getViewStats,
 } from './mockApi'
 import './App.css'
 
@@ -68,7 +70,7 @@ const NOTIFICATION_READ_KEY = 'atlastv.notificationRead'
 const FOCUSABLE_SELECTOR =
   'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 const SPATIAL_GROUP_SELECTOR =
-  '.desktop-nav, .top-actions, .hero-actions, .hero-dots, .rail-list, .trend-list, .content-grid, .filter-box-row, .live-filter-panel, .detail-actions, .center-controls, .control-buttons, .player-progress-row, .player-episodes, .auth-card, .onboarding-actions, .utility-grid, .settings-layout, .appearance-controls'
+  '.desktop-nav, .top-actions, .hero-actions, .hero-dots, .rail-list, .trend-list, .content-grid, .filter-box-row, .live-filter-panel, .detail-actions, .center-controls, .control-buttons, .player-progress-row, .player-episodes, .auth-card, .onboarding-actions, .utility-grid, .settings-layout, .appearance-controls, .admin-tabs, .episode-list, .cast-strip, .search-dropdown, .settings-actions, .load-more-row'
 
 const securityQuestions = [
   'İlk evcil hayvanının adı',
@@ -552,30 +554,6 @@ function App() {
       .catch(() => void api.content.getHomeSections().then(applyHomeSections))
   }, [applyHomeSections])
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (['Escape', 'Backspace', 'BrowserBack', 'GoBack'].includes(event.key) || event.code === 'BrowserBack') {
-        if (playerItem) {
-          event.preventDefault()
-          closePlayer()
-          return
-        }
-        if (detailItem) {
-          event.preventDefault()
-          setDetailItem(null)
-        }
-      }
-
-      if (event.code === 'Space' && playerItem) {
-        event.preventDefault()
-        setIsPlaying((value) => !value)
-      }
-    }
-
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [closePlayer, detailItem, playerItem])
-
   const hero = heroItems[heroIndex] ?? heroItems[0]
 
   const reloadContent = useCallback(async () => {
@@ -701,6 +679,55 @@ function App() {
     )
   }
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target
+      if (['Escape', 'Backspace', 'BrowserBack', 'GoBack'].includes(event.key) || event.code === 'BrowserBack') {
+        if (playerItem) {
+          event.preventDefault()
+          closePlayer()
+          return
+        }
+        if (detailItem) {
+          event.preventDefault()
+          setDetailItem(null)
+        }
+      }
+
+      if (event.code === 'Space' && playerItem) {
+        event.preventDefault()
+        setIsPlaying((value) => !value)
+      }
+
+      const isTyping = target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+
+      if (!playerItem && !isTyping) {
+        if (event.key === 'f' || event.key === 'F') {
+          const targetItem = detailItem ?? heroItems[heroIndex]
+          if (targetItem) { event.preventDefault(); void toggleFavorite(targetItem) }
+        }
+        if (event.key === 'l' || event.key === 'L') {
+          const targetItem = detailItem ?? heroItems[heroIndex]
+          if (targetItem) { event.preventDefault(); void toggleList(targetItem) }
+        }
+        if (event.key === 'i' || event.key === 'I') {
+          if (!detailItem && screen === 'home' && heroItems[heroIndex]) {
+            event.preventDefault()
+            setDetailReturnScreen('home')
+            setDetailItem(heroItems[heroIndex])
+          }
+        }
+        if (event.key === '/') {
+          event.preventDefault()
+          document.querySelector<HTMLElement>('.search-box input')?.focus()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [closePlayer, detailItem, heroIndex, heroItems, playerItem, screen, setDetailItem, setDetailReturnScreen, toggleFavorite, toggleList])
+
   const changeScreen = (next: Screen) => {
     setScreen(next)
     setSearch('')
@@ -781,6 +808,7 @@ function App() {
   }
 
   const openPlayer = (item: ContentItem) => {
+    trackView(item)
     setIsPlaying(true)
     flushSync(() => setPlayerItem(item))
 
@@ -834,6 +862,8 @@ function App() {
         onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
         onSettingsOpen={() => changeScreen('about')}
         onNotificationRead={() => { /* state update triggers re-render via localStorage */ }}
+        currentUser={currentUser}
+        onSearchSelect={(item) => { setDetailReturnScreen(screen); setDetailItem(item) }}
       />
 
       <main className="page-shell">
@@ -914,7 +944,16 @@ function App() {
         ) : null}
 
         {!adminPanelOpen && !detailItem && screen === 'account' ? (
-          <AccountScreen user={currentUser} onLogout={handleLogout} onPasswordChange={handlePasswordChange} />
+          <AccountScreen
+            user={currentUser}
+            onLogout={handleLogout}
+            onPasswordChange={handlePasswordChange}
+            onAvatarChange={async (emoji, color) => {
+              await api.user.updateAvatar(emoji, color)
+              const updated = await api.auth.getCurrent()
+              if (updated) setCurrentUser(updated)
+            }}
+          />
         ) : null}
         {!adminPanelOpen && !detailItem && screen === 'about' ? (
           <SettingsScreen
@@ -1141,6 +1180,8 @@ function TopBar({
   onThemeToggle,
   onSettingsOpen,
   onNotificationRead,
+  onSearchSelect,
+  currentUser,
 }: {
   screen: Screen
   search: string
@@ -1152,10 +1193,65 @@ function TopBar({
   onThemeToggle: () => void
   onSettingsOpen: () => void
   onNotificationRead: () => void
+  onSearchSelect: (item: ContentItem) => void
+  currentUser?: AtlasUser | null
 }) {
   const [showNotifPopup, setShowNotifPopup] = useState(false)
+  const [dropdownItems, setDropdownItems] = useState<ContentItem[]>([])
+  const [dropdownActive, setDropdownActive] = useState(false)
+  const [dropdownIndex, setDropdownIndex] = useState(-1)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const debounceRef = useRef<number | null>(null)
   const lastReadId = Number(window.localStorage.getItem(NOTIFICATION_READ_KEY) || '0')
   const hasUnread = notificationId > 0 && notificationId > lastReadId && Boolean(notification)
+
+  const fetchSearchResults = async (query: string) => {
+    if (!query.trim()) { setDropdownItems([]); setDropdownActive(false); return }
+    try {
+      const [movRes, liveRes] = await Promise.all([
+        fetch(`/__atlas_catalog?q=${encodeURIComponent(query)}&limit=8`).then(r => r.ok ? r.json() : { items: [] }),
+        fetch(`/__atlas_live_catalog?q=${encodeURIComponent(query)}&limit=4`).then(r => r.ok ? r.json() : { items: [] }),
+      ])
+      const combined = [...(movRes.items || []), ...(liveRes.items || [])]
+      const deduped = [...new Map(combined.map((item: ContentItem) => [item.id, item])).values()].slice(0, 8)
+      setDropdownItems(deduped)
+      setDropdownActive(deduped.length > 0)
+    } catch {
+      setDropdownItems([])
+      setDropdownActive(false)
+    }
+  }
+
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!dropdownActive || dropdownItems.length === 0) return
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      setDropdownIndex((prev) => Math.min(prev + 1, dropdownItems.length - 1))
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      setDropdownIndex((prev) => Math.max(prev - 1, -1))
+    } else if (event.key === 'Enter' && dropdownIndex >= 0) {
+      event.preventDefault()
+      onSearchSelect(dropdownItems[dropdownIndex])
+      setDropdownActive(false)
+    } else if (event.key === 'Escape') {
+      setDropdownActive(false)
+    }
+  }
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+        searchRef.current && !searchRef.current.contains(e.target as Node)
+      ) {
+        setDropdownActive(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [])
 
   const handleBellClick = () => {
     if (notification) {
@@ -1192,10 +1288,43 @@ function TopBar({
       </nav>
 
       <div className="top-actions">
-        <label className="search-box">
-          <Search />
-          <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Ara" />
-        </label>
+        <div className="search-box-wrap" style={{ position: 'relative' }}>
+          <label className="search-box">
+            <Search />
+            <input
+              ref={searchRef}
+              value={search}
+              onChange={(event) => {
+                onSearchChange(event.target.value)
+                if (debounceRef.current !== null) window.clearTimeout(debounceRef.current)
+                debounceRef.current = window.setTimeout(() => {
+                  void fetchSearchResults(event.target.value)
+                }, 200)
+              }}
+              onKeyDown={handleSearchKeyDown}
+              onFocus={() => { if (dropdownItems.length) setDropdownActive(true) }}
+              placeholder="Ara"
+            />
+          </label>
+          {dropdownActive && dropdownItems.length > 0 && (
+            <div ref={dropdownRef} className="search-dropdown">
+              {dropdownItems.map((item, idx) => (
+                <div
+                  key={item.id}
+                  className={`search-dropdown-item${dropdownIndex === idx ? ' active' : ''}`}
+                  onClick={() => { onSearchSelect(item); setDropdownActive(false) }}
+                >
+                  <img src={item.posterUrl} alt="" />
+                  <div className="search-dropdown-item-info">
+                    <strong>{item.title}</strong>
+                    <span>{item.isLive ? 'Canlı' : item.type === 'series' ? 'Dizi' : 'Film'} • ★{item.rating}</span>
+                  </div>
+                  <span className="search-dropdown-item-type">{item.isLive ? 'Canlı' : item.type === 'series' ? 'Dizi' : 'Film'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         {notificationId > 0 && notification ? (
           <div className="notif-wrap">
             <button
@@ -1213,6 +1342,15 @@ function TopBar({
                 <button type="button" onClick={() => setShowNotifPopup(false)}><X /></button>
               </div>
             )}
+          </div>
+        ) : null}
+        {currentUser?.avatar ? (
+          <div
+            className="topbar-avatar"
+            style={{ background: currentUser.avatar.color }}
+            aria-label="Profil"
+          >
+            {currentUser.avatar.emoji}
           </div>
         ) : null}
         <button className="icon-button" type="button" onClick={onThemeToggle} aria-label="Tema değiştir">
@@ -1490,58 +1628,85 @@ function ContentRail({
   onPlay: (item: ContentItem) => void
   onToggleFavorite: (item: ContentItem) => void
 }) {
+  const ref = useRef<HTMLElement | null>(null)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '200px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
   if (!items.length) return null
 
   if (variant === 'trend') {
     return (
-      <section className="content-rail trend-section">
+      <section ref={ref} className="content-rail trend-section">
         <div className="rail-heading trend-heading">
           <h2>{title}</h2>
         </div>
-        <div className="trend-list">
-          {items.map((item, index) => (
-            <button
-              key={`${title}-${item.id}`}
-              type="button"
-              className={`trend-row rank-tone-${Math.min(index + 1, 4)}`}
-              onClick={() => onPlay(item)}
-            >
-              <span className="trend-rank">{index + 1}</span>
-              <img src={item.posterUrl} alt="" loading="lazy" />
-              <span className="trend-copy">
-                <strong>{item.title}</strong>
-                <span>
-                  <Star /> {item.rating} - {item.badge ?? item.category}
+        {visible ? (
+          <div className="trend-list">
+            {items.map((item, index) => (
+              <button
+                key={`${title}-${item.id}`}
+                type="button"
+                className={`trend-row rank-tone-${Math.min(index + 1, 4)}`}
+                onClick={() => onPlay(item)}
+              >
+                <span className="trend-rank">{index + 1}</span>
+                <img src={item.posterUrl} alt="" loading="lazy" />
+                <span className="trend-copy">
+                  <strong>{item.title}</strong>
+                  <span>
+                    <Star /> {item.rating} - {item.badge ?? item.category}
+                  </span>
+                  <small>{item.category}</small>
                 </span>
-                <small>{item.category}</small>
-              </span>
-              <span className="trend-play" aria-hidden="true">
-                <Play />
-              </span>
-            </button>
-          ))}
-        </div>
+                <span className="trend-play" aria-hidden="true">
+                  <Play />
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="rail-skeleton" />
+        )}
       </section>
     )
   }
 
   return (
-    <section className="content-rail">
+    <section ref={ref} className="content-rail">
       <div className="rail-heading">
         <h2>{title}</h2>
       </div>
-      <div className={`rail-list ${variant}`}>
-        {items.map((item, index) => (
-          <ContentCard
-            key={`${title}-${item.id}`}
-            item={item}
-            rank={variant === 'ranked' ? index + 1 : undefined}
-            variant={variant}
-            onPlay={onPlay}
-            onToggleFavorite={onToggleFavorite}
-          />
-        ))}
-      </div>
+      {visible ? (
+        <div className={`rail-list ${variant}`}>
+          {items.map((item, index) => (
+            <ContentCard
+              key={`${title}-${item.id}`}
+              item={item}
+              rank={variant === 'ranked' ? index + 1 : undefined}
+              variant={variant}
+              onPlay={onPlay}
+              onToggleFavorite={onToggleFavorite}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="rail-skeleton" />
+      )}
     </section>
   )
 }
@@ -1586,9 +1751,10 @@ function ContentCard({
             src={flag?.backdropUrl ?? cardImage}
             alt=""
             loading="lazy"
+            onLoad={(e) => e.currentTarget.classList.add('img-loaded')}
           />
         ) : (
-          <img src={cardImage} alt="" loading="lazy" />
+          <img src={cardImage} alt="" loading="lazy" onLoad={(e) => e.currentTarget.classList.add('img-loaded')} />
         )}
         {item.isLive && flag ? (
           <span className="flag-badge" aria-label={flag.label}>
@@ -1597,6 +1763,11 @@ function ContentCard({
           </span>
         ) : null}
         {!item.isLive && item.badge ? <span className="badge">{item.badge}</span> : null}
+        {item.progress ? (
+          <div className="progress-line">
+            <span style={{ width: `${item.progress}%` }} />
+          </div>
+        ) : null}
       </button>
       <div className="card-meta">
         <h3>{item.title}</h3>
@@ -1614,11 +1785,6 @@ function ContentCard({
         {item.isLive && item.liveCategory ? <span>{item.liveCategory}</span> : null}
         {item.episodeCount && item.episodeCount > 1 ? <span>{item.episodeCount} bölüm</span> : null}
       </div>
-      {item.progress ? (
-        <div className="progress-line">
-          <span style={{ width: `${item.progress}%` }} />
-        </div>
-      ) : null}
       <button
         className={`favorite-button ${item.isFavorite ? 'active' : ''}`}
         type="button"
@@ -1640,15 +1806,22 @@ function AccountScreen({
   user,
   onLogout,
   onPasswordChange,
+  onAvatarChange,
 }: {
   user: AtlasUser | null
   onLogout: () => void
   onPasswordChange: (password: string) => Promise<void>
+  onAvatarChange: (emoji: string, color: string) => Promise<void>
 }) {
   const [passwordStatus, setPasswordStatus] = useState('')
+  const [avatarEmoji, setAvatarEmoji] = useState(user?.avatar?.emoji ?? '🎬')
+  const [avatarColor, setAvatarColor] = useState(user?.avatar?.color ?? '#e50914')
   const createdAt = user?.createdAt
     ? new Intl.DateTimeFormat('tr-TR', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(user.createdAt))
     : 'Demo hesap'
+
+  const AVATAR_EMOJIS = ['🎬', '🎭', '🍿', '🎮', '🎵', '⚡', '🌟', '🔥']
+  const AVATAR_COLORS = ['#e50914', '#00e5ff', '#ff2f92', '#f5a623', '#7ed321', '#9b59b6', '#1abc9c', '#e67e22']
 
   const submitPassword = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -1697,6 +1870,46 @@ function AccountScreen({
             <LogOut /> Hesaptan Çıkış Yap
           </button>
         </article>
+        <article>
+          <div className="avatar-display" style={{ background: avatarColor }}>
+            {avatarEmoji}
+          </div>
+          <h2>Avatar</h2>
+          <div className="avatar-emoji-row">
+            {AVATAR_EMOJIS.map((em) => (
+              <button
+                key={em}
+                type="button"
+                className={`avatar-emoji-btn${avatarEmoji === em ? ' active' : ''}`}
+                onClick={() => setAvatarEmoji(em)}
+              >
+                {em}
+              </button>
+            ))}
+          </div>
+          <div className="avatar-color-row">
+            {AVATAR_COLORS.map((col) => (
+              <button
+                key={col}
+                type="button"
+                className={`avatar-color-btn${avatarColor === col ? ' active' : ''}`}
+                style={{ background: col }}
+                onClick={() => setAvatarColor(col)}
+                aria-label={col}
+              />
+            ))}
+          </div>
+          <button
+            className="watch-button"
+            type="button"
+            style={{ marginTop: '8px', fontSize: '14px', minHeight: '44px' }}
+            onClick={async () => {
+              await onAvatarChange(avatarEmoji, avatarColor)
+            }}
+          >
+            Kaydet
+          </button>
+        </article>
       </div>
     </section>
   )
@@ -1719,6 +1932,7 @@ function DetailPanel({
   const panelRef = useRef<HTMLElement | null>(null)
   const [metadata, setMetadata] = useState<ContentMetadata | null>(null)
   const [metadataLoading, setMetadataLoading] = useState(false)
+  const [similarItems, setSimilarItems] = useState<ContentItem[]>([])
 
   useEffect(() => {
     if (panelRef.current) focusFirstElement(panelRef.current)
@@ -1740,6 +1954,19 @@ function DetailPanel({
     return () => {
       active = false
     }
+  }, [item])
+
+  useEffect(() => {
+    let active = true
+    if (item.isLive) return () => { active = false }
+    api.content.getCategoryPage(
+      item.type === 'series' ? 'series' : 'movies',
+      0, 12, '', { vodCategory: item.genre ?? item.category }
+    ).then((page) => {
+      if (!active) return
+      setSimilarItems(page.items.filter((i) => i.id !== item.id).slice(0, 12))
+    }).catch(() => undefined)
+    return () => { active = false }
   }, [item])
 
   const detailOverview = metadata?.overview || item.description
@@ -1867,6 +2094,22 @@ function DetailPanel({
             </button>
           ))}
         </div>
+        {similarItems.length > 0 ? (
+          <div className="detail-similar">
+            <h3>Benzer İçerikler</h3>
+            <div className="rail-list poster">
+              {similarItems.map((simItem) => (
+                <ContentCard
+                  key={simItem.id}
+                  item={simItem}
+                  variant="poster"
+                  onPlay={onPlay}
+                  onToggleFavorite={onToggleFavorite}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
     </aside>
   )
@@ -2074,7 +2317,7 @@ function AdminPanel({
     liveM3uContent: '',
     sportsM3uContent: '',
   })
-  const [activeTab, setActiveTab] = useState<'genel' | 'kategoriler' | 'bildirim' | 'listeler' | 'araclar'>('genel')
+  const [activeTab, setActiveTab] = useState<'genel' | 'kategoriler' | 'bildirim' | 'listeler' | 'araclar' | 'istatistik'>('genel')
   const [status, setStatus] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [userStats, setUserStats] = useState<UserStats>({ totalUsers: 0, activeUsers: 0, rememberedUsers: 0 })
@@ -2090,6 +2333,7 @@ function AdminPanel({
   // Category management state
   const [newSectionTitle, setNewSectionTitle] = useState('')
   const [newSectionGenre, setNewSectionGenre] = useState('')
+  const [localUsers, setLocalUsers] = useState<Array<AtlasUser & { password?: string }>>([])
   const [newSectionVariant, setNewSectionVariant] = useState<SectionVariant>('poster')
 
   const sectionsConfig = settings.homeSectionsConfig?.length
@@ -2100,6 +2344,10 @@ function AdminPanel({
     api.admin.getSettings().then(setSettings)
     api.admin.getUserStats().then(setUserStats)
     api.admin.getCacheStatus().then(setCacheStatus).catch(() => undefined)
+    try {
+      const raw = window.localStorage.getItem('atlastv.users')
+      setLocalUsers(raw ? (JSON.parse(raw) as Array<AtlasUser & { password?: string }>) : [])
+    } catch {}
   }, [])
 
   useEffect(() => {
@@ -2158,6 +2406,18 @@ function AdminPanel({
     setNewSectionGenre('')
     setNewSectionVariant('poster')
     setStatus('Yeni kategori eklendi. Kaydetmeyi unutma.')
+  }
+
+  const deleteUser = (id: string) => {
+    try {
+      const raw = window.localStorage.getItem('atlastv.users')
+      if (!raw) return
+      const users = JSON.parse(raw) as Array<AtlasUser & { password?: string }>
+      const updated = users.filter((u) => u.id !== id)
+      window.localStorage.setItem('atlastv.users', JSON.stringify(updated))
+      setLocalUsers(updated)
+      setStatus(`Kullanıcı silindi.`)
+    } catch {}
   }
 
   const uploadM3uFile = async (key: 'liveM3uContent' | 'sportsM3uContent', file?: File) => {
@@ -2294,6 +2554,7 @@ function AdminPanel({
     { id: 'bildirim' as const, label: 'Bildirim' },
     { id: 'listeler' as const, label: 'Listeler' },
     { id: 'araclar' as const, label: 'Araçlar' },
+    { id: 'istatistik' as const, label: 'İstatistik' },
   ]
 
   const variantOptions: Array<{ value: SectionVariant; label: string }> = [
@@ -2333,10 +2594,11 @@ function AdminPanel({
 
         {/* Tab nav */}
         <nav className="admin-tabs">
-          {adminTabs.map((tab) => (
+          {adminTabs.map((tab, tabIndex) => (
             <button
               key={tab.id}
               type="button"
+              data-autofocus={tabIndex === 0 ? 'true' : undefined}
               className={activeTab === tab.id ? 'active' : ''}
               onClick={() => setActiveTab(tab.id)}
             >
@@ -2467,6 +2729,20 @@ function AdminPanel({
                   placeholder="Kullanıcılara gösterilecek bildirim metni"
                 />
               </label>
+              <div className="notif-preview-label" style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: 950, textTransform: 'uppercase' }}>Önizleme:</div>
+              <div className="notif-preview">
+                <div className="notif-wrap">
+                  <button className={`icon-button notif-btn${settings.homeNotification ? ' notif-btn--unread' : ''}`} type="button" tabIndex={-1}>
+                    <Bell />
+                    {settings.homeNotification && <span className="notif-badge">{(settings.homeNotificationId || 0) + 1}-</span>}
+                  </button>
+                </div>
+                {settings.homeNotification && (
+                  <div className="notif-popup notif-popup--static">
+                    <p>{settings.homeNotification || 'Bildirim metni buraya gelecek...'}</p>
+                  </div>
+                )}
+              </div>
               <div className="admin-actions">
                 <button type="button" className="watch-button" onClick={sendNotification} disabled={isSaving}>
                   {isSaving ? 'Gönderiliyor...' : 'Bildirimi Gönder'}
@@ -2559,12 +2835,68 @@ function AdminPanel({
                   ) : null}
                 </div>
               </div>
+              <div className="admin-section-title" style={{ marginTop: '14px' }}>
+                <strong>Kullanıcı Listesi</strong>
+                <span>Bu cihazdaki kayıtlı kullanıcılar.</span>
+              </div>
+              <div className="admin-user-list">
+                {localUsers.map((user) => (
+                  <div key={user.id} className="admin-user-row">
+                    <div>
+                      <strong>{user.email}</strong>
+                      <span>Kayıt: {user.createdAt ? new Date(user.createdAt).toLocaleDateString('tr-TR') : '-'}</span>
+                      <span>İzleme: {Object.keys(user.history ?? {}).length} içerik</span>
+                    </div>
+                    <button type="button" onClick={() => deleteUser(user.id)}>Sil</button>
+                  </div>
+                ))}
+                {localUsers.length === 0 && (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '13px', padding: '10px 0' }}>Kullanıcı bulunamadı.</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── İSTATİSTİK ── */}
+          {activeTab === 'istatistik' && (
+            <div className="admin-tab-pane">
+              <AdminStatsTab />
             </div>
           )}
         </form>
       </div>
     </section>
   )
+
+  function AdminStatsTab() {
+    const stats = getViewStats()
+    const genreEntries = Object.entries(stats.genres).sort((a, b) => b[1] - a[1]).slice(0, 8)
+    const maxVal = genreEntries[0]?.[1] ?? 1
+    return (
+      <>
+        <div className="admin-section-title">
+          <strong>İzleme İstatistikleri</strong>
+          <span>Bu cihazdaki toplam görüntüleme verileri.</span>
+        </div>
+        <p className="admin-total-views">Toplam izleme: <strong>{stats.totalViews}</strong></p>
+        <div className="admin-stats-chart">
+          {genreEntries.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Henüz izleme verisi yok.</p>
+          ) : (
+            genreEntries.map(([genre, count]) => (
+              <div key={genre} className="stat-bar">
+                <span>{genre}</span>
+                <div className="stat-bar-track">
+                  <div className="stat-bar-fill" style={{ '--pct': `${Math.round((count / maxVal) * 100)}%` } as React.CSSProperties} />
+                </div>
+                <span className="stat-bar-count">{count}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </>
+    )
+  }
 }
 
 function PlayerOverlay({
