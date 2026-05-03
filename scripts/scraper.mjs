@@ -226,6 +226,28 @@ const main = async () => {
       baseUrl = result.baseUrl
     }
 
+    // ── Static tipi: sabit URL listesi
+    if (source.type === 'static') {
+      for (const ch of source.channels) {
+        const key = ch.name.toLowerCase().replace(/\s+/g, '-')
+        if (seenIds.has(key)) continue
+        // URL'yi test et
+        try {
+          const ctrl = new AbortController()
+          const t = setTimeout(() => ctrl.abort(), 6_000)
+          const res = await fetch(ch.url, { method: 'HEAD', signal: ctrl.signal, redirect: 'follow' })
+          clearTimeout(t)
+          if (res.status >= 400) { console.log(`  ✗ ${ch.name}: ${res.status}`); continue }
+        } catch { console.log(`  ✗ ${ch.name}: timeout`); continue }
+        seenIds.add(key)
+        allLines.push(`#EXTINF:-1 tvg-id="${source.id}_${key}" tvg-name="${ch.name}" tvg-logo="${getChannelLogo(ch.name)}" group-title="${source.group}",${ch.name}`)
+        allLines.push(ch.url)
+        totalValid++
+        console.log(`  ✓ ${ch.name}`)
+      }
+      continue
+    }
+
     // ── BossSports tipi: data-watch ID + worker token
     if (source.type === 'bosssports') {
       const channels = await getBossSportsChannels(baseUrl)
@@ -233,6 +255,17 @@ const main = async () => {
       for (const ch of channels) {
         const key = ch.name.toLowerCase().replace(/\s+/g, '-')
         if (seenIds.has(key)) continue
+        // URL erişilebilirliğini test et (403 olanları atla)
+        try {
+          const ctrl = new AbortController()
+          const t = setTimeout(() => ctrl.abort(), 6_000)
+          const res = await fetch(ch.url, {
+            method: 'HEAD', signal: ctrl.signal, redirect: 'follow',
+            headers: { Referer: ch.referer || '', 'User-Agent': HEADERS['User-Agent'] }
+          })
+          clearTimeout(t)
+          if (res.status >= 400) { console.log(`  ✗ ${ch.name}: ${res.status} (atlandı)`); continue }
+        } catch { console.log(`  ✗ ${ch.name}: timeout`); continue }
         seenIds.add(key)
         allLines.push(`#EXTINF:-1 tvg-id="${source.id}_${key}" tvg-name="${ch.name}" tvg-logo="${getChannelLogo(ch.name)}" group-title="${source.group}",${ch.name}`)
         if (ch.referer) allLines.push(`#EXTVLCOPT:http-referrer=${ch.referer}`)
@@ -245,14 +278,25 @@ const main = async () => {
 
     // ── TRGoals tipi: HTML'den direkt m3u8 URL
     if (source.type === 'trgoals') {
+      const TRT_URL_OVERRIDES = {
+        'TRT 1': 'https://tv-trt1.medya.trt.com.tr/master.m3u8',
+        'TRT 2': 'https://tv-trt2.medya.trt.com.tr/master.m3u8',
+        'TRT Spor': 'https://tv-trtspor1.medya.trt.com.tr/master.m3u8',
+        'TRT Yıldız': 'https://tv-trtspor2.medya.trt.com.tr/master.m3u8',
+      }
       const channels = await getTrgoalsChannels(baseUrl)
       console.log(`  Bulunan direkt kanal: ${channels.length}`)
       channels.forEach(ch => {
-        const key = ch.url
+        const url = TRT_URL_OVERRIDES[ch.name] || ch.url
+        const key = url
         if (seenIds.has(key)) return
+        // İsim bazlı da kontrol et (atomsport ile duplicate engelle)
+        const nameKey = ch.name.toLowerCase().replace(/\s+/g, '-')
+        if (seenIds.has(nameKey)) return
         seenIds.add(key)
+        seenIds.add(nameKey)
         allLines.push(`#EXTINF:-1 tvg-id="${source.id}_${ch.name.toLowerCase().replace(/\s+/g,'-')}" tvg-name="${ch.name}" tvg-logo="${getChannelLogo(ch.name)}" group-title="${source.group}",${ch.name}`)
-        allLines.push(ch.url)
+        allLines.push(url)
         totalValid++
       })
       console.log(`  ✓ Eklenen: ${channels.length}`)
@@ -307,6 +351,7 @@ const main = async () => {
         if (r && !seenIds.has(r.id)) {
           seenIds.add(r.id)
           const name = channelIdToName(r.id)
+          seenIds.add(name.toLowerCase().replace(/\s+/g, '-'))
           allLines.push(`#EXTINF:-1 tvg-id="${source.id}_${r.id}" tvg-name="${name}" tvg-logo="${getChannelLogo(name)}" group-title="${source.group}",${name}`)
           allLines.push(r.url)
           totalValid++

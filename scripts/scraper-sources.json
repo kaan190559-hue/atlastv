@@ -18,6 +18,15 @@
     "group": "Spor"
   },
   {
+    "id": "static",
+    "name": "Sabit Kanallar",
+    "type": "static",
+    "group": "Spor",
+    "channels": [
+      { "name": "HT Spor", "url": "https://ciner.daioncdn.net/ht-spor/ht-spor.m3u8?app=web" }
+    ]
+  },
+  {
     "id": "trgoals",
     "name": "TRGoals 7/24 TV",
     "type": "trgoals",
