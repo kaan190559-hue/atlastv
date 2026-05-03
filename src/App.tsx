@@ -191,6 +191,7 @@ function playStartupTone() {
 }
 
 function getProxiedStreamUrl(item: ContentItem) {
+  if (item.noProxy) return item.streamUrl
   const userAgent = item.httpUserAgent || DEFAULT_PLAYER_USER_AGENT
   const params = new URLSearchParams({
     url: item.streamUrl,

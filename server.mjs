@@ -26,8 +26,7 @@ const CACHE_CONTROL_PATH = '/__atlas_cache_control'
 const SCRAPED_M3U_PATH = '/scraped.m3u'
 const SCRAPED_M3U_FILE = resolve(__dirname, 'public', 'scraped.m3u')
 const SPORTS_M3U_DEFAULT =
-  process.env.ATLAS_SPORTS_M3U_URL ||
-  'https://raw.githubusercontent.com/kaan190559-hue/atlastv/master/public/scraped.m3u'
+  process.env.ATLAS_SPORTS_M3U_URL || 'betmatik://live'
 const CACHE_BOT_BUILD = 'prebuilt-catalog-v1'
 const DEFAULT_USER_AGENT = 'okhttp/4.12.0'
 const ADMIN_PASSWORD = process.env.ATLAS_ADMIN_PASSWORD || '190559'
@@ -891,6 +890,116 @@ async function loadGroupedServerCatalog(sourceUrl = VOD_M3U_URL, refreshKey = ''
   return pendingLoad
 }
 
+
+// ─── Betmatik live kanal scraper ─────────────────────────────────────────────
+const BETMATIK_DOMAIN_URL = 'https://data-reality.com/domain.php'
+const BETMATIK_CHANNELS_URL = 'https://data-reality.com/channels.php'
+const BETMATIK_REFERER = 'https://betmatiktv144.com/'
+const BETMATIK_CACHE_TTL = 55 * 60 * 1000 // 55 dakika
+
+const BETMATIK_LOGOS = {
+  'BEIN SPORTS 1': '/logos/bein-sports-1.svg',
+  'BEIN SPORTS 2': '/logos/bein-sports-2.svg',
+  'BEIN SPORTS 3': '/logos/bein-sports-3.svg',
+  'BEIN SPORTS 4': '/logos/bein-sports-4.svg',
+  'BEIN SPORTS 5': '/logos/bein-sports-5.svg',
+  'BEIN SPORTS MAX 1': '/logos/bein-sports-max-1.svg',
+  'BEIN SPORTS MAX 2': '/logos/bein-sports-max-2.svg',
+  'S SPORT': '/logos/s-sport.svg',
+  'S SPORT 2': '/logos/s-sport-2.svg',
+  'SMART SPOR': '/logos/smart-spor.svg',
+  'SMART SPOR 2': '/logos/smart-spor-2.svg',
+  'TIVIBU SPOR 1': '/logos/tivibu-spor-1.svg',
+  'TIVIBU SPOR 2': '/logos/tivibu-spor-2.svg',
+  'TIVIBU SPOR 3': '/logos/tivibu-spor-3.svg',
+  'TIVIBU SPOR 4': '/logos/tivibu-spor-4.svg',
+  'TRT SPOR': '/logos/trt-spor.svg',
+  'TRT SPOR YILDIZ': '/logos/trt-yildiz.svg',
+  'TRT 1': '/logos/trt-1.svg',
+  'A SPOR': '/logos/a-spor.svg',
+  'TABII SPOR': '/logos/tabii-spor.svg',
+  'EURO SPORT 1': '/logos/euro-sport-1.svg',
+  'EURO SPORT 2': '/logos/euro-sport-2.svg',
+  'ATV': '/logos/a-spor.svg',
+  'TV 8': '/logos/trt-1.svg',
+}
+
+let betmatikBaseUrlCache = { url: '', fetchedAt: 0 }
+let betmatikCatalogCache = { items: null, fetchedAt: 0 }
+
+async function fetchBetmatikBaseUrl() {
+  const now = Date.now()
+  if (betmatikBaseUrlCache.url && now - betmatikBaseUrlCache.fetchedAt < BETMATIK_CACHE_TTL) {
+    return betmatikBaseUrlCache.url
+  }
+  try {
+    const resp = await fetch(BETMATIK_DOMAIN_URL, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', Referer: BETMATIK_REFERER },
+    })
+    const data = await resp.json()
+    const baseUrl = data.baseurl || ''
+    betmatikBaseUrlCache = { url: baseUrl, fetchedAt: now }
+    return baseUrl
+  } catch (e) {
+    console.error('[betmatik] base URL fetch failed:', e.message)
+    return betmatikBaseUrlCache.url || ''
+  }
+}
+
+function parseBetmatikHtml(html) {
+  const channels = []
+  const re = /href="channel\?id=([^"]+)"[^>]*>[\s\S]*?<div class="home">([^<]+)<\/div>/g
+  let m
+  while ((m = re.exec(html)) !== null) {
+    channels.push({ id: m[1].trim(), name: m[2].trim().toUpperCase() })
+  }
+  return channels
+}
+
+async function loadBetmatikCatalog() {
+  const now = Date.now()
+  if (betmatikCatalogCache.items && now - betmatikCatalogCache.fetchedAt < BETMATIK_CACHE_TTL) {
+    return betmatikCatalogCache.items
+  }
+
+  const [baseUrl, channelsHtml] = await Promise.all([
+    fetchBetmatikBaseUrl(),
+    fetch(BETMATIK_CHANNELS_URL, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', Referer: BETMATIK_REFERER },
+    }).then((r) => r.text()).catch(() => ''),
+  ])
+
+  const channels = parseBetmatikHtml(channelsHtml)
+  const items = channels.map((ch, idx) => {
+    const logo = BETMATIK_LOGOS[ch.name] || '/favicon.svg'
+    const streamUrl = baseUrl ? `${baseUrl}${ch.id}/mono.m3u8` : ''
+    return {
+      id: `betmatik-${ch.id}`,
+      title: ch.name,
+      displayTitle: ch.name,
+      type: 'live',
+      category: 'Spor',
+      country: 'Spor',
+      liveCategory: 'Spor',
+      streamUrl,
+      posterUrl: logo,
+      backdropUrl: logo,
+      rating: Number((7.5 + (idx % 10) / 10).toFixed(1)),
+      description: `${ch.name} canlı yayını.`,
+      isLive: true,
+      isFavorite: false,
+      httpUserAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      noProxy: true,
+      badge: 'Spor',
+    }
+  }).filter((item) => item.streamUrl)
+
+  betmatikCatalogCache = { items, fetchedAt: now }
+  console.log(`[betmatik] ${items.length} kanal yüklendi`)
+  return items
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
 async function hydrateVodEpisodes(items) {
   if (!items.some((item) => item.episodeCount > 1)) return items
 
@@ -904,6 +1013,10 @@ async function hydrateVodEpisodes(items) {
 }
 
 async function loadLiveServerCatalog(sourceUrl = '', refreshKey = '', library = '') {
+  // Betmatik doğrudan scraper
+  if (sourceUrl === 'betmatik://live' || (library === 'sports' && (sourceUrl === 'betmatik://live' || SPORTS_M3U_DEFAULT === 'betmatik://live'))) {
+    return loadBetmatikCatalog()
+  }
   const settings = await readAdminSettings()
   const uploadedPlaylist =
     library === 'sports'

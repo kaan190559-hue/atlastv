@@ -35,6 +35,7 @@ export type ContentItem = {
   progressDuration?: number
   badge?: string
   displayTitle?: string
+  noProxy?: boolean
   groupId?: string
   episodeCount?: number
   seasonCount?: number
