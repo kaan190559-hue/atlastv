@@ -47,6 +47,9 @@ const defaultAdminSettings = {
   supportUrl: '',
   appVersion: '0.0.0',
   announcement: 'Güncel sürüm, duyurular, özel içerikler ve destek için kanalımızı takip edin.',
+  homeNotification: '',
+  homeNotificationId: 0,
+  homeSectionsConfig: [],
   liveM3uContent: '',
   sportsM3uContent: '',
 }
@@ -120,7 +123,30 @@ function sendJson(res, data, status = 200) {
   })
 }
 
-function normalizeAdminSettings(settings = {}) {
+const HOME_SECTION_VARIANTS = new Set(['poster', 'wide', 'ranked', 'channel', 'trend', 'circle'])
+
+function normalizeHomeSectionsConfig(config) {
+  if (!Array.isArray(config)) return []
+  return config
+    .map((section) => {
+      if (!section || typeof section !== 'object') return null
+      const type = section.type === 'genre' ? 'genre' : section.type === 'builtin' ? 'builtin' : ''
+      const id = typeof section.id === 'string' ? section.id.trim() : ''
+      const title = typeof section.title === 'string' ? section.title.trim() : ''
+      const variant = HOME_SECTION_VARIANTS.has(section.variant) ? section.variant : 'poster'
+      const enabled = Boolean(section.enabled)
+      const genre = typeof section.genre === 'string' ? section.genre.trim() : ''
+      if (!type || !id || !title) return null
+      if (type === 'genre' && !genre) return null
+      return type === 'genre'
+        ? { id, title, type, genre, variant, enabled }
+        : { id, title, type, variant, enabled }
+    })
+    .filter(Boolean)
+}
+
+function normalizeAdminSettings(settings = {}, updatedAt = new Date().toISOString()) {
+  const notificationId = Number(settings.homeNotificationId)
   return {
     vodM3uUrl: settings.vodM3uUrl?.trim() || VOD_M3U_URL,
     liveM3uUrl: settings.liveM3uUrl?.trim() ?? '',
@@ -129,16 +155,23 @@ function normalizeAdminSettings(settings = {}) {
     supportUrl: settings.supportUrl?.trim() ?? '',
     appVersion: settings.appVersion?.trim() || '0.0.0',
     announcement: settings.announcement?.trim() ?? '',
+    homeNotification: settings.homeNotification?.trim() ?? '',
+    homeNotificationId: Number.isFinite(notificationId) && notificationId > 0 ? Math.trunc(notificationId) : 0,
+    homeSectionsConfig: normalizeHomeSectionsConfig(settings.homeSectionsConfig),
     liveM3uContent: settings.liveM3uContent?.trim() ?? '',
     sportsM3uContent: settings.sportsM3uContent?.trim() ?? '',
-    updatedAt: new Date().toISOString(),
+    updatedAt,
   }
 }
 
 async function readAdminSettings() {
   try {
     const raw = await readFile(ADMIN_SETTINGS_FILE, 'utf8')
-    const settings = { ...defaultAdminSettings, ...JSON.parse(raw) }
+    const parsed = JSON.parse(raw)
+    const settings = normalizeAdminSettings(
+      { ...defaultAdminSettings, ...(parsed && typeof parsed === 'object' ? parsed : {}) },
+      typeof parsed?.updatedAt === 'string' && parsed.updatedAt.trim() ? parsed.updatedAt : new Date().toISOString(),
+    )
     if (!settings.liveM3uUrl?.trim() && !settings.liveM3uContent?.trim()) {
       settings.liveM3uUrl = defaultAdminSettings.liveM3uUrl
     }
@@ -526,8 +559,8 @@ async function handleAdminSettings(req, res) {
   }
 
   const settings = body.reset
-    ? { ...defaultAdminSettings, updatedAt: new Date().toISOString() }
-    : normalizeAdminSettings(body.settings)
+    ? normalizeAdminSettings(defaultAdminSettings, new Date().toISOString())
+    : normalizeAdminSettings(body.settings, new Date().toISOString())
   await writeAdminSettings(settings)
   clearMediaCaches()
   sendJson(res, settings)

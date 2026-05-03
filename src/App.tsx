@@ -485,14 +485,32 @@ function App() {
     api.content.getHomeSections().then((sections) => {
       if (isActive) applyHomeSections(sections)
     })
-    api.content.getHeroItemsFresh().then((items) => {
-      if (isActive) setHeroItems(items)
-    })
-    api.content.getHomeSectionsFresh().then((sections) => {
-      if (isActive) applyHomeSections(sections)
-    })
+    const refreshFreshContent = () => {
+      api.content.getHeroItemsFresh().then((items) => {
+        if (isActive) setHeroItems(items)
+      })
+      api.content.getHomeSectionsFresh().then((sections) => {
+        if (isActive) applyHomeSections(sections)
+      })
+    }
+    const withIdleWindow = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number
+      cancelIdleCallback?: (handle: number) => void
+    }
+    let refreshTimer: number | null = null
+    let idleHandle: number | null = null
+    if (withIdleWindow.requestIdleCallback) {
+      idleHandle = withIdleWindow.requestIdleCallback(
+        () => refreshFreshContent(),
+        { timeout: 1200 },
+      )
+    } else {
+      refreshTimer = window.setTimeout(() => refreshFreshContent(), 350)
+    }
     return () => {
       isActive = false
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer)
+      if (idleHandle !== null && withIdleWindow.cancelIdleCallback) withIdleWindow.cancelIdleCallback(idleHandle)
     }
   }, [applyHomeSections, isAuthed])
 
@@ -1325,7 +1343,7 @@ function TopBar({
             </div>
           )}
         </div>
-        {notificationId > 0 && notification ? (
+        {notification.trim() ? (
           <div className="notif-wrap">
             <button
               className={`icon-button notif-btn${hasUnread ? ' notif-btn--unread' : ''}`}
@@ -2333,6 +2351,7 @@ function AdminPanel({
   // Category management state
   const [newSectionTitle, setNewSectionTitle] = useState('')
   const [newSectionGenre, setNewSectionGenre] = useState('')
+  const [newSectionCustomGenre, setNewSectionCustomGenre] = useState('')
   const [localUsers, setLocalUsers] = useState<Array<AtlasUser & { password?: string }>>([])
   const [newSectionVariant, setNewSectionVariant] = useState<SectionVariant>('poster')
 
@@ -2388,7 +2407,8 @@ function AdminPanel({
   }
 
   const addSection = () => {
-    if (!newSectionTitle.trim() || !newSectionGenre.trim()) {
+    const resolvedGenre = newSectionGenre === '__custom' ? newSectionCustomGenre.trim() : newSectionGenre.trim()
+    if (!newSectionTitle.trim() || !resolvedGenre) {
       setStatus('Kategori adı ve tür gereklidir.')
       return
     }
@@ -2397,13 +2417,14 @@ function AdminPanel({
       id,
       title: newSectionTitle.trim(),
       type: 'genre',
-      genre: newSectionGenre.trim(),
+      genre: resolvedGenre,
       variant: newSectionVariant,
       enabled: true,
     }
     updateSectionsConfig([...sectionsConfig, newSection])
     setNewSectionTitle('')
     setNewSectionGenre('')
+    setNewSectionCustomGenre('')
     setNewSectionVariant('poster')
     setStatus('Yeni kategori eklendi. Kaydetmeyi unutma.')
   }
@@ -2684,15 +2705,21 @@ function AdminPanel({
                   onChange={(e) => setNewSectionTitle(e.target.value)}
                   placeholder="Bölüm başlığı (örn. Romantik Filmler)"
                 />
-                <select value={newSectionGenre} onChange={(e) => setNewSectionGenre(e.target.value)}>
+                <select
+                  value={newSectionGenre}
+                  onChange={(e) => {
+                    setNewSectionGenre(e.target.value)
+                    if (e.target.value !== '__custom') setNewSectionCustomGenre('')
+                  }}
+                >
                   <option value="">Tür seç...</option>
                   {knownGenres.map((g) => <option key={g} value={g}>{g}</option>)}
                   <option value="__custom">Özel tür gir...</option>
                 </select>
                 {newSectionGenre === '__custom' && (
                   <input
-                    value={newSectionGenre === '__custom' ? '' : newSectionGenre}
-                    onChange={(e) => setNewSectionGenre(e.target.value)}
+                    value={newSectionCustomGenre}
+                    onChange={(e) => setNewSectionCustomGenre(e.target.value)}
                     placeholder="Özel tür adı"
                   />
                 )}
