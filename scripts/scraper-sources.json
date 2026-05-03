@@ -9,6 +9,15 @@
     "group": "Spor"
   },
   {
+    "id": "bosssports",
+    "name": "BossSports Kanallar",
+    "type": "bosssports",
+    "domainPattern": "bosssports{N}.com",
+    "currentN": 574,
+    "scheme": "https",
+    "group": "Spor"
+  },
+  {
     "id": "trgoals",
     "name": "TRGoals 7/24 TV",
     "type": "trgoals",

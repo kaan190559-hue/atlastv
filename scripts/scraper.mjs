@@ -19,6 +19,35 @@ const HEADERS = {
   'Origin': 'https://atomsportv501.top',
 }
 
+// ── BossSports: _1/_2 token + data-watch ID → playlist.m3u8
+const getBossSportsChannels = async (baseUrl) => {
+  const html = await fetchText(baseUrl, {
+    headers: { ...HEADERS, Referer: baseUrl + '/', Origin: baseUrl },
+  })
+  if (!html) return []
+
+  // play iframe'den _1 (worker domain) ve _2 (token) çek
+  const m = html.match(/_1=([\w.]+)&_2=(\w+)/)
+  if (!m) return []
+  const worker = m[1]
+  const token = m[2]
+
+  // data-watch ID + kanal adı (bottom-style div = kanal adı)
+  const blocks = [...html.matchAll(/data-watch="(\d+)"[^>]*style="[^"]*bottom[^"]*"[^>]*>\s*([^<]{3,})\s*</g)]
+  const seen = new Map()
+  blocks.forEach(b => {
+    const id = b[1], ch = b[2].trim()
+    if (!seen.has(ch)) seen.set(ch, id)
+  })
+
+  const channels = []
+  for (const [name, id] of seen) {
+    const streamUrl = `https://${worker}/${token}/-/${id}/playlist.m3u8`
+    channels.push({ name, url: streamUrl, referer: `${baseUrl}/play.html` })
+  }
+  return channels
+}
+
 const fetchText = async (url, extra = {}) => {
   const ctrl = new AbortController()
   const t = setTimeout(() => ctrl.abort(), 12_000)
@@ -163,6 +192,23 @@ const main = async () => {
         sourcesUpdated[i] = { ...sourcesUpdated[i], currentN: result.n }
       }
       baseUrl = result.baseUrl
+    }
+
+    // ── BossSports tipi: data-watch ID + worker token
+    if (source.type === 'bosssports') {
+      const channels = await getBossSportsChannels(baseUrl)
+      console.log(`  Bulunan kanal: ${channels.length}`)
+      for (const ch of channels) {
+        const key = ch.name.toLowerCase().replace(/\s+/g, '-')
+        if (seenIds.has(key)) continue
+        seenIds.add(key)
+        allLines.push(`#EXTINF:-1 tvg-id="${source.id}_${key}" tvg-name="${ch.name}" tvg-logo="" group-title="${source.group}",${ch.name}`)
+        if (ch.referer) allLines.push(`#EXTVLCOPT:http-referrer=${ch.referer}`)
+        allLines.push(ch.url)
+        totalValid++
+      }
+      console.log(`  ✓ Eklenen: ${channels.length}`)
+      continue
     }
 
     // ── TRGoals tipi: HTML'den direkt m3u8 URL
