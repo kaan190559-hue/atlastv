@@ -1217,7 +1217,7 @@ export const api = {
         sportsM3uUrl: settings.sportsM3uUrl.trim(),
         telegramUrl: settings.telegramUrl.trim() || 'https://t.me/',
         supportUrl: settings.supportUrl.trim(),
-        appVersion: settings.appVersion.trim() || '0.0.0',
+        appVersion: settings.appVersion.trim() || '0.0.1',
         announcement: settings.announcement.trim(),
         homeNotification: settings.homeNotification.trim(),
         homeNotificationId: Number(settings.homeNotificationId) || 0,

@@ -60,16 +60,19 @@ import './App.css'
 type Screen = CategoryKey
 type Theme = 'dark' | 'light'
 type AuthMode = 'login' | 'register' | 'forgot'
+type DeviceType = 'tv' | 'pc' | 'tablet' | 'phone'
 type Direction = 'up' | 'down' | 'left' | 'right'
 
 const DEFAULT_PLAYER_USER_AGENT = 'okhttp/4.12.0'
 const CATEGORY_PAGE_SIZE = 60
 const VOD_CATEGORY_PAGE_SIZE = 60
-const APP_VERSION = '0.0.0'
+const APP_VERSION = '0.0.1'
 const LIVE_GITHUB_M3U_URL = 'https://raw.githubusercontent.com/kaan190559-hue/atlastv/master/public/vavoo_full_worker.m3u'
 const IPTV_TURKEY_M3U_URL = 'https://iptv-org.github.io/iptv/countries/tr.m3u'
 const APPEARANCE_KEY = 'atlastv.appearance'
 const NOTIFICATION_READ_KEY = 'atlastv.notificationRead'
+const DEVICE_PROFILE_KEY = 'atlastv.deviceProfile'
+const TV_STAGE_WIDTH = 1920
 const FOCUSABLE_SELECTOR =
   'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 const SPATIAL_GROUP_SELECTOR =
@@ -160,6 +163,36 @@ const defaultAppearance: AppearanceSettings = {
   cardScale: 1,
   cardRadius: 16,
   cardGlow: 1,
+}
+
+const validDeviceProfiles: DeviceType[] = ['tv', 'pc', 'tablet', 'phone']
+
+function loadDeviceProfile() {
+  try {
+    const raw = window.localStorage.getItem(DEVICE_PROFILE_KEY)
+    return raw && validDeviceProfiles.includes(raw as DeviceType) ? (raw as DeviceType) : null
+  } catch {
+    return null
+  }
+}
+
+function applyDeviceProfile(profile: DeviceType) {
+  const root = document.documentElement
+  const isTv = profile === 'tv'
+  root.dataset.deviceType = profile
+  root.dataset.tvPerformance = isTv ? 'true' : 'false'
+  root.style.setProperty('--atlas-root-width', '100%')
+  root.style.setProperty('--atlas-stage-height', '100svh')
+
+  if (isTv) {
+    const scale = Math.min(window.innerWidth / TV_STAGE_WIDTH, 1)
+    root.style.setProperty('--atlas-stage-width', `${TV_STAGE_WIDTH}px`)
+    root.style.setProperty('--atlas-stage-scale', scale.toFixed(4))
+    return
+  }
+
+  root.style.setProperty('--atlas-stage-width', '100%')
+  root.style.setProperty('--atlas-stage-scale', '1')
 }
 
 function loadAppearanceSettings() {
@@ -418,6 +451,7 @@ function useSpatialNavigation(resetKey: string) {
 }
 
 function App() {
+  const [deviceType, setDeviceType] = useState<DeviceType | null>(loadDeviceProfile)
   const [isAuthed, setIsAuthed] = useState(false)
   const [currentUser, setCurrentUser] = useState<AtlasUser | null>(null)
   const [authMode, setAuthMode] = useState<AuthMode>('login')
@@ -451,7 +485,7 @@ function App() {
   const [adminGateOpen, setAdminGateOpen] = useState(false)
   const [adminPanelOpen, setAdminPanelOpen] = useState(false)
   const [adminPassword, setAdminPassword] = useState('')
-  useSpatialNavigation(`${isAuthed}-${authMode}-${screen}-${playerItem?.id ?? 'app'}-${categoryItems[0]?.id ?? 'empty'}`)
+  useSpatialNavigation(`${deviceType ?? 'unknown'}-${isAuthed}-${authMode}-${screen}-${playerItem?.id ?? 'app'}-${categoryItems[0]?.id ?? 'empty'}`)
 
   const applyHomeSections = useCallback((sections: HomeSection[]) => {
     if (hasHomeSectionContent(sections)) setHomeSections(sections)
@@ -460,6 +494,26 @@ function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme
   }, [theme])
+
+  useEffect(() => {
+    if (!deviceType) {
+      const root = document.documentElement
+      delete root.dataset.deviceType
+      root.dataset.tvPerformance = 'false'
+      root.style.setProperty('--atlas-root-width', '100%')
+      root.style.setProperty('--atlas-stage-height', '100svh')
+      root.style.setProperty('--atlas-stage-width', '100%')
+      root.style.setProperty('--atlas-stage-scale', '1')
+      return
+    }
+
+    applyDeviceProfile(deviceType)
+    if (deviceType !== 'tv') return
+
+    const onResize = () => applyDeviceProfile('tv')
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [deviceType])
 
   useEffect(() => {
     document.documentElement.style.setProperty('--accent', appearance.accent)
@@ -864,6 +918,19 @@ function App() {
     return <SplashScreen />
   }
 
+  if (!deviceType) {
+    return (
+      <DeviceProfileScreen
+        theme={theme}
+        onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        onSelect={(nextType) => {
+          setDeviceType(nextType)
+          window.localStorage.setItem(DEVICE_PROFILE_KEY, nextType)
+        }}
+      />
+    )
+  }
+
   if (isAuthed && showOnboarding) {
     return (
       <OnboardingScreen
@@ -1036,6 +1103,51 @@ function App() {
       ) : null}
 
     </div>
+  )
+}
+
+function DeviceProfileScreen({
+  theme,
+  onThemeToggle,
+  onSelect,
+}: {
+  theme: Theme
+  onThemeToggle: () => void
+  onSelect: (type: DeviceType) => void
+}) {
+  const profiles: Array<{ id: DeviceType; title: string; text: string }> = [
+    { id: 'tv', title: 'TV', text: 'Uzaktan kumanda ve büyük ekran için TV odaklı düzen kullanılır.' },
+    { id: 'pc', title: 'PC', text: 'Klavye/fare için masaüstü düzeni kullanılır.' },
+    { id: 'tablet', title: 'Tablet', text: 'Dokunmatik, orta boy ekranlar için dengeli düzen uygulanır.' },
+    { id: 'phone', title: 'Telefon', text: 'Mobil gezinme ve küçük ekran düzeni kullanılır.' },
+  ]
+
+  return (
+    <main className="device-profile-page">
+      <button className="icon-button auth-theme" type="button" onClick={onThemeToggle} aria-label="Tema değiştir">
+        {theme === 'dark' ? <Sun /> : <Moon />}
+      </button>
+      <section className="device-profile-head">
+        <h1>
+          Atlas<span>Tv</span>
+        </h1>
+        <p>Devam etmeden önce cihaz tipini seçin.</p>
+      </section>
+      <section className="device-profile-grid" aria-label="Cihaz tipi seçimi">
+        {profiles.map((profile, index) => (
+          <button
+            key={profile.id}
+            type="button"
+            data-autofocus={index === 0 ? 'true' : undefined}
+            className="device-profile-card"
+            onClick={() => onSelect(profile.id)}
+          >
+            <strong>{profile.title}</strong>
+            <span>{profile.text}</span>
+          </button>
+        ))}
+      </section>
+    </main>
   )
 }
 

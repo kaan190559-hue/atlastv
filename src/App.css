@@ -233,6 +233,81 @@
   color: var(--text-strong);
 }
 
+.device-profile-page {
+  min-height: 100svh;
+  padding: 22px 24px 34px;
+  display: grid;
+  grid-template-columns: minmax(0, 980px);
+  justify-content: center;
+  align-content: start;
+  gap: 26px;
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--accent-2) 24%, transparent), transparent 34%),
+    radial-gradient(circle at 78% 10%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 30%),
+    linear-gradient(115deg, rgba(255, 255, 255, 0.05), transparent 32%),
+    var(--bg);
+}
+
+.device-profile-head {
+  text-align: center;
+}
+
+.device-profile-head h1 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: clamp(44px, 7vw, 66px);
+  font-weight: 950;
+}
+
+.device-profile-head h1 span {
+  color: var(--accent);
+}
+
+.device-profile-head p {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.device-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.device-profile-card {
+  min-height: 170px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 22px;
+  display: grid;
+  gap: 10px;
+  text-align: left;
+  color: var(--text-strong);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+.device-profile-card strong {
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.device-profile-card span {
+  color: var(--text-muted);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.device-profile-card:hover,
+.device-profile-card:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+
 .splash-screen {
   min-height: 100svh;
   display: grid;
@@ -2971,6 +3046,15 @@
     border-radius: 22px;
   }
 
+  .device-profile-page {
+    padding: 18px 14px 24px;
+    gap: 18px;
+  }
+
+  .device-profile-grid {
+    grid-template-columns: 1fr;
+  }
+
   .top-bar {
     grid-template-columns: 1fr auto;
     padding: 12px 14px;
@@ -3207,11 +3291,11 @@
   stage even when Android WebView or emulators report a narrow CSS viewport.
 */
 @media (max-width: 1180px) {
-  .app-frame .top-bar {
+:root[data-device-type='tv'] .app-frame .top-bar {
     grid-template-columns: auto minmax(0, 1fr) auto !important;
   }
 
-  .app-frame .desktop-nav {
+:root[data-device-type='tv'] .app-frame .desktop-nav {
     order: initial !important;
     grid-column: auto !important;
     justify-content: center !important;
@@ -3219,92 +3303,92 @@
 }
 
 @media (max-width: 760px) {
-  .app-frame .top-bar {
+:root[data-device-type='tv'] .app-frame .top-bar {
     min-height: 96px !important;
     grid-template-columns: auto minmax(0, 1fr) auto !important;
     padding: 18px 32px !important;
   }
 
-  .app-frame .brand-lockup strong {
+:root[data-device-type='tv'] .app-frame .brand-lockup strong {
     font-size: 38px !important;
   }
 
-  .app-frame .menu-button {
+:root[data-device-type='tv'] .app-frame .menu-button {
     display: inline-grid !important;
   }
 
-  .app-frame .desktop-nav {
+:root[data-device-type='tv'] .app-frame .desktop-nav {
     display: flex !important;
   }
 
-  .app-frame .top-actions {
+:root[data-device-type='tv'] .app-frame .top-actions {
     justify-content: flex-end !important;
   }
 
-  .app-frame .search-box {
+:root[data-device-type='tv'] .app-frame .search-box {
     width: min(310px, 25vw) !important;
     padding: 0 18px !important;
     justify-content: flex-start !important;
   }
 
-  .app-frame .search-box input {
+:root[data-device-type='tv'] .app-frame .search-box input {
     display: block !important;
   }
 
-  .app-frame .page-shell {
+:root[data-device-type='tv'] .app-frame .page-shell {
     padding: 0 28px 110px !important;
   }
 
-  .app-frame .hero-banner {
+:root[data-device-type='tv'] .app-frame .hero-banner {
     min-height: min(620px, 72svh) !important;
     margin: 0 -28px 36px !important;
   }
 
-  .app-frame .hero-content {
+:root[data-device-type='tv'] .app-frame .hero-content {
     width: min(760px, calc(100% - 48px)) !important;
     padding: 0 0 86px 54px !important;
   }
 
-  .app-frame .hero-actions {
+:root[data-device-type='tv'] .app-frame .hero-actions {
     flex-direction: row !important;
   }
 
-  .app-frame .rail-list {
+:root[data-device-type='tv'] .app-frame .rail-list {
     grid-auto-columns: calc(253px * var(--card-scale)) !important;
   }
 
-  .app-frame .rail-list.wide {
+:root[data-device-type='tv'] .app-frame .rail-list.wide {
     grid-auto-columns: minmax(calc(363px * var(--card-scale)), calc(484px * var(--card-scale))) !important;
   }
 
-  .app-frame .rail-list.channel {
+:root[data-device-type='tv'] .app-frame .rail-list.channel {
     grid-auto-columns: calc(308px * var(--card-scale)) !important;
   }
 
-  .app-frame .rail-list.circle {
+:root[data-device-type='tv'] .app-frame .rail-list.circle {
     grid-auto-columns: calc(202px * var(--card-scale)) !important;
   }
 
-  .app-frame .page-heading {
+:root[data-device-type='tv'] .app-frame .page-heading {
     display: flex !important;
   }
 
-  .app-frame .search-box.large {
+:root[data-device-type='tv'] .app-frame .search-box.large {
     width: min(420px, 36vw) !important;
     margin-top: 0 !important;
   }
 
-  .app-frame .utility-grid,
-  .app-frame .settings-layout,
-  .app-frame .appearance-controls {
+:root[data-device-type='tv'] .app-frame .utility-grid,
+:root[data-device-type='tv'] .app-frame .settings-layout,
+:root[data-device-type='tv'] .app-frame .appearance-controls {
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
   }
 
-  .app-frame .live-filter-panel {
+:root[data-device-type='tv'] .app-frame .live-filter-panel {
     grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto !important;
   }
 
-  .app-frame .mobile-nav {
+:root[data-device-type='tv'] .app-frame .mobile-nav {
     display: none !important;
   }
 }

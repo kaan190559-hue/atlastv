@@ -2,6 +2,13 @@
 
 AtlasTV, VOD M3U listeleri, canlı TV listeleri ve spor M3U kaynaklarını tek arayüzde gösteren React/Vite uygulamasıdır. Üretimde `server.mjs` hem statik siteyi servis eder hem de M3U katalog, HLS proxy ve ortak admin ayarlarını yönetir.
 
+## İlk açılış cihaz profili
+
+Uygulama ilk açılışta giriş ekranından önce cihaz profili sorar: **TV**, **PC**, **Tablet** veya **Telefon**.
+
+- TV seçimi TV odaklı geniş sahne düzenini etkinleştirir.
+- PC/Tablet/Telefon seçimleri ekran boyutuna göre responsive düzeni kullanır.
+
 ## Yerelde çalıştırma
 
 ```bash
