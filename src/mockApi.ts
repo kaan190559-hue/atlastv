@@ -728,6 +728,11 @@ const loadLiveCatalog = async () => {
 const getCatalog = async () => hydrateUserItems([...(await loadLiveCatalog()), ...(await loadVodCatalog())])
 const getVodCatalog = async () => hydrateUserItems(await loadVodCatalog())
 
+const ATLAS_SPORTS_POSTER = '/favicon.svg'
+
+const withSportsPoster = (items: ContentItem[]) =>
+  items.map((item) => ({ ...item, posterUrl: ATLAS_SPORTS_POSTER, backdropUrl: item.backdropUrl || ATLAS_SPORTS_POSTER }))
+
 const loadSportsCatalog = async (offset = 0, limit = 160, query = '', filters: LiveFilterParams = {}) => {
   const settings = await getAdminSettings()
   const sportsSource = settings.sportsM3uUrl.trim()
@@ -745,7 +750,7 @@ const loadSportsCatalog = async (offset = 0, limit = 160, query = '', filters: L
     if (settings.updatedAt) params.set('refresh', settings.updatedAt)
 
     const page = await cachedFetchJson<CategoryPage>(`/__atlas_live_catalog?${params.toString()}`)
-    return { ...page, items: hydrateUserItems(page.items) }
+    return { ...page, items: withSportsPoster(hydrateUserItems(page.items)) }
   }
 
   const params = new URLSearchParams({
@@ -760,7 +765,7 @@ const loadSportsCatalog = async (offset = 0, limit = 160, query = '', filters: L
   if (settings.updatedAt) params.set('refresh', settings.updatedAt)
 
   const page = await cachedFetchJson<CategoryPage>(`/__atlas_live_catalog?${params.toString()}`)
-  return { ...page, items: hydrateUserItems(page.items) }
+  return { ...page, items: withSportsPoster(hydrateUserItems(page.items)) }
 }
 
 const setFavorite = async (id: string, favorite: boolean) => {
@@ -905,7 +910,7 @@ const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: Content
     favorites: { id: 'favorites', title: 'Favorilerim', variant: 'circle', items: catalog.filter((item) => item.isFavorite).slice(0, 18) },
     trend: { id: 'trend', title: 'Şimdi Trend', variant: 'trend', items: trending },
     live: { id: 'live', title: 'Canlı Kanallar', variant: 'channel', items: catalog.filter((item) => item.isLive) },
-    sports: { id: 'sports', title: 'Spor Kanalları', variant: 'channel', items: sportsItems },
+    sports: { id: 'sports', title: 'Spor Kanalları', variant: 'channel', items: withSportsPoster(sportsItems) },
     'new-series': { id: 'new-series', title: 'Yeni Eklenen Diziler', variant: 'wide', items: newSeries },
     recommended: { id: 'recommended', title: 'Önerilen İçerikler', variant: 'poster', items: recommended },
     top: { id: 'top', title: 'Top 10', variant: 'ranked', items: top },

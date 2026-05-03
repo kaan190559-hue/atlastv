@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createPortal, flushSync } from 'react-dom'
+import { flushSync } from 'react-dom'
 import Hls from 'hls.js'
 import {
   BadgeInfo,
@@ -1443,6 +1443,7 @@ function HomeScreen({
       <ContentRail
         title="İzlemeye Devam Et"
         variant="wide"
+        plain
         items={historyItems}
         onPlay={onPlay}
         onToggleFavorite={onToggleFavorite}
@@ -1522,7 +1523,7 @@ function CategoryScreen({
   const isVodLike = screen === 'series' || screen === 'movies'
 
   return (
-    <section className="category-page">
+    <section className="category-page" data-screen={screen}>
       <div className="page-heading">
         <div>
           <p>AtlasTv Katalog</p>
@@ -1642,12 +1643,14 @@ function ContentRail({
   title,
   items,
   variant,
+  plain,
   onPlay,
   onToggleFavorite,
 }: {
   title: string
   items: ContentItem[]
   variant: HomeSection['variant']
+  plain?: boolean
   onPlay: (item: ContentItem) => void
   onToggleFavorite: (item: ContentItem) => void
 }) {
@@ -1675,11 +1678,13 @@ function ContentRail({
     el.scrollBy({ left: dir * el.clientWidth * 0.78, behavior: 'smooth' })
   }
 
+  const sectionClass = `content-rail${plain ? ' content-rail--plain' : ''}`
+
   if (!items.length) return null
 
   if (variant === 'trend') {
     return (
-      <section className="content-rail trend-section">
+      <section className={`${sectionClass} trend-section`}>
         <div className="rail-heading trend-heading">
           <h2>{title}</h2>
         </div>
@@ -1711,7 +1716,7 @@ function ContentRail({
   }
 
   return (
-    <section className="content-rail">
+    <section className={sectionClass}>
       <div className="rail-heading">
         <h2>{title}</h2>
         <div className="rail-scroll-btns">
@@ -1753,53 +1758,6 @@ function ContentRail({
   )
 }
 
-function HoverPreview({
-  item,
-  rect,
-  onPlay,
-  onClose,
-}: {
-  item: ContentItem
-  rect: DOMRect
-  onPlay: () => void
-  onClose: () => void
-}) {
-  const W = 292
-  const vw = window.innerWidth
-  const left = Math.max(8, Math.min(rect.left + rect.width / 2 - W / 2, vw - W - 8))
-  const showBelow = rect.top < 280
-  const style: React.CSSProperties = {
-    position: 'fixed',
-    left,
-    width: W,
-    zIndex: 500,
-    ...(showBelow ? { top: rect.bottom + 10 } : { bottom: window.innerHeight - rect.top + 10 }),
-  }
-
-  return createPortal(
-    <div className="hover-preview" style={style} onMouseLeave={onClose}>
-      <div className="hover-preview-backdrop">
-        <img src={item.backdropUrl || item.posterUrl} alt="" loading="lazy" />
-      </div>
-      <div className="hover-preview-body">
-        <p className="hover-preview-meta">
-          <Star /> <span>{item.rating}</span>
-          {item.badge ? <span className="hover-preview-badge">{item.badge}</span> : null}
-          {item.category ? <span className="hover-preview-cat">{item.category}</span> : null}
-        </p>
-        <h4>{item.title}</h4>
-        {item.description ? (
-          <p className="hover-preview-desc">{item.description}</p>
-        ) : null}
-        <button type="button" className="watch-button hover-preview-play" onClick={onPlay}>
-          <Play /> İzle
-        </button>
-      </div>
-    </div>,
-    document.body,
-  )
-}
-
 function ContentCard({
   item,
   variant,
@@ -1815,36 +1773,16 @@ function ContentCard({
   onPlay: (item: ContentItem) => void
   onToggleFavorite: (item: ContentItem) => void
 }) {
-  const articleRef = useRef<HTMLElement>(null)
-  const hoverTimer = useRef<number | null>(null)
-  const [hoverRect, setHoverRect] = useState<DOMRect | null>(null)
-  const showHover = !item.isLive && variant !== 'circle' && variant !== 'channel'
-
-  const handleMouseEnter = () => {
-    if (!showHover) return
-    hoverTimer.current = window.setTimeout(() => {
-      if (articleRef.current) setHoverRect(articleRef.current.getBoundingClientRect())
-    }, 420)
-  }
-
-  const handleMouseLeave = () => {
-    if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current)
-    setHoverRect(null)
-  }
-
   const flag = item.isLive ? getCountryFlag(item.country ?? item.category) : null
   const cardImage = variant === 'wide' || variant === 'channel' ? item.backdropUrl : item.posterUrl
 
   return (
     <article
-      ref={articleRef}
       className={`content-card ${variant}`}
       role="button"
       tabIndex={0}
       data-autofocus={autoFocus ? 'true' : undefined}
       onClick={() => onPlay(item)}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.code === 'Space') {
           event.preventDefault()
@@ -1907,14 +1845,6 @@ function ContentCard({
       >
         <Heart />
       </button>
-      {hoverRect ? (
-        <HoverPreview
-          item={item}
-          rect={hoverRect}
-          onPlay={() => { setHoverRect(null); onPlay(item) }}
-          onClose={() => setHoverRect(null)}
-        />
-      ) : null}
     </article>
   )
 }
