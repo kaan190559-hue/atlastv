@@ -71,10 +71,6 @@ const LIVE_GITHUB_M3U_URL = 'https://raw.githubusercontent.com/kaan190559-hue/at
 const IPTV_TURKEY_M3U_URL = 'https://iptv-org.github.io/iptv/countries/tr.m3u'
 const APPEARANCE_KEY = 'atlastv.appearance'
 const NOTIFICATION_READ_KEY = 'atlastv.notificationRead'
-const TV_STAGE_WIDTH = 1920
-const TV_STAGE_HEIGHT = 1080
-const PC_STAGE_WIDTH = 1440
-const PC_STAGE_HEIGHT = 810
 const FOCUSABLE_SELECTOR =
   'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 const SPATIAL_GROUP_SELECTOR =
@@ -175,31 +171,44 @@ function applyDeviceProfile(profile: DeviceType) {
   root.dataset.screenOrientation = isPhone ? 'portrait' : 'landscape'
   root.dataset.tvPerformance = isTv ? 'true' : 'false'
 
-  if (isTv) {
-    const scale = Math.min(window.innerWidth / TV_STAGE_WIDTH, window.innerHeight / TV_STAGE_HEIGHT, 1)
-    root.style.setProperty('--atlas-stage-width', `${TV_STAGE_WIDTH}px`)
-    root.style.setProperty('--atlas-stage-height', `${TV_STAGE_HEIGHT}px`)
-    root.style.setProperty('--atlas-stage-scale', scale.toFixed(4))
-    root.style.setProperty('--atlas-root-width', `${TV_STAGE_WIDTH * scale}px`)
-    root.style.setProperty('--atlas-root-height', `${TV_STAGE_HEIGHT * scale}px`)
-    return
-  }
-
-  if (profile === 'pc') {
-    const scale = Math.min(window.innerWidth / PC_STAGE_WIDTH, window.innerHeight / PC_STAGE_HEIGHT, 1)
-    root.style.setProperty('--atlas-stage-width', `${PC_STAGE_WIDTH}px`)
-    root.style.setProperty('--atlas-stage-height', `${PC_STAGE_HEIGHT}px`)
-    root.style.setProperty('--atlas-stage-scale', scale.toFixed(4))
-    root.style.setProperty('--atlas-root-width', `${PC_STAGE_WIDTH * scale}px`)
-    root.style.setProperty('--atlas-root-height', `${PC_STAGE_HEIGHT * scale}px`)
-    return
-  }
-
   root.style.setProperty('--atlas-stage-width', '100%')
   root.style.setProperty('--atlas-stage-height', '100svh')
   root.style.setProperty('--atlas-stage-scale', '1')
   root.style.setProperty('--atlas-root-width', '100%')
   root.style.setProperty('--atlas-root-height', '100svh')
+
+  if (isTv) {
+    root.style.setProperty('--rail-poster-width', 'clamp(220px, 14vw, 285px)')
+    root.style.setProperty('--rail-wide-width', 'clamp(360px, 24vw, 500px)')
+    root.style.setProperty('--rail-channel-width', 'clamp(280px, 18vw, 350px)')
+    root.style.setProperty('--rail-circle-width', 'clamp(164px, 10vw, 220px)')
+    root.style.setProperty('--home-poster-width', 'clamp(180px, 11vw, 225px)')
+    root.style.setProperty('--home-wide-width', 'clamp(300px, 20vw, 380px)')
+    root.style.setProperty('--home-channel-width', 'clamp(240px, 16vw, 310px)')
+    root.style.setProperty('--home-circle-width', 'clamp(140px, 8vw, 180px)')
+    return
+  }
+
+  if (profile === 'pc') {
+    root.style.setProperty('--rail-poster-width', 'clamp(190px, 16vw, 253px)')
+    root.style.setProperty('--rail-wide-width', 'clamp(310px, 26vw, 430px)')
+    root.style.setProperty('--rail-channel-width', 'clamp(240px, 20vw, 308px)')
+    root.style.setProperty('--rail-circle-width', 'clamp(150px, 12vw, 202px)')
+    root.style.setProperty('--home-poster-width', 'clamp(165px, 13vw, 205px)')
+    root.style.setProperty('--home-wide-width', 'clamp(280px, 23vw, 350px)')
+    root.style.setProperty('--home-channel-width', 'clamp(220px, 18vw, 280px)')
+    root.style.setProperty('--home-circle-width', 'clamp(132px, 10vw, 168px)')
+    return
+  }
+
+  root.style.setProperty('--rail-poster-width', 'clamp(156px, 58vw, 220px)')
+  root.style.setProperty('--rail-wide-width', 'clamp(240px, 78vw, 330px)')
+  root.style.setProperty('--rail-channel-width', 'clamp(220px, 72vw, 300px)')
+  root.style.setProperty('--rail-circle-width', 'clamp(118px, 38vw, 158px)')
+  root.style.setProperty('--home-poster-width', 'clamp(148px, 52vw, 196px)')
+  root.style.setProperty('--home-wide-width', 'clamp(230px, 76vw, 320px)')
+  root.style.setProperty('--home-channel-width', 'clamp(210px, 68vw, 270px)')
+  root.style.setProperty('--home-circle-width', 'clamp(112px, 34vw, 150px)')
 }
 
 function detectDeviceProfile(): DeviceType {

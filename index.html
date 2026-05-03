@@ -10,15 +10,10 @@
     />
     <script>
       (function () {
-        var tvStageWidth = 1920
-        var tvStageHeight = 1080
-        var pcStageWidth = 1440
-        var pcStageHeight = 810
-
         function getViewport() {
           return {
-            width: window.visualViewport && window.visualViewport.width ? window.visualViewport.width : window.innerWidth || tvStageWidth,
-            height: window.visualViewport && window.visualViewport.height ? window.visualViewport.height : window.innerHeight || tvStageHeight,
+            width: window.visualViewport && window.visualViewport.width ? window.visualViewport.width : window.innerWidth || 1920,
+            height: window.visualViewport && window.visualViewport.height ? window.visualViewport.height : window.innerHeight || 1080,
           }
         }
 
@@ -36,7 +31,6 @@
         }
 
         function applyStageScale() {
-          var viewport = getViewport()
           var profile = detectDeviceProfile()
           var isPhone = profile === 'phone'
           var isTv = profile === 'tv'
@@ -44,29 +38,45 @@
           document.documentElement.setAttribute('data-device-type', profile)
           document.documentElement.setAttribute('data-screen-orientation', isPhone ? 'portrait' : 'landscape')
           document.documentElement.setAttribute('data-tv-performance', isTv ? 'true' : 'false')
+          document.documentElement.style.setProperty('--atlas-stage-scale', '1')
+          document.documentElement.style.setProperty('--atlas-stage-width', '100%')
+          document.documentElement.style.setProperty('--atlas-stage-height', '100svh')
+          document.documentElement.style.setProperty('--atlas-root-width', '100%')
+          document.documentElement.style.setProperty('--atlas-root-height', '100svh')
+          document.documentElement.setAttribute('data-atlas-stage-scale', '1.000')
 
-          if (isPhone) {
-            document.documentElement.style.setProperty('--atlas-stage-scale', '1')
-            document.documentElement.style.setProperty('--atlas-stage-width', '100%')
-            document.documentElement.style.setProperty('--atlas-stage-height', '100svh')
-            document.documentElement.style.setProperty('--atlas-root-width', '100%')
-            document.documentElement.style.setProperty('--atlas-root-height', '100svh')
-            document.documentElement.setAttribute('data-atlas-stage-scale', '1.000')
+          if (isTv) {
+            document.documentElement.style.setProperty('--rail-poster-width', 'clamp(220px, 14vw, 285px)')
+            document.documentElement.style.setProperty('--rail-wide-width', 'clamp(360px, 24vw, 500px)')
+            document.documentElement.style.setProperty('--rail-channel-width', 'clamp(280px, 18vw, 350px)')
+            document.documentElement.style.setProperty('--rail-circle-width', 'clamp(164px, 10vw, 220px)')
+            document.documentElement.style.setProperty('--home-poster-width', 'clamp(180px, 11vw, 225px)')
+            document.documentElement.style.setProperty('--home-wide-width', 'clamp(300px, 20vw, 380px)')
+            document.documentElement.style.setProperty('--home-channel-width', 'clamp(240px, 16vw, 310px)')
+            document.documentElement.style.setProperty('--home-circle-width', 'clamp(140px, 8vw, 180px)')
             return
           }
 
-          var stageWidth = isTv ? tvStageWidth : pcStageWidth
-          var stageHeight = isTv ? tvStageHeight : pcStageHeight
-          var scale = Math.max(0.16, Math.min(viewport.width / stageWidth, viewport.height / stageHeight, 1))
-          var rootWidth = Math.ceil(stageWidth * scale)
-          var rootHeight = Math.ceil(stageHeight * scale)
+          if (isPhone) {
+            document.documentElement.style.setProperty('--rail-poster-width', 'clamp(156px, 58vw, 220px)')
+            document.documentElement.style.setProperty('--rail-wide-width', 'clamp(240px, 78vw, 330px)')
+            document.documentElement.style.setProperty('--rail-channel-width', 'clamp(220px, 72vw, 300px)')
+            document.documentElement.style.setProperty('--rail-circle-width', 'clamp(118px, 38vw, 158px)')
+            document.documentElement.style.setProperty('--home-poster-width', 'clamp(148px, 52vw, 196px)')
+            document.documentElement.style.setProperty('--home-wide-width', 'clamp(230px, 76vw, 320px)')
+            document.documentElement.style.setProperty('--home-channel-width', 'clamp(210px, 68vw, 270px)')
+            document.documentElement.style.setProperty('--home-circle-width', 'clamp(112px, 34vw, 150px)')
+            return
+          }
 
-          document.documentElement.style.setProperty('--atlas-stage-scale', String(scale))
-          document.documentElement.style.setProperty('--atlas-stage-width', stageWidth + 'px')
-          document.documentElement.style.setProperty('--atlas-stage-height', stageHeight + 'px')
-          document.documentElement.style.setProperty('--atlas-root-width', rootWidth + 'px')
-          document.documentElement.style.setProperty('--atlas-root-height', rootHeight + 'px')
-          document.documentElement.setAttribute('data-atlas-stage-scale', scale.toFixed(3))
+          document.documentElement.style.setProperty('--rail-poster-width', 'clamp(190px, 16vw, 253px)')
+          document.documentElement.style.setProperty('--rail-wide-width', 'clamp(310px, 26vw, 430px)')
+          document.documentElement.style.setProperty('--rail-channel-width', 'clamp(240px, 20vw, 308px)')
+          document.documentElement.style.setProperty('--rail-circle-width', 'clamp(150px, 12vw, 202px)')
+          document.documentElement.style.setProperty('--home-poster-width', 'clamp(165px, 13vw, 205px)')
+          document.documentElement.style.setProperty('--home-wide-width', 'clamp(280px, 23vw, 350px)')
+          document.documentElement.style.setProperty('--home-channel-width', 'clamp(220px, 18vw, 280px)')
+          document.documentElement.style.setProperty('--home-circle-width', 'clamp(132px, 10vw, 168px)')
         }
 
         applyStageScale()

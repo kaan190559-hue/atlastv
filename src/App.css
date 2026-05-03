@@ -420,27 +420,14 @@
 
 .app-frame {
   width: var(--atlas-stage-width);
-  max-width: none;
+  max-width: 100%;
   min-height: var(--atlas-stage-height);
-  transform-origin: top left;
   color: var(--text);
   background:
     radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--accent-2) 16%, transparent), transparent 30%),
     radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 32%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 360px),
     var(--bg);
-}
-
-@supports (zoom: 1) {
-  .app-frame {
-    zoom: var(--atlas-stage-scale);
-  }
-}
-
-@supports not (zoom: 1) {
-  .app-frame {
-    transform: scale(var(--atlas-stage-scale));
-  }
 }
 
 .top-bar {
@@ -937,7 +924,7 @@
 .rail-list {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: calc(253px * var(--card-scale));
+  grid-auto-columns: calc(var(--rail-poster-width) * var(--card-scale));
   gap: 18px;
   padding: 2px 2px 18px;
   overflow-x: auto;
@@ -951,15 +938,15 @@
 }
 
 .rail-list.wide {
-  grid-auto-columns: minmax(calc(363px * var(--card-scale)), calc(484px * var(--card-scale)));
+  grid-auto-columns: calc(var(--rail-wide-width) * var(--card-scale));
 }
 
 .rail-list.channel {
-  grid-auto-columns: calc(308px * var(--card-scale));
+  grid-auto-columns: calc(var(--rail-channel-width) * var(--card-scale));
 }
 
 .rail-list.circle {
-  grid-auto-columns: calc(202px * var(--card-scale));
+  grid-auto-columns: calc(var(--rail-circle-width) * var(--card-scale));
 }
 
 .content-card {
@@ -3029,19 +3016,19 @@
   .rail-list,
   .rail-list.wide,
   .rail-list.channel {
-    grid-auto-columns: calc(253px * var(--card-scale));
+    grid-auto-columns: calc(var(--rail-poster-width) * var(--card-scale));
   }
 
   .rail-list.wide {
-    grid-auto-columns: calc(363px * var(--card-scale));
+    grid-auto-columns: calc(var(--rail-wide-width) * var(--card-scale));
   }
 
   .rail-list.channel {
-    grid-auto-columns: calc(308px * var(--card-scale));
+    grid-auto-columns: calc(var(--rail-channel-width) * var(--card-scale));
   }
 
   .rail-list.circle {
-    grid-auto-columns: 163px;
+    grid-auto-columns: calc(var(--rail-circle-width) * var(--card-scale));
   }
 
   .trend-row {
@@ -3202,113 +3189,6 @@
   }
 }
 
-/*
-  AtlasTV is a TV-first interface. Keep the main app on the same desktop/TV
-  stage even when Android WebView or emulators report a narrow CSS viewport.
-*/
-@media (max-width: 1180px) {
-:root[data-device-type='tv'] .app-frame .top-bar {
-    grid-template-columns: auto minmax(0, 1fr) auto !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .desktop-nav {
-    order: initial !important;
-    grid-column: auto !important;
-    justify-content: center !important;
-  }
-}
-
-@media (max-width: 760px) {
-:root[data-device-type='tv'] .app-frame .top-bar {
-    min-height: 96px !important;
-    grid-template-columns: auto minmax(0, 1fr) auto !important;
-    padding: 18px 32px !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .brand-lockup strong {
-    font-size: 38px !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .menu-button {
-    display: inline-grid !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .desktop-nav {
-    display: flex !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .top-actions {
-    justify-content: flex-end !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .search-box {
-    width: min(310px, 25vw) !important;
-    padding: 0 18px !important;
-    justify-content: flex-start !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .search-box input {
-    display: block !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .page-shell {
-    padding: 0 28px 110px !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .hero-banner {
-    min-height: min(620px, 72svh) !important;
-    margin: 0 -28px 36px !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .hero-content {
-    width: min(760px, calc(100% - 48px)) !important;
-    padding: 0 0 86px 54px !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .hero-actions {
-    flex-direction: row !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .rail-list {
-    grid-auto-columns: calc(253px * var(--card-scale)) !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .rail-list.wide {
-    grid-auto-columns: minmax(calc(363px * var(--card-scale)), calc(484px * var(--card-scale))) !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .rail-list.channel {
-    grid-auto-columns: calc(308px * var(--card-scale)) !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .rail-list.circle {
-    grid-auto-columns: calc(202px * var(--card-scale)) !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .page-heading {
-    display: flex !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .search-box.large {
-    width: min(420px, 36vw) !important;
-    margin-top: 0 !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .utility-grid,
-:root[data-device-type='tv'] .app-frame .settings-layout,
-:root[data-device-type='tv'] .app-frame .appearance-controls {
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .live-filter-panel {
-    grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto !important;
-  }
-
-:root[data-device-type='tv'] .app-frame .mobile-nav {
-    display: none !important;
-  }
-}
-
 .home-screen .content-rail {
   margin: 24px 0;
 }
@@ -3322,21 +3202,21 @@
 }
 
 .home-screen .rail-list {
-  grid-auto-columns: calc(196px * var(--card-scale)) !important;
+  grid-auto-columns: calc(var(--home-poster-width) * var(--card-scale)) !important;
   gap: 14px;
   padding-bottom: 14px;
 }
 
 .home-screen .rail-list.wide {
-  grid-auto-columns: calc(330px * var(--card-scale)) !important;
+  grid-auto-columns: calc(var(--home-wide-width) * var(--card-scale)) !important;
 }
 
 .home-screen .rail-list.channel {
-  grid-auto-columns: calc(260px * var(--card-scale)) !important;
+  grid-auto-columns: calc(var(--home-channel-width) * var(--card-scale)) !important;
 }
 
 .home-screen .rail-list.circle {
-  grid-auto-columns: calc(158px * var(--card-scale)) !important;
+  grid-auto-columns: calc(var(--home-circle-width) * var(--card-scale)) !important;
 }
 
 .home-screen .card-meta {

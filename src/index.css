@@ -14,10 +14,18 @@
   --focus: rgba(0, 229, 255, 0.78);
   --card-scale: 1;
   --atlas-stage-scale: 1;
-  --atlas-stage-width: 1920px;
+  --atlas-stage-width: 100%;
   --atlas-stage-height: 100svh;
   --atlas-root-width: 100%;
   --atlas-root-height: 100svh;
+  --rail-poster-width: clamp(190px, 16vw, 253px);
+  --rail-wide-width: clamp(310px, 26vw, 430px);
+  --rail-channel-width: clamp(240px, 20vw, 308px);
+  --rail-circle-width: clamp(150px, 12vw, 202px);
+  --home-poster-width: clamp(165px, 13vw, 205px);
+  --home-wide-width: clamp(280px, 23vw, 350px);
+  --home-channel-width: clamp(220px, 18vw, 280px);
+  --home-circle-width: clamp(132px, 10vw, 168px);
   --card-radius: 16px;
   --card-glow: 1;
   --input: #eaf1ff;
@@ -77,9 +85,8 @@ body {
 
 #root {
   width: var(--atlas-root-width);
-  max-width: 100%;
+  max-width: none;
   min-height: var(--atlas-root-height);
-  margin-inline: auto;
   overflow-x: hidden;
 }
 
