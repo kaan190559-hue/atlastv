@@ -72,6 +72,9 @@ const IPTV_TURKEY_M3U_URL = 'https://iptv-org.github.io/iptv/countries/tr.m3u'
 const APPEARANCE_KEY = 'atlastv.appearance'
 const NOTIFICATION_READ_KEY = 'atlastv.notificationRead'
 const TV_STAGE_WIDTH = 1920
+const TV_STAGE_HEIGHT = 1080
+const PC_STAGE_WIDTH = 1440
+const PC_STAGE_HEIGHT = 810
 const FOCUSABLE_SELECTOR =
   'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 const SPATIAL_GROUP_SELECTOR =
@@ -167,20 +170,66 @@ const defaultAppearance: AppearanceSettings = {
 function applyDeviceProfile(profile: DeviceType) {
   const root = document.documentElement
   const isTv = profile === 'tv'
+  const isPhone = profile === 'phone'
   root.dataset.deviceType = profile
+  root.dataset.screenOrientation = isPhone ? 'portrait' : 'landscape'
   root.dataset.tvPerformance = isTv ? 'true' : 'false'
-  root.style.setProperty('--atlas-root-width', '100%')
-  root.style.setProperty('--atlas-stage-height', '100svh')
 
   if (isTv) {
-    const scale = Math.min(window.innerWidth / TV_STAGE_WIDTH, 1)
+    const scale = Math.min(window.innerWidth / TV_STAGE_WIDTH, window.innerHeight / TV_STAGE_HEIGHT, 1)
     root.style.setProperty('--atlas-stage-width', `${TV_STAGE_WIDTH}px`)
+    root.style.setProperty('--atlas-stage-height', `${TV_STAGE_HEIGHT}px`)
     root.style.setProperty('--atlas-stage-scale', scale.toFixed(4))
+    root.style.setProperty('--atlas-root-width', `${TV_STAGE_WIDTH * scale}px`)
+    root.style.setProperty('--atlas-root-height', `${TV_STAGE_HEIGHT * scale}px`)
+    return
+  }
+
+  if (profile === 'pc') {
+    const scale = Math.min(window.innerWidth / PC_STAGE_WIDTH, window.innerHeight / PC_STAGE_HEIGHT, 1)
+    root.style.setProperty('--atlas-stage-width', `${PC_STAGE_WIDTH}px`)
+    root.style.setProperty('--atlas-stage-height', `${PC_STAGE_HEIGHT}px`)
+    root.style.setProperty('--atlas-stage-scale', scale.toFixed(4))
+    root.style.setProperty('--atlas-root-width', `${PC_STAGE_WIDTH * scale}px`)
+    root.style.setProperty('--atlas-root-height', `${PC_STAGE_HEIGHT * scale}px`)
     return
   }
 
   root.style.setProperty('--atlas-stage-width', '100%')
+  root.style.setProperty('--atlas-stage-height', '100svh')
   root.style.setProperty('--atlas-stage-scale', '1')
+  root.style.setProperty('--atlas-root-width', '100%')
+  root.style.setProperty('--atlas-root-height', '100svh')
+}
+
+function detectDeviceProfile(): DeviceType {
+  const ua = navigator.userAgent.toLowerCase()
+  const isTv =
+    /\b(smart-tv|smarttv|hbbtv|netcast|webos|tizen|appletv|googletv|android tv|bravia|viera|aquos|roku|aft)\b/.test(ua)
+  if (isTv) return 'tv'
+
+  const coarsePointer = window.matchMedia('(pointer: coarse)').matches
+  const narrowScreen = window.matchMedia('(max-width: 760px)').matches
+  const portraitPhone = coarsePointer && Math.min(window.innerWidth, window.innerHeight) <= 760
+  if (narrowScreen || portraitPhone) return 'phone'
+
+  return 'pc'
+}
+
+function useDeviceProfile() {
+  const [profile, setProfile] = useState<DeviceType>(detectDeviceProfile)
+
+  useEffect(() => {
+    const updateProfile = () => setProfile(detectDeviceProfile())
+    window.addEventListener('resize', updateProfile)
+    window.addEventListener('orientationchange', updateProfile)
+    return () => {
+      window.removeEventListener('resize', updateProfile)
+      window.removeEventListener('orientationchange', updateProfile)
+    }
+  }, [])
+
+  return profile
 }
 
 function loadAppearanceSettings() {
@@ -439,7 +488,7 @@ function useSpatialNavigation(resetKey: string) {
 }
 
 function App() {
-  const deviceType: DeviceType = 'tv'
+  const deviceType = useDeviceProfile()
   const [isAuthed, setIsAuthed] = useState(false)
   const [currentUser, setCurrentUser] = useState<AtlasUser | null>(null)
   const [authMode, setAuthMode] = useState<AuthMode>('login')
@@ -485,9 +534,8 @@ function App() {
 
   useEffect(() => {
     applyDeviceProfile(deviceType)
-    if (deviceType !== 'tv') return
 
-    const onResize = () => applyDeviceProfile('tv')
+    const onResize = () => applyDeviceProfile(deviceType)
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [deviceType])

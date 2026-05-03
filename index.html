@@ -10,36 +10,65 @@
     />
     <script>
       (function () {
-        var designWidth = 1920
-        function applyTvPerformanceMode() {
+        var tvStageWidth = 1920
+        var tvStageHeight = 1080
+        var pcStageWidth = 1440
+        var pcStageHeight = 810
+
+        function getViewport() {
+          return {
+            width: window.visualViewport && window.visualViewport.width ? window.visualViewport.width : window.innerWidth || tvStageWidth,
+            height: window.visualViewport && window.visualViewport.height ? window.visualViewport.height : window.innerHeight || tvStageHeight,
+          }
+        }
+
+        function detectDeviceProfile() {
           var ua = window.navigator && window.navigator.userAgent ? window.navigator.userAgent : ''
           var hasCoarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches
-          var isTvBrowser = /tizen|webos|smart-tv|smarttv|android tv|aft|bravia|netcast/i.test(ua)
-          var isLowMemory = window.navigator && window.navigator.deviceMemory ? window.navigator.deviceMemory <= 4 : false
-          document.documentElement.setAttribute(
-            'data-tv-performance',
-            hasCoarsePointer || isTvBrowser || isLowMemory ? 'true' : 'false',
-          )
+          var viewport = getViewport()
+          var isTvBrowser = /smart-tv|smarttv|hbbtv|netcast|webos|tizen|appletv|googletv|android tv|bravia|viera|aquos|roku|aft/i.test(ua)
+          var isNarrowScreen = window.matchMedia && window.matchMedia('(max-width: 760px)').matches
+          var isPortraitPhone = hasCoarsePointer && Math.min(viewport.width, viewport.height) <= 760
+
+          if (isTvBrowser) return 'tv'
+          if (isNarrowScreen || isPortraitPhone) return 'phone'
+          return 'pc'
         }
 
         function applyStageScale() {
-          var viewportWidth =
-            window.visualViewport && window.visualViewport.width ? window.visualViewport.width : window.innerWidth || designWidth
-          var viewportHeight =
-            window.visualViewport && window.visualViewport.height ? window.visualViewport.height : window.innerHeight || 1080
-          var scale = Math.min(1, Math.max(0.16, viewportWidth / designWidth))
-          var stageWidth = designWidth
-          var stageHeight = Math.ceil(viewportHeight / scale)
+          var viewport = getViewport()
+          var profile = detectDeviceProfile()
+          var isPhone = profile === 'phone'
+          var isTv = profile === 'tv'
+
+          document.documentElement.setAttribute('data-device-type', profile)
+          document.documentElement.setAttribute('data-screen-orientation', isPhone ? 'portrait' : 'landscape')
+          document.documentElement.setAttribute('data-tv-performance', isTv ? 'true' : 'false')
+
+          if (isPhone) {
+            document.documentElement.style.setProperty('--atlas-stage-scale', '1')
+            document.documentElement.style.setProperty('--atlas-stage-width', '100%')
+            document.documentElement.style.setProperty('--atlas-stage-height', '100svh')
+            document.documentElement.style.setProperty('--atlas-root-width', '100%')
+            document.documentElement.style.setProperty('--atlas-root-height', '100svh')
+            document.documentElement.setAttribute('data-atlas-stage-scale', '1.000')
+            return
+          }
+
+          var stageWidth = isTv ? tvStageWidth : pcStageWidth
+          var stageHeight = isTv ? tvStageHeight : pcStageHeight
+          var scale = Math.max(0.16, Math.min(viewport.width / stageWidth, viewport.height / stageHeight, 1))
           var rootWidth = Math.ceil(stageWidth * scale)
+          var rootHeight = Math.ceil(stageHeight * scale)
 
           document.documentElement.style.setProperty('--atlas-stage-scale', String(scale))
           document.documentElement.style.setProperty('--atlas-stage-width', stageWidth + 'px')
           document.documentElement.style.setProperty('--atlas-stage-height', stageHeight + 'px')
           document.documentElement.style.setProperty('--atlas-root-width', rootWidth + 'px')
+          document.documentElement.style.setProperty('--atlas-root-height', rootHeight + 'px')
           document.documentElement.setAttribute('data-atlas-stage-scale', scale.toFixed(3))
         }
 
-        applyTvPerformanceMode()
         applyStageScale()
         window.addEventListener('resize', applyStageScale)
         window.addEventListener('orientationchange', function () {

@@ -17,6 +17,7 @@
   --atlas-stage-width: 1920px;
   --atlas-stage-height: 100svh;
   --atlas-root-width: 100%;
+  --atlas-root-height: 100svh;
   --card-radius: 16px;
   --card-glow: 1;
   --input: #eaf1ff;
@@ -77,7 +78,8 @@ body {
 #root {
   width: var(--atlas-root-width);
   max-width: 100%;
-  min-height: 100svh;
+  min-height: var(--atlas-root-height);
+  margin-inline: auto;
   overflow-x: hidden;
 }
 
