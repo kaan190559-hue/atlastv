@@ -25,6 +25,9 @@ const USER_STATS_PATH = '/__atlas_user_stats'
 const CACHE_CONTROL_PATH = '/__atlas_cache_control'
 const SCRAPED_M3U_PATH = '/scraped.m3u'
 const SCRAPED_M3U_FILE = resolve(__dirname, 'public', 'scraped.m3u')
+const SPORTS_M3U_DEFAULT =
+  process.env.ATLAS_SPORTS_M3U_URL ||
+  'https://raw.githubusercontent.com/kaan190559-hue/atlastv/master/public/scraped.m3u'
 const CACHE_BOT_BUILD = 'prebuilt-catalog-v1'
 const DEFAULT_USER_AGENT = 'okhttp/4.12.0'
 const ADMIN_PASSWORD = process.env.ATLAS_ADMIN_PASSWORD || '190559'
@@ -44,7 +47,7 @@ const PLACEHOLDER_BACKDROP =
 const defaultAdminSettings = {
   vodM3uUrl: VOD_M3U_URL,
   liveM3uUrl: LIVE_M3U_URL,
-  sportsM3uUrl: '',
+  sportsM3uUrl: SPORTS_M3U_DEFAULT,
   telegramUrl: 'https://t.me/',
   supportUrl: '',
   appVersion: '0.0.0',
@@ -450,7 +453,10 @@ async function runMediaCacheBot() {
     const settings = await readAdminSettings()
     const tasks = [
       ['Canlı TV', 60_000, () => loadLiveServerCatalog(settings.liveM3uUrl || LIVE_M3U_URL, settings.updatedAt || '', 'live')],
-      ['Spor', 60_000, () => (settings.sportsM3uUrl ? loadLiveServerCatalog(settings.sportsM3uUrl, settings.updatedAt || '', 'sports') : Promise.resolve([]))],
+      ['Spor', 60_000, () => {
+        const sportsUrl = settings.sportsM3uUrl || SPORTS_M3U_DEFAULT
+        return loadLiveServerCatalog(sportsUrl, settings.updatedAt || '', 'sports')
+      }],
       ['Dizi/Film', 180_000, async () => {
         const sourceKey = settings.vodM3uUrl || VOD_M3U_URL
         const refreshKey = settings.updatedAt || ''

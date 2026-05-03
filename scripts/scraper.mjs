@@ -41,13 +41,51 @@ const fetchJson = async (url, extra = {}) => {
   }
 }
 
-// ── Kanallar sayfasından kanal ID'lerini çek
+// ── Kanal listesi URL'sinden ID'leri çek (channels.php formatı)
 const getChannelIds = async (channelsUrl) => {
   const html = await fetchText(channelsUrl)
   if (!html) return []
   // href="matches?id=KANAL-ID" formatındaki tüm ID'leri al
   const matches = [...html.matchAll(/href="matches\?id=([^"]+)"/g)]
   return [...new Set(matches.map(m => m[1]))]
+}
+
+// ── TRGoals HTML'den kanal bilgilerini çek (data-source + data-target)
+const getTrgoalsChannels = async (baseUrl) => {
+  const html = await fetchText(baseUrl)
+  if (!html) return []
+  const channels = []
+
+  // data-target="m3u8" ile direkt URL
+  const directMatches = [...html.matchAll(/data-name="([^"]+)"[^>]*data-target="m3u8"[^>]*data-source="(https?:\/\/[^"]+\.m3u8[^"]*)"/g)]
+  directMatches.forEach(m => channels.push({ name: m[1], url: m[2] }))
+
+  // Ters sıra da dene (data-source önce)
+  const directMatches2 = [...html.matchAll(/data-source="(https?:\/\/[^"]+\.m3u8[^"]*)"[^>]*data-name="([^"]+)"[^>]*data-target="m3u8"/g)]
+  directMatches2.forEach(m => {
+    if (!channels.find(c => c.url === m[1])) channels.push({ name: m[2], url: m[1] })
+  })
+
+  // channel-item içindeki tüm m3u8 ve name kombinasyonlarını yakala
+  const itemRegex = /class="channel-item"[^>]*data-name="([^"]+)"[^>]*data-target="m3u8"[^>]*data-source="(https?:\/\/[^"]+\.m3u8[^"]*)"/g
+  const itemMatches = [...html.matchAll(itemRegex)]
+  itemMatches.forEach(m => {
+    if (!channels.find(c => c.url === m[2])) channels.push({ name: m[1], url: m[2] })
+  })
+
+  return channels
+}
+
+// ── Selcukiptv HTML'den TV kanal ID'lerini çek (/izle/KANAL-ID formatı)
+const getSelcukChannelIds = async (baseUrl) => {
+  const html = await fetchText(baseUrl)
+  if (!html) return []
+  // class="item live" içindeki /izle/KANAL-ID linklerini al
+  const matches = [...html.matchAll(/href="[^"]*\/izle\/([\w-]+)"[^>]*>.*?class="name tvcp"/gs)]
+  if (matches.length) return [...new Set(matches.map(m => m[1]))]
+  // Alternatif: daha basit pattern
+  const simple = [...html.matchAll(/\/izle\/([\w-]+)"[^>]*title="[^"]*Canlı/g)]
+  return [...new Set(simple.map(m => m[1]))]
 }
 
 // ── teletv5 API'sinden stream URL çek
@@ -65,9 +103,11 @@ const getStreamUrl = async (channelId, siteBase) => {
   if (cinema?.URL?.includes('m3u8')) return cinema.URL
 
   // Yöntem 3: matches sayfasındaki HTML'den m3u8 çek
-  const pageHtml = await fetchText(`${siteBase}/matches?id=${channelId}`)
-  const urlMatch = pageHtml.match(/["'](https?:\/\/[^"']+\.m3u8[^"']*)['"]/)?.[1]
-  if (urlMatch) return urlMatch
+  if (siteBase) {
+    const pageHtml = await fetchText(`${siteBase}/matches?id=${channelId}`)
+    const urlMatch = pageHtml.match(/["'](https?:\/\/[^"']+\.m3u8[^"']*)['"]/)?.[1]
+    if (urlMatch) return urlMatch
+  }
 
   return null
 }
@@ -105,13 +145,13 @@ const main = async () => {
   const sourcesUpdated = JSON.parse(JSON.stringify(sources))
 
   const allLines = ['#EXTM3U']
+  // ID bazlı tekrar engelleme (farklı kaynaklardan gelen aynı kanallar)
+  const seenIds = new Set()
   let totalValid = 0
   let totalFailed = 0
 
   for (let i = 0; i < sources.length; i++) {
     const source = sources[i]
-    if (!source.channelsUrl && !source.domainPattern) continue
-
     console.log(`\n[${i + 1}/${sources.length}] ${source.name}`)
 
     // Domain çözümle
@@ -125,21 +165,57 @@ const main = async () => {
       baseUrl = result.baseUrl
     }
 
-    // Kanal listesi URL'si
-    const channelsUrl = source.channelsApiUrl
-      ?? source.channelsUrl
-      ?? `${baseUrl}/channels`
+    // ── TRGoals tipi: HTML'den direkt m3u8 URL
+    if (source.type === 'trgoals') {
+      const channels = await getTrgoalsChannels(baseUrl)
+      console.log(`  Bulunan direkt kanal: ${channels.length}`)
+      channels.forEach(ch => {
+        const key = ch.url
+        if (seenIds.has(key)) return
+        seenIds.add(key)
+        allLines.push(`#EXTINF:-1 tvg-id="${source.id}_${ch.name.toLowerCase().replace(/\s+/g,'-')}" tvg-name="${ch.name}" tvg-logo="" group-title="${source.group}",${ch.name}`)
+        allLines.push(ch.url)
+        totalValid++
+      })
+      console.log(`  ✓ Eklenen: ${channels.length}`)
+      continue
+    }
 
+    // ── Selcukiptv tipi: /izle/ formatı
+    if (source.type === 'selcukiptv') {
+      const channelIds = await getSelcukChannelIds(baseUrl)
+      console.log(`  Bulunan kanal ID: ${channelIds.length}`)
+      const BATCH = 8
+      for (let j = 0; j < channelIds.length; j += BATCH) {
+        const batch = channelIds.slice(j, j + BATCH)
+        const results = await Promise.all(
+          batch.map(async (id) => {
+            const url = await getStreamUrl(id, null)
+            return url ? { id, url } : null
+          })
+        )
+        results.forEach(r => {
+          if (r && !seenIds.has(r.id)) {
+            seenIds.add(r.id)
+            const name = channelIdToName(r.id)
+            allLines.push(`#EXTINF:-1 tvg-id="${source.id}_${r.id}" tvg-name="${name}" tvg-logo="" group-title="${source.group}",${name}`)
+            allLines.push(r.url)
+            totalValid++
+          } else if (!r) totalFailed++
+        })
+      }
+      console.log(`  ✓ Geçerli stream eklendi`)
+      continue
+    }
+
+    // ── Varsayılan: channels.php + teletv5 API (atomsport)
+    const channelsUrl = source.channelsApiUrl ?? source.channelsUrl ?? `${baseUrl}/channels`
     console.log(`  Kanal listesi: ${channelsUrl}`)
     const channelIds = await getChannelIds(channelsUrl)
     console.log(`  Bulunan kanal: ${channelIds.length}`)
 
-    if (!channelIds.length) {
-      console.warn('  Kanal ID bulunamadı, atlandı')
-      continue
-    }
+    if (!channelIds.length) { console.warn('  Kanal ID bulunamadı, atlandı'); continue }
 
-    // Her kanal için stream URL çek (8 paralel)
     const BATCH = 8
     for (let j = 0; j < channelIds.length; j += BATCH) {
       const batch = channelIds.slice(j, j + BATCH)
@@ -150,18 +226,16 @@ const main = async () => {
         })
       )
       results.forEach(r => {
-        if (r) {
+        if (r && !seenIds.has(r.id)) {
+          seenIds.add(r.id)
           const name = channelIdToName(r.id)
           allLines.push(`#EXTINF:-1 tvg-id="${source.id}_${r.id}" tvg-name="${name}" tvg-logo="" group-title="${source.group}",${name}`)
           allLines.push(r.url)
           totalValid++
-        } else {
-          totalFailed++
-        }
+        } else if (!r) totalFailed++
       })
     }
-
-    console.log(`  ✓ Geçerli stream: ${totalValid} (bu kaynak için)`)
+    console.log(`  ✓ Geçerli stream: ${totalValid}`)
   }
 
   // Kaynaklar değiştiyse kaydet

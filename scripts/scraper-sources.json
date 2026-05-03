@@ -7,5 +7,23 @@
     "scheme": "https",
     "channelsApiUrl": "https://teletv5.top/load/channels.php",
     "group": "Spor"
+  },
+  {
+    "id": "trgoals",
+    "name": "TRGoals 7/24 TV",
+    "type": "trgoals",
+    "domainPattern": "www.trgoals{N}.top",
+    "currentN": 170,
+    "scheme": "https",
+    "group": "Spor"
+  },
+  {
+    "id": "selcukiptv",
+    "name": "SelcukIPTV TV",
+    "type": "selcukiptv",
+    "domainPattern": "selcukiptv{N}.top",
+    "currentN": 14,
+    "scheme": "https",
+    "group": "Spor"
   }
 ]
