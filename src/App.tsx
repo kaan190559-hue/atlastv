@@ -978,6 +978,7 @@ function App() {
         onAppearanceChange={setAppearance}
         onFinish={() => {
           markDisplaySetup(currentUser)
+          setShowOnboarding(!currentUser?.onboardingCompleted)
           setShowDisplaySetup(false)
         }}
       />
@@ -1288,14 +1289,15 @@ function DisplaySetupScreen({
 }) {
   const scalePercent = Math.round(appearance.cardScale * 100)
   const setScale = (percent: number) => {
-    onAppearanceChange({ ...appearance, cardScale: percent / 100 })
+    const normalized = Math.min(Math.max(percent, 10), 150) / 100
+    onAppearanceChange({ ...appearance, cardScale: normalized })
   }
   const presets = [
-    { label: 'Uzak', value: 80 },
-    { label: 'Rahat', value: 90 },
+    { label: 'Çok uzak', value: 10 },
+    { label: 'Uzak', value: 50 },
     { label: 'Standart', value: 100 },
-    { label: 'Yakın', value: 110 },
-    { label: 'Büyük', value: 120 },
+    { label: 'Yakın', value: 125 },
+    { label: 'Büyük', value: 150 },
   ]
 
   useEffect(() => {
@@ -1340,8 +1342,8 @@ function DisplaySetupScreen({
         <input
           data-autofocus="true"
           type="range"
-          min="80"
-          max="120"
+          min="10"
+          max="150"
           step="5"
           value={scalePercent}
           onChange={(event) => setScale(Number(event.target.value))}
@@ -2483,8 +2485,8 @@ function SettingsScreen({
               <span>Ekran yakınlığı %{Math.round(appearance.cardScale * 100)}</span>
               <input
                 type="range"
-                min="0.8"
-                max="1.2"
+                min="0.1"
+                max="1.5"
                 step="0.05"
                 value={appearance.cardScale}
                 onChange={(event) => updateAppearance({ cardScale: Number(event.target.value) })}
