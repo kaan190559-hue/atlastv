@@ -2986,6 +2986,7 @@ function PlayerOverlay({
     item.isLive && item.origin ? `Origin: ${item.origin}` : '',
   ].filter(Boolean)
   const [playerStatus, setPlayerStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [playerRetryKey, setPlayerRetryKey] = useState(0)
   const [controlsVisible, setControlsVisible] = useState(true)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -3098,6 +3099,8 @@ function PlayerOverlay({
         video.play().catch(() => onPlayingChange(false))
       })
       hls.on(Hls.Events.ERROR, (_event, data) => {
+        // eslint-disable-next-line no-console
+        console.error('[AtlasTV] HLS error:', data.type, data.details, data.fatal, data.url ?? '')
         if (!data.fatal) return
 
         if (hlsRetryRef.current < 3 && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
@@ -3134,7 +3137,7 @@ function PlayerOverlay({
         onProgressSaved()
       }
     }
-  }, [item.id, item.isLive, onPlayingChange, onProgressSaved, proxiedStreamUrl])
+  }, [item.id, item.isLive, onPlayingChange, onProgressSaved, proxiedStreamUrl, playerRetryKey])
 
   useEffect(() => {
     const isMobile = window.matchMedia('(max-width: 900px), (pointer: coarse)').matches
@@ -3251,7 +3254,20 @@ function PlayerOverlay({
 
         <div className="player-center">
           {playerStatus === 'loading' ? <span className="player-state">Yayin hazirlaniyor...</span> : null}
-          {playerStatus === 'error' ? <span className="player-state error">Yayin acilamadi</span> : null}
+          {playerStatus === 'error' ? (
+            <span className="player-state error">
+              Yayin acilamadi
+              <button
+                type="button"
+                style={{ marginLeft: 12, padding: '4px 12px', fontSize: 13, cursor: 'pointer' }}
+                onClick={() => {
+                  hlsRetryRef.current = 0
+                  setPlayerStatus('loading')
+                  setPlayerRetryKey((k) => k + 1)
+                }}
+              >Tekrar Dene</button>
+            </span>
+          ) : null}
           <div className="center-controls">
             <button type="button" onClick={() => seekBy(-10)} aria-label="10 saniye geri">
               <RotateCcw />
