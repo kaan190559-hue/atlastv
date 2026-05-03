@@ -171,44 +171,38 @@ function applyDeviceProfile(profile: DeviceType) {
   root.dataset.screenOrientation = isPhone ? 'portrait' : 'landscape'
   root.dataset.tvPerformance = isTv ? 'true' : 'false'
 
-  root.style.setProperty('--atlas-stage-width', '100%')
-  root.style.setProperty('--atlas-stage-height', '100svh')
-  root.style.setProperty('--atlas-stage-scale', '1')
-  root.style.setProperty('--atlas-root-width', '100%')
-  root.style.setProperty('--atlas-root-height', '100svh')
-
   if (isTv) {
-    root.style.setProperty('--rail-poster-width', 'clamp(220px, 14vw, 285px)')
-    root.style.setProperty('--rail-wide-width', 'clamp(360px, 24vw, 500px)')
-    root.style.setProperty('--rail-channel-width', 'clamp(280px, 18vw, 350px)')
-    root.style.setProperty('--rail-circle-width', 'clamp(164px, 10vw, 220px)')
-    root.style.setProperty('--home-poster-width', 'clamp(180px, 11vw, 225px)')
-    root.style.setProperty('--home-wide-width', 'clamp(300px, 20vw, 380px)')
-    root.style.setProperty('--home-channel-width', 'clamp(240px, 16vw, 310px)')
-    root.style.setProperty('--home-circle-width', 'clamp(140px, 8vw, 180px)')
+    root.style.setProperty('--rail-poster-width', 'clamp(210px, 13vw, 260px)')
+    root.style.setProperty('--rail-wide-width', 'clamp(330px, 22vw, 440px)')
+    root.style.setProperty('--rail-channel-width', 'clamp(250px, 16vw, 320px)')
+    root.style.setProperty('--rail-circle-width', 'clamp(150px, 9vw, 190px)')
+    root.style.setProperty('--home-poster-width', 'clamp(170px, 10vw, 210px)')
+    root.style.setProperty('--home-wide-width', 'clamp(280px, 18vw, 350px)')
+    root.style.setProperty('--home-channel-width', 'clamp(220px, 14vw, 280px)')
+    root.style.setProperty('--home-circle-width', 'clamp(124px, 8vw, 158px)')
     return
   }
 
   if (profile === 'pc') {
-    root.style.setProperty('--rail-poster-width', 'clamp(190px, 16vw, 253px)')
-    root.style.setProperty('--rail-wide-width', 'clamp(310px, 26vw, 430px)')
-    root.style.setProperty('--rail-channel-width', 'clamp(240px, 20vw, 308px)')
-    root.style.setProperty('--rail-circle-width', 'clamp(150px, 12vw, 202px)')
-    root.style.setProperty('--home-poster-width', 'clamp(165px, 13vw, 205px)')
-    root.style.setProperty('--home-wide-width', 'clamp(280px, 23vw, 350px)')
-    root.style.setProperty('--home-channel-width', 'clamp(220px, 18vw, 280px)')
-    root.style.setProperty('--home-circle-width', 'clamp(132px, 10vw, 168px)')
+    root.style.setProperty('--rail-poster-width', 'clamp(178px, 14vw, 230px)')
+    root.style.setProperty('--rail-wide-width', 'clamp(290px, 23vw, 390px)')
+    root.style.setProperty('--rail-channel-width', 'clamp(220px, 17vw, 280px)')
+    root.style.setProperty('--rail-circle-width', 'clamp(130px, 10vw, 168px)')
+    root.style.setProperty('--home-poster-width', 'clamp(150px, 12vw, 185px)')
+    root.style.setProperty('--home-wide-width', 'clamp(250px, 20vw, 320px)')
+    root.style.setProperty('--home-channel-width', 'clamp(200px, 16vw, 250px)')
+    root.style.setProperty('--home-circle-width', 'clamp(112px, 9vw, 140px)')
     return
   }
 
-  root.style.setProperty('--rail-poster-width', 'clamp(156px, 58vw, 220px)')
-  root.style.setProperty('--rail-wide-width', 'clamp(240px, 78vw, 330px)')
-  root.style.setProperty('--rail-channel-width', 'clamp(220px, 72vw, 300px)')
-  root.style.setProperty('--rail-circle-width', 'clamp(118px, 38vw, 158px)')
-  root.style.setProperty('--home-poster-width', 'clamp(148px, 52vw, 196px)')
-  root.style.setProperty('--home-wide-width', 'clamp(230px, 76vw, 320px)')
-  root.style.setProperty('--home-channel-width', 'clamp(210px, 68vw, 270px)')
-  root.style.setProperty('--home-circle-width', 'clamp(112px, 34vw, 150px)')
+  root.style.setProperty('--rail-poster-width', 'clamp(138px, 42vw, 170px)')
+  root.style.setProperty('--rail-wide-width', 'clamp(220px, 66vw, 280px)')
+  root.style.setProperty('--rail-channel-width', 'clamp(190px, 58vw, 250px)')
+  root.style.setProperty('--rail-circle-width', 'clamp(94px, 30vw, 124px)')
+  root.style.setProperty('--home-poster-width', 'clamp(128px, 39vw, 158px)')
+  root.style.setProperty('--home-wide-width', 'clamp(210px, 64vw, 260px)')
+  root.style.setProperty('--home-channel-width', 'clamp(180px, 55vw, 230px)')
+  root.style.setProperty('--home-circle-width', 'clamp(88px, 28vw, 112px)')
 }
 
 function detectDeviceProfile(): DeviceType {

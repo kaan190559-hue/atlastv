@@ -419,9 +419,8 @@
 }
 
 .app-frame {
-  width: var(--atlas-stage-width);
-  max-width: 100%;
-  min-height: var(--atlas-stage-height);
+  width: 100%;
+  min-height: 100svh;
   color: var(--text);
   background:
     radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--accent-2) 16%, transparent), transparent 30%),
