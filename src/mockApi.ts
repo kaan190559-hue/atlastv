@@ -731,7 +731,11 @@ const getVodCatalog = async () => hydrateUserItems(await loadVodCatalog())
 const ATLAS_SPORTS_POSTER = '/favicon.svg'
 
 const withSportsPoster = (items: ContentItem[]) =>
-  items.map((item) => ({ ...item, posterUrl: ATLAS_SPORTS_POSTER, backdropUrl: ATLAS_SPORTS_POSTER }))
+  items.map((item) => ({
+    ...item,
+    posterUrl: item.posterUrl || ATLAS_SPORTS_POSTER,
+    backdropUrl: item.backdropUrl || ATLAS_SPORTS_POSTER,
+  }))
 
 const loadSportsCatalog = async (offset = 0, limit = 160, query = '', filters: LiveFilterParams = {}) => {
   const settings = await getAdminSettings()

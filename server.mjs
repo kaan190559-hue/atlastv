@@ -722,7 +722,16 @@ async function handleProxy(req, res, requestUrl) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Cache-Control', 'no-store')
 
-  const contentType = upstream.headers.get('content-type') ?? ''
+  let contentType = upstream.headers.get('content-type') ?? ''
+  // HLS segmentleri .avif/.jpg uzantısı ile gizlenebilir (anti-piracy).
+  // Content-type image/* ama gerçekte MPEG-TS → video/MP2T olarak override et.
+  const isDisguisedSegment =
+    (target.includes('.avif') || target.includes('.jpg')) &&
+    (contentType.startsWith('image/') || contentType === '') &&
+    !target.includes('.m3u8') &&
+    (referer || origin)
+  if (isDisguisedSegment) contentType = 'video/MP2T'
+
   const shouldRewritePlaylist =
     target.includes('.m3u8') ||
     contentType.includes('mpegurl') ||
