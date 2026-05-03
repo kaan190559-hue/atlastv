@@ -1,0 +1,94 @@
+name: M3U Scraper
+
+on:
+  schedule:
+    # Her saat başı çalışır
+    - cron: '0 * * * *'
+  workflow_dispatch: # Manuel tetikleme
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Bağımlılıkları yükle
+        run: npm ci
+
+      - name: Chrome bağımlılıkları (Puppeteer için)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            chromium-browser \
+            libgbm-dev \
+            libnss3 \
+            libatk-bridge2.0-0 \
+            libdrm2 \
+            libxcomposite1 \
+            libxdamage1 \
+            libxfixes3 \
+            libxrandr2 \
+            libgbm1 \
+            libasound2t64 \
+            --no-install-recommends
+
+      - name: Scraper çalıştır
+        id: scrape
+        env:
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium-browser
+          PUPPETEER_SKIP_DOWNLOAD: true
+        run: |
+          node scripts/scraper.mjs
+          echo "changed=true" >> $GITHUB_OUTPUT
+        continue-on-error: true  # exit 2 (değişiklik yok) de normal
+
+      - name: Değişiklik var mı kontrol et
+        id: check
+        run: |
+          if git diff --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Değişiklikleri commit et
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          git config user.name "atlastv-bot"
+          git config user.email "bot@atlastv.local"
+          git add public/scraped.m3u scripts/scraper-sources.json
+          git commit -m "bot: M3U listesi güncellendi [$(date -u '+%Y-%m-%d %H:%M')] - $(grep -c '#EXTINF' public/scraped.m3u || echo 0) stream"
+          git push
+
+      - name: Render deploy tetikle
+        if: steps.check.outputs.has_changes == 'true'
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            curl -s -X POST "$RENDER_DEPLOY_HOOK" | jq .
+            echo "Render deploy tetiklendi"
+          else
+            echo "RENDER_DEPLOY_HOOK secret eksik, deploy atlandı"
+          fi
+
+      - name: Özet
+        if: always()
+        run: |
+          echo "=== Scraper Özeti ==="
+          echo "Değişiklik: ${{ steps.check.outputs.has_changes }}"
+          if [ -f public/scraped.m3u ]; then
+            echo "Stream sayısı: $(grep -c '#EXTINF' public/scraped.m3u || echo 0)"
+          fi

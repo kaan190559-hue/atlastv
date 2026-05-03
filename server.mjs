@@ -23,6 +23,8 @@ const ADMIN_SETTINGS_PATH = '/__atlas_admin_settings'
 const ADMIN_AUTH_PATH = '/__atlas_admin_auth'
 const USER_STATS_PATH = '/__atlas_user_stats'
 const CACHE_CONTROL_PATH = '/__atlas_cache_control'
+const SCRAPED_M3U_PATH = '/scraped.m3u'
+const SCRAPED_M3U_FILE = resolve(__dirname, 'public', 'scraped.m3u')
 const CACHE_BOT_BUILD = 'prebuilt-catalog-v1'
 const DEFAULT_USER_AGENT = 'okhttp/4.12.0'
 const ADMIN_PASSWORD = process.env.ATLAS_ADMIN_PASSWORD || '190559'
@@ -1621,6 +1623,21 @@ const server = createServer(async (req, res) => {
     }
     if (requestUrl.pathname === DOWNLOAD_PATH) {
       await handleDownload(req, res, requestUrl)
+      return
+    }
+    if (requestUrl.pathname === SCRAPED_M3U_PATH) {
+      try {
+        const content = await readFile(SCRAPED_M3U_FILE, 'utf8')
+        res.writeHead(200, {
+          'Content-Type': 'application/x-mpegurl; charset=utf-8',
+          'Cache-Control': 'no-store',
+          'Access-Control-Allow-Origin': '*',
+        })
+        res.end(content)
+      } catch {
+        res.writeHead(404, { 'Content-Type': 'text/plain' })
+        res.end('scraped.m3u not found')
+      }
       return
     }
     await serveStatic(req, res, requestUrl)
