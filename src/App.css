@@ -3495,5 +3495,7 @@
 /* Rail plain variant (İzlemeye Devam Et, Favoriler) */
 .content-rail--plain .poster-button,
 [data-screen="favorites"] .poster-button {
-  background: transparent;
+  background: var(--bg) !important;
+  box-shadow: none;
+  border-color: color-mix(in srgb, var(--border) 40%, transparent);
 }
