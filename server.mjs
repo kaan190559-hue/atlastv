@@ -180,6 +180,9 @@ async function readAdminSettings() {
     if (!settings.liveM3uUrl?.trim() && !settings.liveM3uContent?.trim()) {
       settings.liveM3uUrl = defaultAdminSettings.liveM3uUrl
     }
+    if (!settings.sportsM3uUrl?.trim() && !settings.sportsM3uContent?.trim()) {
+      settings.sportsM3uUrl = SPORTS_M3U_DEFAULT
+    }
     return settings
   } catch {
     return defaultAdminSettings
