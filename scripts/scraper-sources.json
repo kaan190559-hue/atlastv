@@ -1,42 +1,11 @@
 [
   {
-    "id": "trgoals",
-    "name": "TRGoals 7/24 TV",
-    "domainPattern": "www.trgoals{N}.top",
-    "currentN": 170,
-    "scheme": "https",
-    "sectionPath": "/",
-    "sectionKeyword": "7/24",
-    "group": "Spor"
-  },
-  {
     "id": "atomsport",
     "name": "AtomSport Kanallar",
     "domainPattern": "atomsportv{N}.top",
     "currentN": 501,
     "scheme": "https",
-    "sectionPath": "/",
-    "sectionKeyword": "kanallar",
+    "channelsApiUrl": "https://teletv5.top/load/channels.php",
     "group": "Spor"
-  },
-  {
-    "id": "izlemac",
-    "name": "İzlemac TV",
-    "domainPattern": "izlemac{N}.sbs",
-    "currentN": 726,
-    "scheme": "https",
-    "sectionPath": "/",
-    "sectionKeyword": "tv",
-    "group": "Genel"
-  },
-  {
-    "id": "selcukiptv",
-    "name": "SelcukIPTV TV",
-    "domainPattern": "selcukiptv{N}.top",
-    "currentN": 14,
-    "scheme": "https",
-    "sectionPath": "/",
-    "sectionKeyword": "tv",
-    "group": "Genel"
   }
 ]
