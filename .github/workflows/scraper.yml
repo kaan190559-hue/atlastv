@@ -25,7 +25,7 @@ jobs:
           cache: 'npm'
 
       - name: Bağımlılıkları yükle
-        run: npm ci
+        run: npm ci --include=dev
 
       - name: Chrome bağımlılıkları (Puppeteer için)
         run: |
