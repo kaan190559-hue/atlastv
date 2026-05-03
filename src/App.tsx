@@ -223,10 +223,9 @@ function detectDeviceProfile(): DeviceType {
     /\b(smart-tv|smarttv|hbbtv|netcast|webos|tizen|appletv|googletv|android tv|bravia|viera|aquos|roku|aft)\b/.test(ua)
   if (isTv) return 'tv'
 
-  const coarsePointer = window.matchMedia('(pointer: coarse)').matches
+  // Use only CSS viewport width — avoids false phone detection on landscape tablets/emulators
   const narrowScreen = window.matchMedia('(max-width: 760px)').matches
-  const portraitPhone = coarsePointer && Math.min(window.innerWidth, window.innerHeight) <= 760
-  if (narrowScreen || portraitPhone) return 'phone'
+  if (narrowScreen) return 'phone'
 
   return 'pc'
 }

@@ -19,14 +19,11 @@
 
         function detectDeviceProfile() {
           var ua = window.navigator && window.navigator.userAgent ? window.navigator.userAgent : ''
-          var hasCoarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches
-          var viewport = getViewport()
           var isTvBrowser = /smart-tv|smarttv|hbbtv|netcast|webos|tizen|appletv|googletv|android tv|bravia|viera|aquos|roku|aft/i.test(ua)
           var isNarrowScreen = window.matchMedia && window.matchMedia('(max-width: 760px)').matches
-          var isPortraitPhone = hasCoarsePointer && Math.min(viewport.width, viewport.height) <= 760
 
           if (isTvBrowser) return 'tv'
-          if (isNarrowScreen || isPortraitPhone) return 'phone'
+          if (isNarrowScreen) return 'phone'
           return 'pc'
         }
 
