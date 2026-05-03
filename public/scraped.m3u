@@ -1,27 +1,31 @@
 #EXTM3U
-#EXTINF:-1 tvg-id="atomsport_bein-sports-1" tvg-name="Bein Sports 1" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/BeIN_Sports_1_HD.svg/200px-BeIN_Sports_1_HD.svg.png" group-title="Spor",Bein Sports 1
+#EXTINF:-1 tvg-id="atomsport_bein-sports-1" tvg-name="Bein Sports 1" tvg-logo="/logos/bein-sports-1.svg" group-title="Spor",Bein Sports 1
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/bein-sports-11.m3u8
-#EXTINF:-1 tvg-id="atomsport_bein-sports-2" tvg-name="Bein Sports 2" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/BeIN_Sports_2_HD.svg/200px-BeIN_Sports_2_HD.svg.png" group-title="Spor",Bein Sports 2
+#EXTINF:-1 tvg-id="atomsport_bein-sports-2" tvg-name="Bein Sports 2" tvg-logo="/logos/bein-sports-2.svg" group-title="Spor",Bein Sports 2
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/bein-sports-2.m3u8
-#EXTINF:-1 tvg-id="atomsport_bein-sports-3" tvg-name="Bein Sports 3" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/BeIN_Sports_3_HD.svg/200px-BeIN_Sports_3_HD.svg.png" group-title="Spor",Bein Sports 3
+#EXTINF:-1 tvg-id="atomsport_bein-sports-3" tvg-name="Bein Sports 3" tvg-logo="/logos/bein-sports-3.svg" group-title="Spor",Bein Sports 3
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/bein-sports-3.m3u8
-#EXTINF:-1 tvg-id="atomsport_bein-sports-4" tvg-name="Bein Sports 4" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/BeIN_Sports_4_HD.svg/200px-BeIN_Sports_4_HD.svg.png" group-title="Spor",Bein Sports 4
+#EXTINF:-1 tvg-id="atomsport_bein-sports-4" tvg-name="Bein Sports 4" tvg-logo="/logos/bein-sports-4.svg" group-title="Spor",Bein Sports 4
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/bein-sports-4.m3u8
-#EXTINF:-1 tvg-id="atomsport_bein-sports-5" tvg-name="Bein Sports 5" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/BeIN_Sports_5_HD.svg/200px-BeIN_Sports_5_HD.svg.png" group-title="Spor",Bein Sports 5
+#EXTINF:-1 tvg-id="atomsport_bein-sports-5" tvg-name="Bein Sports 5" tvg-logo="/logos/bein-sports-5.svg" group-title="Spor",Bein Sports 5
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/bein-sports-5.m3u8
-#EXTINF:-1 tvg-id="atomsport_bein-sports-max-1" tvg-name="Bein Sports Max 1" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/BeIN_Sports_Max_1_HD.svg/200px-BeIN_Sports_Max_1_HD.svg.png" group-title="Spor",Bein Sports Max 1
+#EXTINF:-1 tvg-id="atomsport_bein-sports-max-1" tvg-name="Bein Sports Max 1" tvg-logo="/logos/bein-sports-max-1.svg" group-title="Spor",Bein Sports Max 1
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/bein-sports-max-1.m3u8
-#EXTINF:-1 tvg-id="atomsport_bein-sports-max-2" tvg-name="Bein Sports Max 2" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/BeIN_Sports_Max_2_HD.svg/200px-BeIN_Sports_Max_2_HD.svg.png" group-title="Spor",Bein Sports Max 2
+#EXTINF:-1 tvg-id="atomsport_bein-sports-max-2" tvg-name="Bein Sports Max 2" tvg-logo="/logos/bein-sports-max-2.svg" group-title="Spor",Bein Sports Max 2
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/bein-sports-max-2.m3u8
-#EXTINF:-1 tvg-id="atomsport_s-sport" tvg-name="S Sport" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/S_Sport_logo.png/200px-S_Sport_logo.png" group-title="Spor",S Sport
+#EXTINF:-1 tvg-id="atomsport_s-sport" tvg-name="S Sport" tvg-logo="/logos/s-sport.svg" group-title="Spor",S Sport
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/s-sport.m3u8
-#EXTINF:-1 tvg-id="atomsport_s-sport-2" tvg-name="S Sport 2" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/S_Sport_logo.png/200px-S_Sport_logo.png" group-title="Spor",S Sport 2
+#EXTINF:-1 tvg-id="atomsport_s-sport-2" tvg-name="S Sport 2" tvg-logo="/logos/s-sport-2.svg" group-title="Spor",S Sport 2
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/s-sport-2.m3u8
-#EXTINF:-1 tvg-id="atomsport_trt-spor" tvg-name="Trt Spor" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/TRT_Spor_logo.svg/200px-TRT_Spor_logo.svg.png" group-title="Spor",Trt Spor
+#EXTINF:-1 tvg-id="atomsport_trt-spor" tvg-name="Trt Spor" tvg-logo="/logos/trt-spor.svg" group-title="Spor",Trt Spor
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/trt-spor.m3u8
-#EXTINF:-1 tvg-id="atomsport_trt-1" tvg-name="Trt 1" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/TRT_1_logo_%282021%29.svg/200px-TRT_1_logo_%282021%29.svg.png" group-title="Spor",Trt 1
+#EXTINF:-1 tvg-id="atomsport_trt-1" tvg-name="Trt 1" tvg-logo="/logos/trt-1.svg" group-title="Spor",Trt 1
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/trt1.m3u8
-#EXTINF:-1 tvg-id="atomsport_a-spor" tvg-name="A Spor" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/A_Spor_logo.png/200px-A_Spor_logo.png" group-title="Spor",A Spor
+#EXTINF:-1 tvg-id="atomsport_a-spor" tvg-name="A Spor" tvg-logo="/logos/a-spor.svg" group-title="Spor",A Spor
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/a-spor.m3u8
-#EXTINF:-1 tvg-id="static_ht-spor" tvg-name="HT Spor" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/HT_Spor_logo.png/200px-HT_Spor_logo.png" group-title="Spor",HT Spor
+#EXTINF:-1 tvg-id="static_ht-spor" tvg-name="HT Spor" tvg-logo="/logos/ht-spor.svg" group-title="Spor",HT Spor
 https://ciner.daioncdn.net/ht-spor/ht-spor.m3u8?app=web
+#EXTINF:-1 tvg-id="trgoals_trt-2" tvg-name="TRT 2" tvg-logo="/logos/trt-2.svg" group-title="Spor",TRT 2
+https://tv-trt2.medya.trt.com.tr/master.m3u8
+#EXTINF:-1 tvg-id="trgoals_trt-yıldız" tvg-name="TRT Yıldız" tvg-logo="/logos/trt-yildiz.svg" group-title="Spor",TRT Yıldız
+https://tv-trtspor2.medya.trt.com.tr/master.m3u8
