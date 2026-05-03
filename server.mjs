@@ -927,12 +927,13 @@ async function loadTmdbMetadata(title, type, fallbackMetadata = {}) {
 
   for (const query of queryVariants) {
     if (!query) continue
-    const search = await tmdbFetch(`/search/${preferredType}`, { query })
+    // Use en-US for search to match original titles correctly; tr-TR details fetch below.
+    const search = await tmdbFetch(`/search/${preferredType}`, { query, language: 'en-US' })
     result = pickBestTmdbResult(search.results ?? [], title)
     mediaType = preferredType
     if (result) break
 
-    const multi = await tmdbFetch('/search/multi', { query })
+    const multi = await tmdbFetch('/search/multi', { query, language: 'en-US' })
     result = pickBestTmdbResult(
       (multi.results ?? []).filter((entry) => entry.media_type === 'movie' || entry.media_type === 'tv'),
       title,
@@ -1006,6 +1007,8 @@ async function tmdbFetch(pathname, params = {}) {
 function cleanMetadataTitle(title) {
   return title
     .replace(/\s+-\s+T[üu]rk[çc]e\s+(Dublaj|Altyaz[ıi])/gi, '')
+    .replace(/\s*-\s*Yerli\s*$/gi, '')
+    .replace(/\s*-\s*(?:İzleme\s*(?:ve\s*İndirme\s*)?Kayna[gğ][ıi]|izleme\s*kayna[gğ][ıi])\s*$/gi, '')
     .replace(/\s*[-|:]\s*(?:Bölüm|Bolum|Episode|Ep\.?)\s*\d+/gi, '')
     .replace(/\s*-\s*m3u8\b/gi, '')
     .replace(/\b(?:m3u8|1080p|720p|4k|web-?dl|bluray|hdtv|x264|x265)\b/gi, '')

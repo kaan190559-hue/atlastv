@@ -2035,11 +2035,12 @@
   top: 0;
   left: 0;
   right: 0;
-  padding: 26px 34px 96px;
+  padding: 28px 40px 100px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.78), transparent);
+  gap: 18px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.88) 0%, transparent 100%);
+  backdrop-filter: blur(0px);
 }
 
 .player-topbar strong,
@@ -2067,17 +2068,24 @@
   display: grid;
   place-items: center;
   color: white;
-  background: rgba(12, 12, 12, 0.58);
+  background: rgba(12, 12, 12, 0.62);
   box-shadow: 0 18px 46px rgba(0, 0, 0, 0.28);
   cursor: pointer;
-  backdrop-filter: blur(18px);
+  backdrop-filter: blur(20px);
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 140ms ease,
+    box-shadow 160ms ease;
 }
 
 .player-round-button:hover,
 .center-controls button:hover,
 .control-buttons button:hover {
-  border-color: rgba(255, 255, 255, 0.42);
-  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.18);
+  transform: scale(1.08);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.44);
 }
 
 .player-round-button:focus-visible,
@@ -2163,6 +2171,18 @@
   background: var(--accent);
   box-shadow: 0 0 60px var(--accent-glow);
   cursor: pointer;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.giant-play:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 80px var(--accent-glow), 0 0 120px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.giant-play:active {
+  transform: scale(0.96);
 }
 
 .giant-play svg {
@@ -2176,9 +2196,10 @@
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 108px 42px 34px;
+  padding: 120px 48px 38px;
   display: block;
-  background: linear-gradient(0deg, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.55) 52%, transparent);
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.97) 0%, rgba(0, 0, 0, 0.72) 45%, rgba(0, 0, 0, 0.28) 72%, transparent 100%);
+  backdrop-filter: blur(0px);
 }
 
 .player-title-block p,
@@ -2223,15 +2244,56 @@
   font-weight: 900;
 }
 
-.player-progress-row input,
+/* ── Progress & volume range inputs ── */
+.player-progress-row input[type="range"],
 .volume-slider {
+  appearance: none;
+  -webkit-appearance: none;
   width: 100%;
-  accent-color: #e50914;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  outline: none;
+  transition: background 160ms ease;
+}
+
+.player-progress-row input[type="range"]:hover,
+.volume-slider:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.player-progress-row input[type="range"]::-webkit-slider-thumb,
+.volume-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.player-progress-row input[type="range"]:hover::-webkit-slider-thumb,
+.volume-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.35);
+  box-shadow: 0 0 14px rgba(229, 9, 20, 0.6), 0 0 4px rgba(0, 0, 0, 0.8);
+}
+
+.player-progress-row input[type="range"]::-moz-range-thumb,
+.volume-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
   cursor: pointer;
 }
 
 .player-progress-row input {
-  height: 7px;
+  height: 5px;
 }
 
 .player-bottom-row {
@@ -2351,6 +2413,50 @@
   to {
     background-position: -240% 0;
   }
+}
+
+@keyframes screenEnter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes overlayEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes playerEnter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Page transitions */
+.page-shell > * {
+  animation: screenEnter 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.detail-panel {
+  animation: overlayEnter 300ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
+}
+
+.player-overlay {
+  animation: playerEnter 220ms ease both;
 }
 
 @media (max-width: 1180px) {
