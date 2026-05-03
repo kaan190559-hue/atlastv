@@ -1221,8 +1221,10 @@ function TopBar({
   const searchRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<number | null>(null)
+  const notificationText = notification.trim()
+  const hasNotification = Boolean(notificationText)
   const lastReadId = Number(window.localStorage.getItem(NOTIFICATION_READ_KEY) || '0')
-  const hasUnread = notificationId > 0 && notificationId > lastReadId && Boolean(notification)
+  const hasUnread = notificationId > 0 && notificationId > lastReadId && hasNotification
 
   const fetchSearchResults = async (query: string) => {
     if (!query.trim()) { setDropdownItems([]); setDropdownActive(false); return }
@@ -1272,12 +1274,10 @@ function TopBar({
   }, [])
 
   const handleBellClick = () => {
-    if (notification) {
-      setShowNotifPopup((v) => !v)
-      if (hasUnread) {
-        window.localStorage.setItem(NOTIFICATION_READ_KEY, String(notificationId))
-        onNotificationRead()
-      }
+    setShowNotifPopup((v) => !v)
+    if (hasUnread) {
+      window.localStorage.setItem(NOTIFICATION_READ_KEY, String(notificationId))
+      onNotificationRead()
     }
   }
 
@@ -1343,25 +1343,23 @@ function TopBar({
             </div>
           )}
         </div>
-        {notification.trim() ? (
-          <div className="notif-wrap">
-            <button
-              className={`icon-button notif-btn${hasUnread ? ' notif-btn--unread' : ''}`}
-              type="button"
-              onClick={handleBellClick}
-              aria-label="Bildirimler"
-            >
-              <Bell />
-              {hasUnread && <span className="notif-badge">{notificationId}-</span>}
-            </button>
-            {showNotifPopup && (
-              <div className="notif-popup">
-                <p>{notification}</p>
-                <button type="button" onClick={() => setShowNotifPopup(false)}><X /></button>
-              </div>
-            )}
-          </div>
-        ) : null}
+        <div className="notif-wrap">
+          <button
+            className={`icon-button notif-btn${hasUnread ? ' notif-btn--unread' : ''}`}
+            type="button"
+            onClick={handleBellClick}
+            aria-label="Bildirimler"
+          >
+            <Bell />
+            {hasUnread && <span className="notif-badge">{notificationId}-</span>}
+          </button>
+          {showNotifPopup && (
+            <div className="notif-popup">
+              <p>{hasNotification ? notificationText : 'Henüz aktif bildirim yok.'}</p>
+              <button type="button" onClick={() => setShowNotifPopup(false)}><X /></button>
+            </div>
+          )}
+        </div>
         {currentUser?.avatar ? (
           <div
             className="topbar-avatar"
