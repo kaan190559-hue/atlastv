@@ -1650,9 +1650,15 @@ function ContentRail({
   useEffect(() => {
     const el = ref.current
     if (!el) return
+    if (typeof window.IntersectionObserver !== 'function') {
+      setVisible(true)
+      return
+    }
+    const fallbackTimer = window.setTimeout(() => setVisible(true), 900)
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
+          window.clearTimeout(fallbackTimer)
           setVisible(true)
           observer.disconnect()
         }
@@ -1660,7 +1666,10 @@ function ContentRail({
       { rootMargin: '200px' },
     )
     observer.observe(el)
-    return () => observer.disconnect()
+    return () => {
+      window.clearTimeout(fallbackTimer)
+      observer.disconnect()
+    }
   }, [])
 
   if (!items.length) return null
