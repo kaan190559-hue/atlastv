@@ -23,11 +23,3 @@ https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.he
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/trt1.m3u8
 #EXTINF:-1 tvg-id="atomsport_a-spor" tvg-name="A Spor" tvg-logo="" group-title="Spor",A Spor
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/a-spor.m3u8
-#EXTINF:-1 tvg-id="trgoals_trt-1" tvg-name="TRT 1" tvg-logo="" group-title="Spor",TRT 1
-https://d1u68oyra9spme.cloudfront.net/master.m3u8
-#EXTINF:-1 tvg-id="trgoals_trt-2" tvg-name="TRT 2" tvg-logo="" group-title="Spor",TRT 2
-https://tv-trt2.medya.trt.com.tr/master.m3u8
-#EXTINF:-1 tvg-id="trgoals_trt-spor" tvg-name="TRT Spor" tvg-logo="" group-title="Spor",TRT Spor
-https://tv-trtspor1.medya.trt.com.tr/master.m3u8
-#EXTINF:-1 tvg-id="trgoals_trt-yıldız" tvg-name="TRT Yıldız" tvg-logo="" group-title="Spor",TRT Yıldız
-https://tv-trtspor2.medya.trt.com.tr/master.m3u8
