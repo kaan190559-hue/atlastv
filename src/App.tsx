@@ -91,6 +91,7 @@ const navItems: Array<{ id: Screen; label: string; icon: typeof Home }> = [
   { id: 'sports', label: 'Spor Kanalları', icon: Trophy },
   { id: 'series', label: 'Dizi', icon: Clapperboard },
   { id: 'movies', label: 'Film', icon: Film },
+  { id: 'downloads', label: 'İndirilenler', icon: Download },
   { id: 'list', label: 'Listem', icon: ListVideo },
   { id: 'favorites', label: 'Favoriler', icon: Heart },
   { id: 'account', label: 'Hesabım', icon: User },
@@ -144,6 +145,7 @@ const categoryTitles: Record<Screen, string> = {
   movies: 'Filmler',
   list: 'Listem',
   favorites: 'Favoriler',
+  downloads: 'İndirilenler',
   account: 'Hesabım',
   about: 'Ayarlar',
 }
@@ -173,6 +175,10 @@ function applyDeviceProfile(profile: DeviceType) {
   root.dataset.tvPerformance = isTv ? 'true' : 'false'
 
   if (isTv) {
+    const scale = Math.min(window.innerWidth / 1920, 1)
+    root.style.setProperty('--display-scale', scale.toFixed(4))
+    root.style.setProperty('--display-width', '1920px')
+    root.style.setProperty('--display-height', '1080px')
     root.style.setProperty('--rail-poster-width', 'clamp(210px, 13vw, 260px)')
     root.style.setProperty('--rail-wide-width', 'clamp(330px, 22vw, 440px)')
     root.style.setProperty('--rail-channel-width', 'clamp(250px, 16vw, 320px)')
@@ -185,6 +191,9 @@ function applyDeviceProfile(profile: DeviceType) {
   }
 
   if (profile === 'pc') {
+    root.style.setProperty('--display-scale', '1')
+    root.style.setProperty('--display-width', '100%')
+    root.style.setProperty('--display-height', '100svh')
     root.style.setProperty('--rail-poster-width', 'clamp(178px, 14vw, 230px)')
     root.style.setProperty('--rail-wide-width', 'clamp(290px, 23vw, 390px)')
     root.style.setProperty('--rail-channel-width', 'clamp(220px, 17vw, 280px)')
@@ -195,7 +204,9 @@ function applyDeviceProfile(profile: DeviceType) {
     root.style.setProperty('--home-circle-width', 'clamp(112px, 9vw, 140px)')
     return
   }
-
+  root.style.setProperty('--display-scale', '1')
+  root.style.setProperty('--display-width', '100%')
+  root.style.setProperty('--display-height', '100svh')
   root.style.setProperty('--rail-poster-width', 'clamp(138px, 42vw, 170px)')
   root.style.setProperty('--rail-wide-width', 'clamp(220px, 66vw, 280px)')
   root.style.setProperty('--rail-channel-width', 'clamp(190px, 58vw, 250px)')
@@ -355,7 +366,7 @@ function acceptsEmptyCategoryPage(
   search: string,
   filters: { liveCountry: string; liveCategory: string; vodCategory: string; vodPlatform: string },
 ) {
-  if (screen === 'list' || screen === 'favorites' || screen === 'sports') return true
+  if (screen === 'list' || screen === 'favorites' || screen === 'sports' || screen === 'downloads') return true
   return Boolean(search.trim() || filters.liveCountry || filters.liveCategory || filters.vodCategory || filters.vodPlatform)
 }
 
@@ -566,10 +577,6 @@ function App() {
   useEffect(() => {
     document.documentElement.style.setProperty('--accent', appearance.accent)
     document.documentElement.style.setProperty('--accent-2', appearance.accent2)
-    const displayScale = Math.min(Math.max(appearance.cardScale, 0.1), 1.5)
-    document.documentElement.style.setProperty('--display-scale', String(displayScale))
-    document.documentElement.style.setProperty('--display-width', `${100 / displayScale}%`)
-    document.documentElement.style.setProperty('--display-height', `${100 / displayScale}svh`)
     document.documentElement.style.setProperty('--card-scale', String(appearance.cardScale))
     document.documentElement.style.setProperty('--ui-scale', String(appearance.cardScale))
     document.documentElement.style.setProperty('--card-radius', `${appearance.cardRadius}px`)
@@ -693,7 +700,7 @@ function App() {
     setHeroIndex(0)
     setHeroItems(await api.content.getHeroItems())
     applyHomeSections(await api.content.getHomeSections())
-    if (['live', 'sports', 'series', 'movies', 'list', 'favorites'].includes(screen)) {
+    if (['live', 'sports', 'series', 'movies', 'list', 'favorites', 'downloads'].includes(screen)) {
       const liveSourceOverride = screen === 'live' && liveProvider === 'iptv-turkey' ? IPTV_TURKEY_M3U_URL : undefined
       setCategoryItems([])
       setCategoryTotal(0)
@@ -874,7 +881,7 @@ function App() {
     setVodCategory('')
     setVodPlatform('')
     setDetailItem(null)
-    if (['live', 'sports', 'series', 'movies', 'list', 'favorites'].includes(next)) {
+    if (['live', 'sports', 'series', 'movies', 'list', 'favorites', 'downloads'].includes(next)) {
       setCategoryItems([])
       setCategoryLoading(true)
     }
@@ -899,7 +906,7 @@ function App() {
 
   const changeSearch = (value: string) => {
     setSearch(value)
-    if (['live', 'sports', 'series', 'movies', 'list', 'favorites'].includes(screen)) {
+    if (['live', 'sports', 'series', 'movies', 'list', 'favorites', 'downloads'].includes(screen)) {
       setCategoryItems([])
       setCategoryTotal(0)
       setCategoryLoading(true)
@@ -962,6 +969,7 @@ function App() {
 
   const openPlayer = (item: ContentItem) => {
     trackView(item)
+    if (item.isLive) api.user.saveLastLiveChannel(item)
     setIsPlaying(true)
     flushSync(() => setPlayerItem(item))
 
@@ -1081,7 +1089,7 @@ function App() {
           />
         ) : null}
 
-        {!adminPanelOpen && !detailItem && ['live', 'sports', 'series', 'movies', 'list', 'favorites'].includes(screen) ? (
+        {!adminPanelOpen && !detailItem && ['live', 'sports', 'series', 'movies', 'list', 'favorites', 'downloads'].includes(screen) ? (
           <CategoryScreen
             screen={screen}
             items={categoryItems}
@@ -1341,7 +1349,7 @@ function DisplaySetupScreen({
         <div className="display-scale-readout">
           <Maximize />
           <strong>%{scalePercent}</strong>
-          <span>{scalePercent < 100 ? 'Uzak görünüm' : scalePercent > 100 ? 'Yakın görünüm' : 'Standart'}</span>
+          <span>{scalePercent < 100 ? 'Küçük kartlar' : scalePercent > 100 ? 'Büyük kartlar' : 'Standart'}</span>
         </div>
         <input
           data-autofocus="true"
@@ -1351,7 +1359,7 @@ function DisplaySetupScreen({
           step="5"
           value={scalePercent}
           onChange={(event) => setScale(Number(event.target.value))}
-          aria-label="Ekran yakınlığı"
+          aria-label="Kart boyutu"
         />
         <div className="display-preset-row">
           {presets.map((preset) => (
@@ -2387,6 +2395,15 @@ function DetailPanel({
               <Download /> {item.streamUrl.includes('.m3u8') ? 'M3U8 İndir' : 'MP4 İndir'}
             </a>
           ) : null}
+          <button type="button" onClick={() => {
+            if (api.user.isDownloaded(item.id)) {
+              void api.user.removeDownload(item.id)
+            } else {
+              void api.user.addDownload(item)
+            }
+          }}>
+            <Download /> {api.user.isDownloaded(item.id) ? 'Kütüphaneden Çıkar' : 'Kütüphaneye Ekle'}
+          </button>
           <button type="button" onClick={() => onToggleFavorite(item)}>
             <Heart /> {item.isFavorite ? 'Favoriden Çıkar' : 'Favoriye Ekle'}
           </button>
@@ -2465,7 +2482,7 @@ function SettingsScreen({
             <Palette />
             <div>
               <h2>Görünüm</h2>
-              <p>Renkleri, ekran yakınlığını ve parlaklık hissini bu cihaz için ayarla.</p>
+              <p>Renkleri, kart boyutunu ve parlaklık hissini bu cihaz için ayarla.</p>
             </div>
           </div>
           <div className="appearance-controls">
@@ -2486,7 +2503,7 @@ function SettingsScreen({
               />
             </label>
             <label>
-              <span>Ekran yakınlığı %{Math.round(appearance.cardScale * 100)}</span>
+              <span>Kart boyutu %{Math.round(appearance.cardScale * 100)}</span>
               <input
                 type="range"
                 min="0.1"
@@ -3657,3 +3674,5 @@ declare global {
 }
 
 export default App
+
+

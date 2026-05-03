@@ -7,8 +7,14 @@ export type CategoryKey =
   | 'movies'
   | 'list'
   | 'favorites'
+  | 'downloads'
   | 'account'
   | 'about'
+
+export type DownloadEntry = {
+  item: ContentItem
+  savedAt: string
+}
 
 export type ContentItem = {
   id: string
@@ -270,6 +276,30 @@ const ADMIN_SETTINGS_ENDPOINT = '/__atlas_admin_settings'
 const ADMIN_AUTH_ENDPOINT = '/__atlas_admin_auth'
 const USER_STATS_ENDPOINT = '/__atlas_user_stats'
 const CACHE_CONTROL_ENDPOINT = '/__atlas_cache_control'
+const LAST_LIVE_KEY = 'atlastv.lastLiveChannel'
+const DOWNLOADS_KEY = 'atlastv.downloads'
+
+function readLastLiveChannel(): ContentItem | null {
+  try {
+    const raw = window.localStorage.getItem(LAST_LIVE_KEY)
+    return raw ? (JSON.parse(raw) as ContentItem) : null
+  } catch { return null }
+}
+
+function writeLastLiveChannel(item: ContentItem): void {
+  try { window.localStorage.setItem(LAST_LIVE_KEY, JSON.stringify(item)) } catch { /* */ }
+}
+
+function readDownloads(): DownloadEntry[] {
+  try {
+    const raw = window.localStorage.getItem(DOWNLOADS_KEY)
+    return raw ? (JSON.parse(raw) as DownloadEntry[]) : []
+  } catch { return [] }
+}
+
+function writeDownloads(entries: DownloadEntry[]): void {
+  try { window.localStorage.setItem(DOWNLOADS_KEY, JSON.stringify(entries)) } catch { /* */ }
+}
 
 const defaultAdminSettings: AdminSettings = {
   vodM3uUrl: VOD_M3U_URL,
@@ -880,6 +910,7 @@ const GENRE_FALLBACK_TERMS: Record<string, string[]> = {
 
 export const DEFAULT_HOME_SECTIONS_CONFIG: HomeSectionConfig[] = [
   { id: 'continue', title: 'İzlemeye Devam Et', type: 'builtin', variant: 'wide', enabled: true },
+  { id: 'lastlive', title: 'Kaldığın Kanaldan Devam Et', type: 'builtin', variant: 'channel', enabled: true },
   { id: 'favorites', title: 'Favorilerim', type: 'builtin', variant: 'circle', enabled: true },
   { id: 'trend', title: 'Şimdi Trend', type: 'builtin', variant: 'trend', enabled: true },
   { id: 'live', title: 'Canlı Kanallar', type: 'builtin', variant: 'channel', enabled: true },
@@ -913,6 +944,7 @@ const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: Content
 
   const builtinSections: Record<string, HomeSection> = {
     continue: { id: 'continue', title: 'İzlemeye Devam Et', variant: 'wide', items: continueItems },
+    lastlive: { id: 'lastlive', title: 'Kaldığın Kanaldan Devam Et', variant: 'channel', items: (() => { const ch = readLastLiveChannel(); return ch ? [ch] : [] })() },
     favorites: { id: 'favorites', title: 'Favorilerim', variant: 'circle', items: catalog.filter((item) => item.isFavorite).slice(0, 18) },
     trend: { id: 'trend', title: 'Şimdi Trend', variant: 'trend', items: trending },
     live: { id: 'live', title: 'Canlı Kanallar', variant: 'channel', items: catalog.filter((item) => item.isLive) },
@@ -1070,6 +1102,20 @@ export const api = {
       query = '',
       filters: LiveFilterParams = {},
     ): Promise<CategoryPage> => {
+      if (category === 'downloads') {
+        const entries = readDownloads()
+        const filtered = entries
+          .filter((e) =>
+            !query.trim() ||
+            `${e.item.title} ${e.item.category} ${e.item.liveCategory ?? ''}`
+              .toLocaleLowerCase('tr-TR')
+              .includes(query.toLocaleLowerCase('tr-TR')),
+          )
+          .sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime())
+        const items = hydrateUserItems(filtered.slice(offset, offset + limit).map((e) => e.item))
+        return withLatency({ items, total: filtered.length })
+      }
+
       if (category === 'sports') {
         try {
           return await loadSportsCatalog(offset, limit, query, filters)
@@ -1261,6 +1307,17 @@ export const api = {
       return withLatency(true)
     },
     getWatchHistory: async () => withLatency((await getCatalog()).filter((item) => item.progress)),
+    saveLastLiveChannel: (item: ContentItem) => { writeLastLiveChannel(item) },
+    addDownload: async (item: ContentItem) => {
+      const entries = readDownloads().filter((e) => e.item.id !== item.id)
+      writeDownloads([{ item, savedAt: new Date().toISOString() }, ...entries])
+      return withLatency(true)
+    },
+    removeDownload: async (id: string) => {
+      writeDownloads(readDownloads().filter((e) => e.item.id !== id))
+      return withLatency(true)
+    },
+    isDownloaded: (id: string) => readDownloads().some((e) => e.item.id === id),
     markWatched: async (id: string, seconds = 1, duration = 0) =>
       withLatency(updateCurrentUser((user) => {
         const percent = duration ? Math.max(1, Math.min(99, Math.round((seconds / duration) * 100))) : Math.max(1, Math.min(99, Math.round(seconds)))
