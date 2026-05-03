@@ -566,6 +566,10 @@ function App() {
   useEffect(() => {
     document.documentElement.style.setProperty('--accent', appearance.accent)
     document.documentElement.style.setProperty('--accent-2', appearance.accent2)
+    const displayScale = Math.min(Math.max(appearance.cardScale, 0.1), 1.5)
+    document.documentElement.style.setProperty('--display-scale', String(displayScale))
+    document.documentElement.style.setProperty('--display-width', `${100 / displayScale}%`)
+    document.documentElement.style.setProperty('--display-height', `${100 / displayScale}svh`)
     document.documentElement.style.setProperty('--card-scale', String(appearance.cardScale))
     document.documentElement.style.setProperty('--ui-scale', String(appearance.cardScale))
     document.documentElement.style.setProperty('--card-radius', `${appearance.cardRadius}px`)

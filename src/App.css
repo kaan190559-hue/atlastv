@@ -604,14 +604,29 @@
 }
 
 .app-frame {
-  width: 100%;
-  min-height: 100svh;
+  width: var(--display-width);
+  min-height: var(--display-height);
+  transform-origin: top left;
+  --card-scale: 1;
+  --ui-scale: 1;
   color: var(--text);
   background:
     radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--accent-2) 16%, transparent), transparent 30%),
     radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 32%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 360px),
     var(--bg);
+}
+
+@supports (zoom: 1) {
+  .app-frame {
+    zoom: var(--display-scale);
+  }
+}
+
+@supports not (zoom: 1) {
+  .app-frame {
+    transform: scale(var(--display-scale));
+  }
 }
 
 .top-bar {

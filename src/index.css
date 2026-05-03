@@ -12,6 +12,9 @@
   --accent-ink: #031018;
   --accent-glow: rgba(0, 229, 255, 0.34);
   --focus: rgba(0, 229, 255, 0.78);
+  --display-scale: 1;
+  --display-width: 100%;
+  --display-height: 100svh;
   --card-scale: 1;
   --ui-scale: 1;
   --rail-poster-width: clamp(178px, 14vw, 230px);
