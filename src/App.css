@@ -233,81 +233,6 @@
   color: var(--text-strong);
 }
 
-.device-profile-page {
-  min-height: 100svh;
-  padding: 22px 24px 34px;
-  display: grid;
-  grid-template-columns: minmax(0, 980px);
-  justify-content: center;
-  align-content: start;
-  gap: 26px;
-  background:
-    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--accent-2) 24%, transparent), transparent 34%),
-    radial-gradient(circle at 78% 10%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 30%),
-    linear-gradient(115deg, rgba(255, 255, 255, 0.05), transparent 32%),
-    var(--bg);
-}
-
-.device-profile-head {
-  text-align: center;
-}
-
-.device-profile-head h1 {
-  margin: 0;
-  color: var(--text-strong);
-  font-size: clamp(44px, 7vw, 66px);
-  font-weight: 950;
-}
-
-.device-profile-head h1 span {
-  color: var(--accent);
-}
-
-.device-profile-head p {
-  margin: 8px 0 0;
-  color: var(--text-muted);
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.device-profile-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.device-profile-card {
-  min-height: 170px;
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  padding: 22px;
-  display: grid;
-  gap: 10px;
-  text-align: left;
-  color: var(--text-strong);
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  cursor: pointer;
-}
-
-.device-profile-card strong {
-  font-size: 30px;
-  font-weight: 900;
-}
-
-.device-profile-card span {
-  color: var(--text-muted);
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.45;
-}
-
-.device-profile-card:hover,
-.device-profile-card:focus-visible {
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
-}
-
 .splash-screen {
   min-height: 100svh;
   display: grid;
@@ -3044,15 +2969,6 @@
   .auth-card {
     padding: 28px 18px;
     border-radius: 22px;
-  }
-
-  .device-profile-page {
-    padding: 18px 14px 24px;
-    gap: 18px;
-  }
-
-  .device-profile-grid {
-    grid-template-columns: 1fr;
   }
 
   .top-bar {

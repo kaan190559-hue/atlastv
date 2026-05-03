@@ -71,7 +71,6 @@ const LIVE_GITHUB_M3U_URL = 'https://raw.githubusercontent.com/kaan190559-hue/at
 const IPTV_TURKEY_M3U_URL = 'https://iptv-org.github.io/iptv/countries/tr.m3u'
 const APPEARANCE_KEY = 'atlastv.appearance'
 const NOTIFICATION_READ_KEY = 'atlastv.notificationRead'
-const DEVICE_PROFILE_KEY = 'atlastv.deviceProfile'
 const TV_STAGE_WIDTH = 1920
 const FOCUSABLE_SELECTOR =
   'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
@@ -163,17 +162,6 @@ const defaultAppearance: AppearanceSettings = {
   cardScale: 1,
   cardRadius: 16,
   cardGlow: 1,
-}
-
-const validDeviceProfiles: DeviceType[] = ['tv', 'pc', 'tablet', 'phone']
-
-function loadDeviceProfile() {
-  try {
-    const raw = window.localStorage.getItem(DEVICE_PROFILE_KEY)
-    return raw && validDeviceProfiles.includes(raw as DeviceType) ? (raw as DeviceType) : null
-  } catch {
-    return null
-  }
 }
 
 function applyDeviceProfile(profile: DeviceType) {
@@ -451,7 +439,7 @@ function useSpatialNavigation(resetKey: string) {
 }
 
 function App() {
-  const [deviceType, setDeviceType] = useState<DeviceType | null>(loadDeviceProfile)
+  const deviceType: DeviceType = 'tv'
   const [isAuthed, setIsAuthed] = useState(false)
   const [currentUser, setCurrentUser] = useState<AtlasUser | null>(null)
   const [authMode, setAuthMode] = useState<AuthMode>('login')
@@ -496,17 +484,6 @@ function App() {
   }, [theme])
 
   useEffect(() => {
-    if (!deviceType) {
-      const root = document.documentElement
-      delete root.dataset.deviceType
-      root.dataset.tvPerformance = 'false'
-      root.style.setProperty('--atlas-root-width', '100%')
-      root.style.setProperty('--atlas-stage-height', '100svh')
-      root.style.setProperty('--atlas-stage-width', '100%')
-      root.style.setProperty('--atlas-stage-scale', '1')
-      return
-    }
-
     applyDeviceProfile(deviceType)
     if (deviceType !== 'tv') return
 
@@ -918,19 +895,6 @@ function App() {
     return <SplashScreen />
   }
 
-  if (!deviceType) {
-    return (
-      <DeviceProfileScreen
-        theme={theme}
-        onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        onSelect={(nextType) => {
-          setDeviceType(nextType)
-          window.localStorage.setItem(DEVICE_PROFILE_KEY, nextType)
-        }}
-      />
-    )
-  }
-
   if (isAuthed && showOnboarding) {
     return (
       <OnboardingScreen
@@ -1103,51 +1067,6 @@ function App() {
       ) : null}
 
     </div>
-  )
-}
-
-function DeviceProfileScreen({
-  theme,
-  onThemeToggle,
-  onSelect,
-}: {
-  theme: Theme
-  onThemeToggle: () => void
-  onSelect: (type: DeviceType) => void
-}) {
-  const profiles: Array<{ id: DeviceType; title: string; text: string }> = [
-    { id: 'tv', title: 'TV', text: 'Uzaktan kumanda ve büyük ekran için TV odaklı düzen kullanılır.' },
-    { id: 'pc', title: 'PC', text: 'Klavye/fare için masaüstü düzeni kullanılır.' },
-    { id: 'tablet', title: 'Tablet', text: 'Dokunmatik, orta boy ekranlar için dengeli düzen uygulanır.' },
-    { id: 'phone', title: 'Telefon', text: 'Mobil gezinme ve küçük ekran düzeni kullanılır.' },
-  ]
-
-  return (
-    <main className="device-profile-page">
-      <button className="icon-button auth-theme" type="button" onClick={onThemeToggle} aria-label="Tema değiştir">
-        {theme === 'dark' ? <Sun /> : <Moon />}
-      </button>
-      <section className="device-profile-head">
-        <h1>
-          Atlas<span>Tv</span>
-        </h1>
-        <p>Devam etmeden önce cihaz tipini seçin.</p>
-      </section>
-      <section className="device-profile-grid" aria-label="Cihaz tipi seçimi">
-        {profiles.map((profile, index) => (
-          <button
-            key={profile.id}
-            type="button"
-            data-autofocus={index === 0 ? 'true' : undefined}
-            className="device-profile-card"
-            onClick={() => onSelect(profile.id)}
-          >
-            <strong>{profile.title}</strong>
-            <span>{profile.text}</span>
-          </button>
-        ))}
-      </section>
-    </main>
   )
 }
 
