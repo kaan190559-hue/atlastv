@@ -1644,94 +1644,58 @@ function ContentRail({
   onPlay: (item: ContentItem) => void
   onToggleFavorite: (item: ContentItem) => void
 }) {
-  const ref = useRef<HTMLElement | null>(null)
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    if (typeof window.IntersectionObserver !== 'function') {
-      setVisible(true)
-      return
-    }
-    const fallbackTimer = window.setTimeout(() => setVisible(true), 900)
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          window.clearTimeout(fallbackTimer)
-          setVisible(true)
-          observer.disconnect()
-        }
-      },
-      { rootMargin: '200px' },
-    )
-    observer.observe(el)
-    return () => {
-      window.clearTimeout(fallbackTimer)
-      observer.disconnect()
-    }
-  }, [])
-
   if (!items.length) return null
 
   if (variant === 'trend') {
     return (
-      <section ref={ref} className="content-rail trend-section">
+      <section className="content-rail trend-section">
         <div className="rail-heading trend-heading">
           <h2>{title}</h2>
         </div>
-        {visible ? (
-          <div className="trend-list">
-            {items.map((item, index) => (
-              <button
-                key={`${title}-${item.id}`}
-                type="button"
-                className={`trend-row rank-tone-${Math.min(index + 1, 4)}`}
-                onClick={() => onPlay(item)}
-              >
-                <span className="trend-rank">{index + 1}</span>
-                <img src={item.posterUrl} alt="" loading="lazy" />
-                <span className="trend-copy">
-                  <strong>{item.title}</strong>
-                  <span>
-                    <Star /> {item.rating} - {item.badge ?? item.category}
-                  </span>
-                  <small>{item.category}</small>
+        <div className="trend-list">
+          {items.map((item, index) => (
+            <button
+              key={`${title}-${item.id}`}
+              type="button"
+              className={`trend-row rank-tone-${Math.min(index + 1, 4)}`}
+              onClick={() => onPlay(item)}
+            >
+              <span className="trend-rank">{index + 1}</span>
+              <img src={item.posterUrl} alt="" loading="lazy" />
+              <span className="trend-copy">
+                <strong>{item.title}</strong>
+                <span>
+                  <Star /> {item.rating} - {item.badge ?? item.category}
                 </span>
-                <span className="trend-play" aria-hidden="true">
-                  <Play />
-                </span>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="rail-skeleton" />
-        )}
+                <small>{item.category}</small>
+              </span>
+              <span className="trend-play" aria-hidden="true">
+                <Play />
+              </span>
+            </button>
+          ))}
+        </div>
       </section>
     )
   }
 
   return (
-    <section ref={ref} className="content-rail">
+    <section className="content-rail">
       <div className="rail-heading">
         <h2>{title}</h2>
       </div>
-      {visible ? (
-        <div className={`rail-list ${variant}`}>
-          {items.map((item, index) => (
-            <ContentCard
-              key={`${title}-${item.id}`}
-              item={item}
-              rank={variant === 'ranked' ? index + 1 : undefined}
-              variant={variant}
-              onPlay={onPlay}
-              onToggleFavorite={onToggleFavorite}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="rail-skeleton" />
-      )}
+      <div className={`rail-list ${variant}`}>
+        {items.map((item, index) => (
+          <ContentCard
+            key={`${title}-${item.id}`}
+            item={item}
+            rank={variant === 'ranked' ? index + 1 : undefined}
+            variant={variant}
+            onPlay={onPlay}
+            onToggleFavorite={onToggleFavorite}
+          />
+        ))}
+      </div>
     </section>
   )
 }
