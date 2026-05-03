@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom'
 import Hls from 'hls.js'
 import {
   BadgeInfo,
+  Bell,
   Clapperboard,
   Download,
   Film,
@@ -44,8 +45,11 @@ import {
   type ContentItem,
   type ContentMetadata,
   type HomeSection,
+  type HomeSectionConfig,
   type LiveFilterOptions,
+  type SectionVariant,
   type UserStats,
+  DEFAULT_HOME_SECTIONS_CONFIG,
 } from './mockApi'
 import './App.css'
 
@@ -60,6 +64,7 @@ const VOD_CATEGORY_PAGE_SIZE = 60
 const APP_VERSION = '0.0.0'
 const LIVE_GITHUB_M3U_URL = 'https://raw.githubusercontent.com/kaan190559-hue/atlastv/master/public/vavoo_full_worker.m3u'
 const APPEARANCE_KEY = 'atlastv.appearance'
+const NOTIFICATION_READ_KEY = 'atlastv.notificationRead'
 const FOCUSABLE_SELECTOR =
   'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 const SPATIAL_GROUP_SELECTOR =
@@ -822,10 +827,13 @@ function App() {
         screen={screen}
         search={search}
         theme={theme}
+        notification={publicSettings?.homeNotification ?? ''}
+        notificationId={publicSettings?.homeNotificationId ?? 0}
         onScreenChange={changeScreen}
         onSearchChange={changeSearch}
         onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
         onSettingsOpen={() => changeScreen('about')}
+        onNotificationRead={() => { /* state update triggers re-render via localStorage */ }}
       />
 
       <main className="page-shell">
@@ -1126,19 +1134,39 @@ function TopBar({
   screen,
   search,
   theme,
+  notification,
+  notificationId,
   onScreenChange,
   onSearchChange,
   onThemeToggle,
   onSettingsOpen,
+  onNotificationRead,
 }: {
   screen: Screen
   search: string
   theme: Theme
+  notification: string
+  notificationId: number
   onScreenChange: (screen: Screen) => void
   onSearchChange: (value: string) => void
   onThemeToggle: () => void
   onSettingsOpen: () => void
+  onNotificationRead: () => void
 }) {
+  const [showNotifPopup, setShowNotifPopup] = useState(false)
+  const lastReadId = Number(window.localStorage.getItem(NOTIFICATION_READ_KEY) || '0')
+  const hasUnread = notificationId > 0 && notificationId > lastReadId && Boolean(notification)
+
+  const handleBellClick = () => {
+    if (notification) {
+      setShowNotifPopup((v) => !v)
+      if (hasUnread) {
+        window.localStorage.setItem(NOTIFICATION_READ_KEY, String(notificationId))
+        onNotificationRead()
+      }
+    }
+  }
+
   return (
     <header className="top-bar">
       <div className="brand-lockup">
@@ -1168,6 +1196,25 @@ function TopBar({
           <Search />
           <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Ara" />
         </label>
+        {notificationId > 0 && notification ? (
+          <div className="notif-wrap">
+            <button
+              className={`icon-button notif-btn${hasUnread ? ' notif-btn--unread' : ''}`}
+              type="button"
+              onClick={handleBellClick}
+              aria-label="Bildirimler"
+            >
+              <Bell />
+              {hasUnread && <span className="notif-badge">{notificationId}-</span>}
+            </button>
+            {showNotifPopup && (
+              <div className="notif-popup">
+                <p>{notification}</p>
+                <button type="button" onClick={() => setShowNotifPopup(false)}><X /></button>
+              </div>
+            )}
+          </div>
+        ) : null}
         <button className="icon-button" type="button" onClick={onThemeToggle} aria-label="Tema değiştir">
           {theme === 'dark' ? <Sun /> : <Moon />}
         </button>
@@ -2022,9 +2069,12 @@ function AdminPanel({
     supportUrl: '',
     appVersion: '',
     announcement: '',
+    homeNotification: '',
+    homeNotificationId: 0,
     liveM3uContent: '',
     sportsM3uContent: '',
   })
+  const [activeTab, setActiveTab] = useState<'genel' | 'kategoriler' | 'bildirim' | 'listeler' | 'araclar'>('genel')
   const [status, setStatus] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [userStats, setUserStats] = useState<UserStats>({ totalUsers: 0, activeUsers: 0, rememberedUsers: 0 })
@@ -2037,6 +2087,14 @@ function AdminPanel({
     memory: {},
     diskBuckets: [],
   })
+  // Category management state
+  const [newSectionTitle, setNewSectionTitle] = useState('')
+  const [newSectionGenre, setNewSectionGenre] = useState('')
+  const [newSectionVariant, setNewSectionVariant] = useState<SectionVariant>('poster')
+
+  const sectionsConfig = settings.homeSectionsConfig?.length
+    ? settings.homeSectionsConfig
+    : DEFAULT_HOME_SECTIONS_CONFIG
 
   useEffect(() => {
     api.admin.getSettings().then(setSettings)
@@ -2057,6 +2115,49 @@ function AdminPanel({
 
   const update = (key: keyof AdminSettings, value: string) => {
     setSettings((current) => ({ ...current, [key]: value }))
+  }
+
+  const updateSectionsConfig = (config: HomeSectionConfig[]) => {
+    setSettings((current) => ({ ...current, homeSectionsConfig: config }))
+  }
+
+  const toggleSectionEnabled = (id: string) => {
+    updateSectionsConfig(sectionsConfig.map((s) => s.id === id ? { ...s, enabled: !s.enabled } : s))
+  }
+
+  const moveSection = (id: string, dir: -1 | 1) => {
+    const arr = [...sectionsConfig]
+    const idx = arr.findIndex((s) => s.id === id)
+    if (idx < 0) return
+    const swapIdx = idx + dir
+    if (swapIdx < 0 || swapIdx >= arr.length) return
+    ;[arr[idx], arr[swapIdx]] = [arr[swapIdx], arr[idx]]
+    updateSectionsConfig(arr)
+  }
+
+  const deleteSection = (id: string) => {
+    updateSectionsConfig(sectionsConfig.filter((s) => s.id !== id))
+  }
+
+  const addSection = () => {
+    if (!newSectionTitle.trim() || !newSectionGenre.trim()) {
+      setStatus('Kategori adı ve tür gereklidir.')
+      return
+    }
+    const id = `custom-${Date.now()}`
+    const newSection: HomeSectionConfig = {
+      id,
+      title: newSectionTitle.trim(),
+      type: 'genre',
+      genre: newSectionGenre.trim(),
+      variant: newSectionVariant,
+      enabled: true,
+    }
+    updateSectionsConfig([...sectionsConfig, newSection])
+    setNewSectionTitle('')
+    setNewSectionGenre('')
+    setNewSectionVariant('poster')
+    setStatus('Yeni kategori eklendi. Kaydetmeyi unutma.')
   }
 
   const uploadM3uFile = async (key: 'liveM3uContent' | 'sportsM3uContent', file?: File) => {
@@ -2142,13 +2243,39 @@ function AdminPanel({
     )
   }
 
+  const sendNotification = async () => {
+    if (!settings.homeNotification.trim()) {
+      setStatus('Bildirim metni boş olamaz.')
+      return
+    }
+    const nextId = (settings.homeNotificationId || 0) + 1
+    const updated: AdminSettings = { ...settings, homeNotificationId: nextId }
+    setIsSaving(true)
+    const saved = await api.admin.saveSettings(updated, adminPassword)
+    setSettings(saved)
+    await onSaved()
+    setStatus(`Bildirim #${nextId} gönderildi.`)
+    setIsSaving(false)
+  }
+
+  const clearNotification = async () => {
+    const updated: AdminSettings = { ...settings, homeNotification: '', homeNotificationId: 0 }
+    setIsSaving(true)
+    const saved = await api.admin.saveSettings(updated, adminPassword)
+    setSettings(saved)
+    await onSaved()
+    setStatus('Bildirim temizlendi.')
+    setIsSaving(false)
+  }
+
   const save = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setIsSaving(true)
-    const saved = await api.admin.saveSettings(settings, adminPassword)
+    const toSave = { ...settings, homeSectionsConfig: sectionsConfig }
+    const saved = await api.admin.saveSettings(toSave, adminPassword)
     setSettings(saved)
     await onSaved()
-    setStatus('Listeler güncellendi.')
+    setStatus('Ayarlar kaydedildi.')
     setIsSaving(false)
   }
 
@@ -2157,169 +2284,285 @@ function AdminPanel({
     const defaults = await api.admin.resetSettings(adminPassword)
     setSettings(defaults)
     await onSaved()
-    setStatus('Varsayılan listelere dönüldü.')
+    setStatus('Varsayılan ayarlara dönüldü.')
     setIsSaving(false)
   }
 
+  const adminTabs = [
+    { id: 'genel' as const, label: 'Genel' },
+    { id: 'kategoriler' as const, label: 'Kategoriler' },
+    { id: 'bildirim' as const, label: 'Bildirim' },
+    { id: 'listeler' as const, label: 'Listeler' },
+    { id: 'araclar' as const, label: 'Araçlar' },
+  ]
+
+  const variantOptions: Array<{ value: SectionVariant; label: string }> = [
+    { value: 'poster', label: 'Poster' },
+    { value: 'wide', label: 'Geniş' },
+    { value: 'ranked', label: 'Sıralı' },
+    { value: 'trend', label: 'Trend' },
+    { value: 'circle', label: 'Yuvarlak' },
+    { value: 'channel', label: 'Kanal' },
+  ]
+
+  const knownGenres = ['Komedi', 'Macera', 'Aksiyon', 'Korku', 'Yerli', 'Romantik', 'Savaş', 'Animasyon', 'Belgesel', 'Çocuk', 'Bilim Kurgu', 'Suç', 'Dram', 'Gerilim']
+
   return (
     <section className="admin-page" aria-label="Admin paneli">
-      <form className="admin-card admin-panel admin-page-card" onSubmit={save}>
+      <div className="admin-card admin-panel admin-page-card">
         <button className="detail-close" type="button" onClick={onClose} aria-label="Admin panelini kapat">
           <X />
         </button>
+
+        {/* Header */}
         <div className="admin-title">
           <Settings />
           <div>
             <p>Gizli Yönetim</p>
-            <h2>IPTV Liste Paneli</h2>
+            <h2>Atlas Panel</h2>
+          </div>
+          <div className="admin-stats-row">
+            <span className="admin-stat"><strong>{userStats.activeUsers}</strong>Aktif</span>
+            <span className="admin-stat"><strong>{userStats.totalUsers}</strong>Üye</span>
+            <span className="admin-stat"><strong>{userStats.rememberedUsers}</strong>Hatırlanan</span>
+            <span className={`admin-stat ${cacheStatus.isRunning ? 'admin-stat--running' : ''}`}>
+              <strong>{cacheStatus.isRunning ? 'Çalışıyor' : 'Hazır'}</strong>Bot
+            </span>
           </div>
         </div>
 
-        <div className="admin-tools" aria-label="Hızlı admin araçları">
-          <span>Aktif {userStats.activeUsers}</span>
-          <span>Toplam Üye {userStats.totalUsers}</span>
-          <span>Hatırlanan {userStats.rememberedUsers}</span>
-          <span>Bot {cacheStatus.isRunning ? 'Çalışıyor' : 'Hazır'}</span>
-          {cacheStatus.currentStep ? <span>Adım {cacheStatus.currentStep}</span> : null}
-          {cacheStatus.buildId ? <span>Bot {cacheStatus.buildId}</span> : null}
-          <span>Cache {cacheStatus.diskBuckets.length || Object.values(cacheStatus.memory).reduce((sum, value) => sum + value, 0)}</span>
-          <button type="button" onClick={runCatalogBot}>
-            Katalog Botunu Çalıştır
-          </button>
-          <button type="button" onClick={refreshCacheStatus}>
-            Bot Durumu
-          </button>
-          <button type="button" onClick={clearServerCache}>
-            Sunucu Cache Temizle
-          </button>
-          <button type="button" onClick={fillLiveGithubSource}>
-            GitHub Canlı M3U Kullan
-          </button>
-          <button type="button" onClick={copyLiveGithubSource}>
-            Canlı Linki Kopyala
-          </button>
-          <button type="button" onClick={() => window.open('https://atlastv.onrender.com', '_blank', 'noopener,noreferrer')}>
-            Siteyi Aç
-          </button>
-          <button type="button" onClick={clearLocalCache}>
-            Bu Cihaz Önbelleğini Temizle
-          </button>
-          <button type="button" onClick={clearWatchHistory}>
-            İzleme Geçmişini Temizle
-          </button>
-          <button type="button" onClick={exportSettings}>
-            Ayarları Dışa Aktar
-          </button>
-          <label className="admin-tool-file">
-            Ayarları İçe Aktar
-            <input type="file" accept="application/json,.json" onChange={(event) => importSettings(event.target.files?.[0])} />
-          </label>
-          <button type="button" onClick={() => window.open(settings.telegramUrl || 'https://t.me/', '_blank', 'noopener,noreferrer')}>
-            Telegramı Test Et
-          </button>
-          {settings.supportUrl ? (
-            <button type="button" onClick={() => window.open(settings.supportUrl, '_blank', 'noopener,noreferrer')}>
-              Desteği Test Et
+        {/* Tab nav */}
+        <nav className="admin-tabs">
+          {adminTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={activeTab === tab.id ? 'active' : ''}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+              {tab.id === 'bildirim' && settings.homeNotificationId > 0 && settings.homeNotification && (
+                <span className="admin-tab-badge">{settings.homeNotificationId}-</span>
+              )}
             </button>
-          ) : null}
-          <span>Sürüm {settings.appVersion || APP_VERSION}</span>
-        </div>
+          ))}
+        </nav>
 
-        <div className="admin-section-title">
-          <strong>Giriş ve uygulama bağlantıları</strong>
-          <span>Bu alanlar giriş ekranı ve ayarlar sayfasında herkese görünür.</span>
-        </div>
-        <label>
-          <span>Telegram Linki</span>
-          <input
-            value={settings.telegramUrl}
-            onChange={(event) => update('telegramUrl', event.target.value)}
-            placeholder="https://t.me/kanaliniz"
-          />
-        </label>
-        <label>
-          <span>Destek / İletişim Linki</span>
-          <input
-            value={settings.supportUrl}
-            onChange={(event) => update('supportUrl', event.target.value)}
-            placeholder="https://t.me/destek veya https://..."
-          />
-        </label>
-        <label>
-          <span>Güncel Sürüm Bilgisi</span>
-          <input
-            value={settings.appVersion}
-            onChange={(event) => update('appVersion', event.target.value)}
-            placeholder="1.0.0"
-          />
-        </label>
-        <label>
-          <span>Giriş Ekranı Duyurusu</span>
-          <textarea
-            value={settings.announcement}
-            onChange={(event) => update('announcement', event.target.value)}
-            placeholder="Giriş ekranında görünecek kısa duyuru"
-          />
-        </label>
+        {status ? <div className="admin-status-bar">{status}</div> : null}
 
-        <div className="admin-section-title">
-          <strong>Yayın listeleri</strong>
-          <span>M3U linklerini veya dosyalarını buradan yönet.</span>
-        </div>
+        <form onSubmit={save} className="admin-tab-content">
+          {/* ── GENEL ── */}
+          {activeTab === 'genel' && (
+            <div className="admin-tab-pane">
+              <div className="admin-section-title">
+                <strong>Giriş ve uygulama bağlantıları</strong>
+                <span>Giriş ekranı ve ayarlar sayfasında herkese görünür.</span>
+              </div>
+              <label>
+                <span>Telegram Linki</span>
+                <input value={settings.telegramUrl} onChange={(e) => update('telegramUrl', e.target.value)} placeholder="https://t.me/kanaliniz" />
+              </label>
+              <label>
+                <span>Destek / İletişim Linki</span>
+                <input value={settings.supportUrl} onChange={(e) => update('supportUrl', e.target.value)} placeholder="https://t.me/destek" />
+              </label>
+              <label>
+                <span>Güncel Sürüm Bilgisi</span>
+                <input value={settings.appVersion} onChange={(e) => update('appVersion', e.target.value)} placeholder="1.0.0" />
+              </label>
+              <label>
+                <span>Giriş Ekranı Duyurusu</span>
+                <textarea value={settings.announcement} onChange={(e) => update('announcement', e.target.value)} placeholder="Giriş ekranında görünecek kısa duyuru" />
+              </label>
+              <div className="admin-actions">
+                <button className="watch-button" type="submit" disabled={isSaving}>{isSaving ? 'Kaydediliyor...' : 'Kaydet'}</button>
+                <button type="button" onClick={reset} disabled={isSaving}>Varsayılana Dön</button>
+              </div>
+            </div>
+          )}
 
-        <label>
-          <span>Dizi / Film M3U Linki</span>
-          <input
-            value={settings.vodM3uUrl}
-            onChange={(event) => update('vodM3uUrl', event.target.value)}
-            placeholder="https://.../vod.m3u"
-          />
-        </label>
-        <label>
-          <span>Canlı TV M3U Linki</span>
-          <input
-            value={settings.liveM3uUrl}
-            onChange={(event) => update('liveM3uUrl', event.target.value)}
-            placeholder="https://.../live.m3u veya asagidan dosya yukle"
-          />
-        </label>
-        <label>
-          <span>Canli TV M3U Dosyasi</span>
-          <input
-            type="file"
-            accept=".m3u,.m3u8,text/plain"
-            onChange={(event) => uploadM3uFile('liveM3uContent', event.target.files?.[0])}
-          />
-          {settings.liveM3uContent ? <small>Yuklu dosya hazir. Kaydedince herkeste aktif olur.</small> : null}
-        </label>
-        <label>
-          <span>Spor Kanalları M3U Linki</span>
-          <input
-            value={settings.sportsM3uUrl}
-            onChange={(event) => update('sportsM3uUrl', event.target.value)}
-            placeholder="https://.../sports.m3u"
-          />
-        </label>
-        <label>
-          <span>Spor M3U Dosyasi</span>
-          <input
-            type="file"
-            accept=".m3u,.m3u8,text/plain"
-            onChange={(event) => uploadM3uFile('sportsM3uContent', event.target.files?.[0])}
-          />
-          {settings.sportsM3uContent ? <small>Spor dosyasi hazir. Kaydedince spor bolumunde kullanilir.</small> : null}
-        </label>
+          {/* ── KATEGORİLER ── */}
+          {activeTab === 'kategoriler' && (
+            <div className="admin-tab-pane">
+              <div className="admin-section-title">
+                <strong>Anasayfa Kategorileri</strong>
+                <span>Kategorileri sırala, aç/kapat veya yeni ekle.</span>
+              </div>
+              <div className="admin-section-list">
+                {sectionsConfig.map((section, idx) => (
+                  <div key={section.id} className={`admin-section-item${section.enabled ? '' : ' admin-section-item--disabled'}`}>
+                    <div className="admin-section-item-info">
+                      <span className="admin-section-item-title">{section.title}</span>
+                      <span className="admin-section-item-meta">{section.type === 'builtin' ? 'Sistem' : section.genre} · {section.variant}</span>
+                    </div>
+                    <div className="admin-section-item-actions">
+                      <button type="button" onClick={() => moveSection(section.id, -1)} disabled={idx === 0} aria-label="Yukarı taşı">↑</button>
+                      <button type="button" onClick={() => moveSection(section.id, 1)} disabled={idx === sectionsConfig.length - 1} aria-label="Aşağı taşı">↓</button>
+                      <button
+                        type="button"
+                        className={`admin-toggle-btn${section.enabled ? ' active' : ''}`}
+                        onClick={() => toggleSectionEnabled(section.id)}
+                      >
+                        {section.enabled ? 'Açık' : 'Kapalı'}
+                      </button>
+                      {section.type === 'genre' && (
+                        <button type="button" className="admin-delete-btn" onClick={() => deleteSection(section.id)} aria-label="Sil">×</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="admin-section-title" style={{ marginTop: '12px' }}>
+                <strong>Yeni Kategori Ekle</strong>
+                <span>Katalogdaki türe göre filtrelenmiş yeni bir bölüm ekle.</span>
+              </div>
+              <div className="admin-add-section-form">
+                <input
+                  value={newSectionTitle}
+                  onChange={(e) => setNewSectionTitle(e.target.value)}
+                  placeholder="Bölüm başlığı (örn. Romantik Filmler)"
+                />
+                <select value={newSectionGenre} onChange={(e) => setNewSectionGenre(e.target.value)}>
+                  <option value="">Tür seç...</option>
+                  {knownGenres.map((g) => <option key={g} value={g}>{g}</option>)}
+                  <option value="__custom">Özel tür gir...</option>
+                </select>
+                {newSectionGenre === '__custom' && (
+                  <input
+                    value={newSectionGenre === '__custom' ? '' : newSectionGenre}
+                    onChange={(e) => setNewSectionGenre(e.target.value)}
+                    placeholder="Özel tür adı"
+                  />
+                )}
+                <select value={newSectionVariant} onChange={(e) => setNewSectionVariant(e.target.value as SectionVariant)}>
+                  {variantOptions.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
+                </select>
+                <button type="button" className="watch-button" onClick={addSection}>Ekle</button>
+              </div>
+              <div className="admin-actions" style={{ marginTop: '14px' }}>
+                <button className="watch-button" type="submit" disabled={isSaving}>{isSaving ? 'Kaydediliyor...' : 'Kategorileri Kaydet'}</button>
+                <button type="button" onClick={() => { updateSectionsConfig(DEFAULT_HOME_SECTIONS_CONFIG); setStatus('Varsayılan kategorilere sıfırlandı.') }}>Varsayılana Sıfırla</button>
+              </div>
+            </div>
+          )}
 
-        <div className="admin-actions">
-          <button className="watch-button" type="submit" disabled={isSaving}>
-            {isSaving ? 'Güncelleniyor...' : 'Listeleri Güncelle'}
-          </button>
-          <button type="button" onClick={reset} disabled={isSaving}>
-            Varsayılana Dön
-          </button>
-        </div>
-        {status ? <span className="inline-status">{status}</span> : null}
-      </form>
+          {/* ── BİLDİRİM ── */}
+          {activeTab === 'bildirim' && (
+            <div className="admin-tab-pane">
+              <div className="admin-section-title">
+                <strong>Anasayfa Bildirimi</strong>
+                <span>Kullanıcılar anasayfada arama çubuğunun yanında zil ikonunu görür. Yeni bildirim gönderince rozet kırmızı olur ve numarayla görünür.</span>
+              </div>
+              {settings.homeNotificationId > 0 && (
+                <div className="admin-notif-status">
+                  <span>Aktif bildirim: <strong>#{settings.homeNotificationId}</strong></span>
+                  {settings.homeNotification ? <em>{settings.homeNotification}</em> : <em>Boş</em>}
+                </div>
+              )}
+              <label>
+                <span>Bildirim Metni</span>
+                <textarea
+                  value={settings.homeNotification}
+                  onChange={(e) => update('homeNotification', e.target.value)}
+                  placeholder="Kullanıcılara gösterilecek bildirim metni"
+                />
+              </label>
+              <div className="admin-actions">
+                <button type="button" className="watch-button" onClick={sendNotification} disabled={isSaving}>
+                  {isSaving ? 'Gönderiliyor...' : 'Bildirimi Gönder'}
+                </button>
+                {settings.homeNotificationId > 0 && (
+                  <button type="button" onClick={clearNotification} disabled={isSaving}>Bildirimi Temizle</button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── LİSTELER ── */}
+          {activeTab === 'listeler' && (
+            <div className="admin-tab-pane">
+              <div className="admin-section-title">
+                <strong>Yayın listeleri</strong>
+                <span>M3U linklerini veya dosyalarını buradan yönet.</span>
+              </div>
+              <label>
+                <span>Dizi / Film M3U Linki</span>
+                <input value={settings.vodM3uUrl} onChange={(e) => update('vodM3uUrl', e.target.value)} placeholder="https://.../vod.m3u" />
+              </label>
+              <label>
+                <span>Canlı TV M3U Linki</span>
+                <input value={settings.liveM3uUrl} onChange={(e) => update('liveM3uUrl', e.target.value)} placeholder="https://.../live.m3u" />
+              </label>
+              <label>
+                <span>Canlı TV M3U Dosyası</span>
+                <input type="file" accept=".m3u,.m3u8,text/plain" onChange={(e) => uploadM3uFile('liveM3uContent', e.target.files?.[0])} />
+                {settings.liveM3uContent ? <small>Yüklü dosya hazır. Kaydedince herkeste aktif olur.</small> : null}
+              </label>
+              <label>
+                <span>Spor Kanalları M3U Linki</span>
+                <input value={settings.sportsM3uUrl} onChange={(e) => update('sportsM3uUrl', e.target.value)} placeholder="https://.../sports.m3u" />
+              </label>
+              <label>
+                <span>Spor M3U Dosyası</span>
+                <input type="file" accept=".m3u,.m3u8,text/plain" onChange={(e) => uploadM3uFile('sportsM3uContent', e.target.files?.[0])} />
+                {settings.sportsM3uContent ? <small>Spor dosyası hazır.</small> : null}
+              </label>
+              <div className="admin-actions">
+                <button className="watch-button" type="submit" disabled={isSaving}>{isSaving ? 'Güncelleniyor...' : 'Listeleri Güncelle'}</button>
+                <button type="button" onClick={fillLiveGithubSource}>GitHub Canlı M3U Kullan</button>
+                <button type="button" onClick={copyLiveGithubSource}>Canlı Linki Kopyala</button>
+              </div>
+            </div>
+          )}
+
+          {/* ── ARAÇLAR ── */}
+          {activeTab === 'araclar' && (
+            <div className="admin-tab-pane">
+              <div className="admin-section-title">
+                <strong>Sistem Araçları</strong>
+                <span>Katalog bot, önbellek ve dışa/içe aktarma işlemleri.</span>
+              </div>
+              <div className="admin-tools-grid">
+                <div className="admin-tool-card">
+                  <strong>Katalog Botu</strong>
+                  <span>{cacheStatus.isRunning ? `Çalışıyor — ${cacheStatus.currentStep}` : cacheStatus.lastMessage || 'Hazır'}</span>
+                  <button type="button" onClick={runCatalogBot} disabled={cacheStatus.isRunning}>Botu Çalıştır</button>
+                  <button type="button" onClick={refreshCacheStatus}>Durumu Yenile</button>
+                </div>
+                <div className="admin-tool-card">
+                  <strong>Sunucu Önbelleği</strong>
+                  <span>Cache {cacheStatus.diskBuckets.length || Object.values(cacheStatus.memory).reduce((s, v) => s + v, 0)} öğe</span>
+                  <button type="button" onClick={clearServerCache}>Sunucu Cache Temizle</button>
+                </div>
+                <div className="admin-tool-card">
+                  <strong>Bu Cihaz</strong>
+                  <span>Yerel önbellek ve geçmiş</span>
+                  <button type="button" onClick={clearLocalCache}>Önbelleği Temizle</button>
+                  <button type="button" onClick={clearWatchHistory}>İzleme Geçmişini Sil</button>
+                </div>
+                <div className="admin-tool-card">
+                  <strong>Ayarlar</strong>
+                  <span>Dışa/içe aktar</span>
+                  <button type="button" onClick={exportSettings}>Dışa Aktar</button>
+                  <label className="admin-tool-file">
+                    İçe Aktar
+                    <input type="file" accept="application/json,.json" onChange={(e) => importSettings(e.target.files?.[0])} />
+                  </label>
+                </div>
+                <div className="admin-tool-card">
+                  <strong>Test</strong>
+                  <span>Bağlantı testleri</span>
+                  <button type="button" onClick={() => window.open('https://atlastv.onrender.com', '_blank', 'noopener,noreferrer')}>Siteyi Aç</button>
+                  <button type="button" onClick={() => window.open(settings.telegramUrl || 'https://t.me/', '_blank', 'noopener,noreferrer')}>Telegramı Test Et</button>
+                  {settings.supportUrl ? (
+                    <button type="button" onClick={() => window.open(settings.supportUrl, '_blank', 'noopener,noreferrer')}>Desteği Test Et</button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          )}
+        </form>
+      </div>
     </section>
   )
 }

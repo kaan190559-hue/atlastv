@@ -90,6 +90,16 @@ export type LiveFilterParams = {
   platform?: string
 }
 
+export type SectionVariant = 'poster' | 'wide' | 'ranked' | 'channel' | 'trend' | 'circle'
+export type HomeSectionConfig = {
+  id: string
+  title: string
+  type: 'builtin' | 'genre'
+  genre?: string
+  variant: SectionVariant
+  enabled: boolean
+}
+
 export type AdminSettings = {
   vodM3uUrl: string
   liveM3uUrl: string
@@ -98,6 +108,9 @@ export type AdminSettings = {
   supportUrl: string
   appVersion: string
   announcement: string
+  homeNotification: string
+  homeNotificationId: number
+  homeSectionsConfig?: HomeSectionConfig[]
   liveM3uContent?: string
   sportsM3uContent?: string
   updatedAt?: string
@@ -263,6 +276,8 @@ const defaultAdminSettings: AdminSettings = {
   supportUrl: '',
   appVersion: '0.0.0',
   announcement: 'Güncel sürüm, duyurular, özel içerikler ve destek için kanalımızı takip edin.',
+  homeNotification: '',
+  homeNotificationId: 0,
   liveM3uContent: '',
   sportsM3uContent: '',
 }
@@ -843,7 +858,33 @@ const buildGenreSection = (vod: ContentItem[], id: string, title: string, genreN
   ),
 })
 
-const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: ContentItem[] = []): HomeSection[] => {
+const GENRE_FALLBACK_TERMS: Record<string, string[]> = {
+  Komedi: ['komedi', 'comedy', 'gülmece', 'humor', 'komik', 'eğlenceli', 'neşeli', 'romantic comedy', 'rom-com', 'romcom', 'aile komedisi', 'sitcom'],
+  Macera: ['macera', 'adventure', 'aksiyon macera', 'action adventure', 'fantastik', 'fantasy', 'bilim kurgu', 'sci-fi', 'scifi', 'epik', 'keşif', 'yolculuk', 'quest'],
+  Aksiyon: ['aksiyon', 'action', 'gerilim aksiyon', 'savaş', 'war', 'spionage', 'ajan', 'spy', 'suç', 'crime', 'polis', 'police'],
+  Korku: ['korku', 'horror', 'gerilim', 'thriller', 'gizem', 'mystery', 'canavar', 'karanlık', 'psikolojik', 'psychological', 'supernatural', 'doğaüstü', 'hayalet', 'ghost', 'zombie', 'slasher'],
+  Yerli: ['yerli', 'turk', 'türk', 'tr ', 'turkish', 'anadolu', 'istanbul', 'ankara', 'türkiye', 'turkey', 'türkçe', 'turkce', 'yeşilçam', 'trt', 'atv', 'show tv', 'kanal d', 'star tv', 'fox tr'],
+}
+
+export const DEFAULT_HOME_SECTIONS_CONFIG: HomeSectionConfig[] = [
+  { id: 'continue', title: 'İzlemeye Devam Et', type: 'builtin', variant: 'wide', enabled: true },
+  { id: 'favorites', title: 'Favorilerim', type: 'builtin', variant: 'circle', enabled: true },
+  { id: 'trend', title: 'Şimdi Trend', type: 'builtin', variant: 'trend', enabled: true },
+  { id: 'live', title: 'Canlı Kanallar', type: 'builtin', variant: 'channel', enabled: true },
+  { id: 'sports', title: 'Spor Kanalları', type: 'builtin', variant: 'channel', enabled: true },
+  { id: 'new-series', title: 'Yeni Eklenen Diziler', type: 'builtin', variant: 'wide', enabled: true },
+  { id: 'komedi', title: 'Komedi', type: 'genre', genre: 'Komedi', variant: 'poster', enabled: true },
+  { id: 'macera', title: 'Macera', type: 'genre', genre: 'Macera', variant: 'poster', enabled: true },
+  { id: 'aksiyon', title: 'Aksiyon', type: 'genre', genre: 'Aksiyon', variant: 'poster', enabled: true },
+  { id: 'korku', title: 'Korku', type: 'genre', genre: 'Korku', variant: 'poster', enabled: true },
+  { id: 'yerli', title: 'Yerli', type: 'genre', genre: 'Yerli', variant: 'poster', enabled: true },
+  { id: 'recommended', title: 'Önerilen İçerikler', type: 'builtin', variant: 'poster', enabled: true },
+  { id: 'top', title: 'Top 10', type: 'builtin', variant: 'ranked', enabled: true },
+  { id: 'admin', title: 'Admin Tavsiyesi', type: 'builtin', variant: 'wide', enabled: true },
+]
+
+const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: ContentItem[] = [], sectionsConfig?: HomeSectionConfig[]): HomeSection[] => {
+  const config = sectionsConfig?.length ? sectionsConfig : DEFAULT_HOME_SECTIONS_CONFIG
   const vod = catalog.filter((item) => !item.isLive)
   const series = vod.filter((item) => item.type === 'series')
   const continueItems = vod.filter((item) => item.progress && item.progress > 0 && item.progress < 98).slice(0, 18)
@@ -856,90 +897,33 @@ const getHomeSectionsFromCatalog = (catalog: ContentItem[], sportsItems: Content
   rememberPicked(pickedIds, recommended)
   const top = takeRandomContent(vod, 10, pickedIds)
   rememberPicked(pickedIds, top)
-  const admin = takeRandomContent(vod, 14, pickedIds)
-  const genreSections = [
-    buildGenreSection(vod, 'komedi', 'Komedi', 'Komedi', [
-      'komedi', 'comedy', 'gülmece', 'humor', 'komik', 'eğlenceli', 'neşeli',
-      'romantic comedy', 'rom-com', 'romcom', 'aile komedisi', 'sitcom',
-    ], pickedIds),
-    buildGenreSection(vod, 'macera', 'Macera', 'Macera', [
-      'macera', 'adventure', 'aksiyon macera', 'action adventure',
-      'fantastik', 'fantasy', 'bilim kurgu', 'sci-fi', 'scifi', 'epik',
-      'keşif', 'yolculuk', 'quest',
-    ], pickedIds),
-    buildGenreSection(vod, 'aksiyon', 'Aksiyon', 'Aksiyon', [
-      'aksiyon', 'action', 'gerilim aksiyon', 'savaş', 'war', 'spionage',
-      'ajan', 'spy', 'suç', 'crime', 'polis', 'police',
-    ], pickedIds),
-    buildGenreSection(vod, 'korku', 'Korku', 'Korku', [
-      'korku', 'horror', 'gerilim', 'thriller', 'gizem', 'mystery',
-      'canavar', 'karanlık', 'psikolojik', 'psychological', 'supernatural',
-      'doğaüstü', 'hayalet', 'ghost', 'zombie', 'slasher',
-    ], pickedIds),
-    buildGenreSection(vod, 'yerli', 'Yerli', 'Yerli', [
-      'yerli', 'turk', 'türk', 'tr ', 'turkish', 'anadolu', 'istanbul',
-      'ankara', 'türkiye', 'turkey', 'türkçe', 'turkce', 'yeşilçam',
-      'trt', 'atv', 'show tv', 'kanal d', 'star tv', 'fox tr',
-    ], pickedIds),
-  ].filter((section) => section.items.length)
+  const adminItems = takeRandomContent(vod, 14, pickedIds)
 
-  return [
-    {
-      id: 'continue',
-      title: 'İzlemeye Devam Et',
-      variant: 'wide',
-      items: continueItems,
-    },
-    {
-      id: 'favorites',
-      title: 'Favorilerim',
-      variant: 'circle',
-      items: catalog.filter((item) => item.isFavorite).slice(0, 18),
-    },
-    {
-      id: 'trend',
-      title: '\u015eimdi Trend',
-      variant: 'trend',
-      items: trending,
-    },
-    {
-      id: 'live',
-      title: 'Canlı Kanallar',
-      variant: 'channel',
-      items: catalog.filter((item) => item.isLive),
-    },
-    {
-      id: 'sports',
-      title: 'Spor Kanalları',
-      variant: 'channel',
-      items: sportsItems,
-    },
-    {
-      id: 'new-series',
-      title: 'Yeni Eklenen Diziler',
-      variant: 'wide',
-      items: newSeries,
-    },
-    ...genreSections,
-    {
-      id: 'recommended',
-      title: 'Önerilen İçerikler',
-      variant: 'poster',
-      items: recommended,
-    },
-    {
-      id: 'top',
-      title: 'Top 10',
-      variant: 'ranked',
-      items: top,
-    },
-    {
-      id: 'admin',
-      title: 'Admin Tavsiyesi',
-      variant: 'wide',
-      items: admin,
-    },
-  ]
+  const builtinSections: Record<string, HomeSection> = {
+    continue: { id: 'continue', title: 'İzlemeye Devam Et', variant: 'wide', items: continueItems },
+    favorites: { id: 'favorites', title: 'Favorilerim', variant: 'circle', items: catalog.filter((item) => item.isFavorite).slice(0, 18) },
+    trend: { id: 'trend', title: 'Şimdi Trend', variant: 'trend', items: trending },
+    live: { id: 'live', title: 'Canlı Kanallar', variant: 'channel', items: catalog.filter((item) => item.isLive) },
+    sports: { id: 'sports', title: 'Spor Kanalları', variant: 'channel', items: sportsItems },
+    'new-series': { id: 'new-series', title: 'Yeni Eklenen Diziler', variant: 'wide', items: newSeries },
+    recommended: { id: 'recommended', title: 'Önerilen İçerikler', variant: 'poster', items: recommended },
+    top: { id: 'top', title: 'Top 10', variant: 'ranked', items: top },
+    admin: { id: 'admin', title: 'Admin Tavsiyesi', variant: 'wide', items: adminItems },
+  }
+
+  const sections: HomeSection[] = []
+  for (const cfg of config) {
+    if (!cfg.enabled) continue
+    if (cfg.type === 'builtin') {
+      const builtin = builtinSections[cfg.id]
+      if (builtin) sections.push({ ...builtin, title: cfg.title, variant: cfg.variant as HomeSection['variant'] })
+    } else if (cfg.type === 'genre' && cfg.genre) {
+      const fallback = GENRE_FALLBACK_TERMS[cfg.genre] ?? []
+      const section = buildGenreSection(vod, cfg.id, cfg.title, cfg.genre, fallback, pickedIds)
+      if (section.items.length) sections.push({ ...section, variant: cfg.variant as HomeSection['variant'] })
+    }
+  }
+  return sections
 }
 
 const getFallbackHomeCatalog = () => [...fallbackVodCatalog, ...liveCatalog]
@@ -949,7 +933,7 @@ const buildFreshHomeSections = async () => {
   const settings = await getAdminSettings()
   const hasSportsSource = Boolean(settings.sportsM3uUrl.trim() || settings.sportsM3uContent?.trim())
   const sports = hasSportsSource ? await loadSportsCatalog(0, 24).catch(() => ({ items: [], total: 0 })) : { items: [], total: 0 }
-  const sections = getHomeSectionsFromCatalog(catalog, sports.items)
+  const sections = getHomeSectionsFromCatalog(catalog, sports.items, settings.homeSectionsConfig)
   if (sections.some((section) => section.items.length > 0)) writeTimedCache(HOME_SECTIONS_CACHE_KEY, sections)
   return sections
 }
@@ -1185,6 +1169,9 @@ export const api = {
         supportUrl: settings.supportUrl.trim(),
         appVersion: settings.appVersion.trim() || '0.0.0',
         announcement: settings.announcement.trim(),
+        homeNotification: settings.homeNotification.trim(),
+        homeNotificationId: Number(settings.homeNotificationId) || 0,
+        homeSectionsConfig: settings.homeSectionsConfig,
         liveM3uContent: settings.liveM3uContent ?? '',
         sportsM3uContent: settings.sportsM3uContent ?? '',
         updatedAt: new Date().toISOString(),
