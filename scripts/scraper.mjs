@@ -21,6 +21,13 @@ const HEADERS = {
 
 // ── ZbahisTV: domain.php'den baseurl al, 7/24 kanal listesini HTML'den çek
 const getZbahisChannels = async (baseUrl) => {
+  const domainData = await fetchJson('https://data-reality.com/domain.php')
+  if (!domainData?.baseurl) {
+    console.warn('  data-reality.com/domain.php yanıt vermedi')
+    return []
+  }
+  const streamBase = domainData.baseurl.replace(/\/$/, '') + '/'
+
   // Sitenin HTML'inden 7/24 kanal listesini çek
   const html = await fetchText(baseUrl)
   if (!html) return []
@@ -36,8 +43,7 @@ const getZbahisChannels = async (baseUrl) => {
   while ((m = regex.exec(tabHtml)) !== null) {
     const id = m[1]
     const name = m[2].trim()
-    // Player sayfası URL'si — autoplay ile aç
-    channels.push({ id, name, url: `${baseUrl}/channel.html?id=${id}&autoplay=1` })
+    channels.push({ id, name, url: `${streamBase}${id}/mono.m3u8` })
   }
 
   console.log(`  Bulunan 7/24 kanal: ${channels.length}`)
