@@ -979,10 +979,15 @@ function App() {
     setIsPlaying(true)
     flushSync(() => setPlayerItem(item))
 
-    const player = document.querySelector<HTMLElement>('.player-overlay')
-    player?.requestFullscreen?.().catch(() => {
-      // Browser fullscreen can be blocked; the overlay is still fixed to the viewport.
-    })
+    // Skip requestFullscreen in Electron — the overlay is already position:fixed
+    // full-viewport; calling requestFullscreen causes a GPU surface black frame.
+    const isElectron = navigator.userAgent.includes('Electron')
+    if (!isElectron) {
+      const player = document.querySelector<HTMLElement>('.player-overlay')
+      player?.requestFullscreen?.().catch(() => {
+        // Browser fullscreen can be blocked; the overlay is still fixed to the viewport.
+      })
+    }
     // On portrait-locked devices (APK), unlock orientation for fullscreen video
     window.screen.orientation?.unlock?.()
   }
