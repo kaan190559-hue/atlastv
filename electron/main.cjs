@@ -20,8 +20,9 @@ function createWindow() {
     backgroundColor: '#0a0a0f',
     webPreferences: {
       nodeIntegration: false,
-      contextIsolation: true,
+      contextIsolation: false,
       backgroundThrottling: false,
+      preload: require('path').join(__dirname, 'preload.cjs'),
     },
   })
 
