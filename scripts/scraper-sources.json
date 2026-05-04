@@ -1,73 +1,11 @@
 [
   {
-    "id": "atomsport",
-    "name": "AtomSport / TeleTV5 Kanallar",
-    "type": "teletv5",
-    "group": "Spor",
-    "staticIds": [
-      { "id": "bein-sports-1", "name": "beIN Sports 1" },
-      { "id": "bein-sports-2", "name": "beIN Sports 2" },
-      { "id": "bein-sports-3", "name": "beIN Sports 3" },
-      { "id": "bein-sports-4", "name": "beIN Sports 4" },
-      { "id": "bein-sports-5", "name": "beIN Sports 5" },
-      { "id": "bein-sports-max-1", "name": "beIN Sports Max 1" },
-      { "id": "bein-sports-max-2", "name": "beIN Sports Max 2" },
-      { "id": "bein-sports-max-3", "name": "beIN Sports Max 3" },
-      { "id": "bein-sports-haber", "name": "beIN Sports Haber" },
-      { "id": "s-sport", "name": "S Sport" },
-      { "id": "s-sport-2", "name": "S Sport 2" },
-      { "id": "trt-spor", "name": "TRT Spor" },
-      { "id": "trt-1", "name": "TRT 1" },
-      { "id": "trt-2", "name": "TRT 2" },
-      { "id": "trt-yildiz", "name": "TRT Yildiz" },
-      { "id": "a-spor", "name": "A Spor" },
-      { "id": "ht-spor", "name": "HT Spor" },
-      { "id": "tivibu-spor", "name": "Tivibu Spor" },
-      { "id": "tivibu-spor-1", "name": "Tivibu Spor 1" },
-      { "id": "tivibu-spor-2", "name": "Tivibu Spor 2" },
-      { "id": "tivibu-spor-3", "name": "Tivibu Spor 3" },
-      { "id": "tivibu-spor-4", "name": "Tivibu Spor 4" },
-      { "id": "spor-smart", "name": "Spor Smart" },
-      { "id": "spor-smart-2", "name": "Spor Smart 2" },
-      { "id": "cbc-sport", "name": "CBC Sport" },
-      { "id": "idman-tv", "name": "Idman TV" }
-    ]
-  },
-  {
-    "id": "bosssports",
-    "name": "BossSports Kanallar",
-    "type": "bosssports",
-    "domainPattern": "bosssports{N}.com",
-    "currentN": 576,
+    "id": "zbahis",
+    "name": "ZbahisTV 7/24 Kanallar",
+    "type": "zbahis",
     "scheme": "https",
-    "group": "Spor"
-  },
-  {
-    "id": "static",
-    "name": "Sabit Kanallar",
-    "type": "static",
-    "group": "Spor",
-    "channels": [
-      { "name": "HT Spor", "url": "https://ciner.daioncdn.net/ht-spor/ht-spor.m3u8?app=web" }
-    ]
-  },
-  {
-    "id": "trgoals",
-    "name": "TRGoals 7/24 TV",
-    "type": "trgoals",
-    "domainPattern": "www.trgoals{N}.top",
-    "currentN": 171,
-    "scheme": "https",
-    "group": "Spor"
-  },
-  {
-    "id": "selcukiptv",
-    "name": "SelcukIPTV TV",
-    "type": "selcukiptv",
-    "disabled": true,
-    "domainPattern": "selcukiptv{N}.top",
-    "currentN": 14,
-    "scheme": "https",
+    "domainPattern": "zbahistv{N}.com",
+    "currentN": 52,
     "group": "Spor"
   }
 ]

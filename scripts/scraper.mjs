@@ -19,6 +19,39 @@ const HEADERS = {
   'Origin': 'https://atomsportv501.top',
 }
 
+// ── ZbahisTV: domain.php'den baseurl al, 7/24 kanal listesini HTML'den çek
+const getZbahisChannels = async (baseUrl) => {
+  // 1. Stream base URL'yi data-reality.com'dan çek
+  const domainData = await fetchJson('https://data-reality.com/domain.php')
+  if (!domainData?.baseurl) {
+    console.warn('  data-reality.com/domain.php yanıt vermedi')
+    return []
+  }
+  const streamBase = domainData.baseurl.replace(/\/$/, '') + '/'
+  console.log(`  Stream base: ${streamBase}`)
+
+  // 2. Sitenin HTML'inden 7/24 kanal listesini çek
+  const html = await fetchText(baseUrl)
+  if (!html) return []
+
+  // 24-7-tab bölümünü izole et
+  const tabStart = html.indexOf('id="24-7-tab"')
+  const tabEnd = html.indexOf('<!-- 7/24', tabStart)
+  const tabHtml = tabStart !== -1 ? html.slice(tabStart, tabEnd !== -1 ? tabEnd : tabStart + 8000) : html
+
+  const channels = []
+  const regex = /href="\/channel\.html\?id=([\w]+)"[^>]*>[\s\S]*?<div class="channel-name">([^<]+)<\/div>/g
+  let m
+  while ((m = regex.exec(tabHtml)) !== null) {
+    const id = m[1]
+    const name = m[2].trim()
+    channels.push({ id, name, url: `${streamBase}${id}/mono.m3u8` })
+  }
+
+  console.log(`  Bulunan 7/24 kanal: ${channels.length}`)
+  return channels
+}
+
 // ── BossSports: _1/_2 token + data-watch ID → playlist.m3u8
 const getBossSportsChannels = async (baseUrl) => {
   const html = await fetchText(baseUrl, {
@@ -239,6 +272,24 @@ const main = async () => {
         }
         baseUrl = result.baseUrl
       }
+    }
+
+    // ── ZbahisTV tipi: domain.php + HTML kanal listesi → mono.m3u8
+    if (source.type === 'zbahis') {
+      const channels = await getZbahisChannels(baseUrl)
+      for (const ch of channels) {
+        const key = ch.id
+        if (seenIds.has(key)) continue
+        seenIds.add(key)
+        const nameKey = ch.name.toLowerCase().replace(/\s+/g, '-')
+        seenIds.add(nameKey)
+        allLines.push(`#EXTINF:-1 tvg-id="${source.id}_${key}" tvg-name="${ch.name}" tvg-logo="${getChannelLogo(ch.name)}" group-title="${source.group}",${ch.name}`)
+        allLines.push(`#EXTVLCOPT:http-referrer=${baseUrl}/`)
+        allLines.push(ch.url)
+        totalValid++
+        console.log(`  ✓ ${ch.name}`)
+      }
+      continue
     }
 
     // ── Static tipi: sabit URL listesi
