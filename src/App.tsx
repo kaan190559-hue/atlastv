@@ -218,6 +218,11 @@ function applyDeviceProfile(profile: DeviceType) {
 }
 
 function detectDeviceProfile(): DeviceType {
+  // URL override for TV APK build
+  const urlParams = new URLSearchParams(window.location.search)
+  const override = urlParams.get('deviceOverride') as DeviceType | null
+  if (override === 'tv' || override === 'pc' || override === 'phone') return override
+
   const ua = navigator.userAgent.toLowerCase()
   const isTv =
     /\b(smart-tv|smarttv|hbbtv|netcast|webos|tizen|appletv|googletv|android tv|bravia|viera|aquos|roku|aft)\b/.test(ua)
@@ -679,6 +684,8 @@ function App() {
 
   const closePlayer = useCallback(() => {
     window.screen.orientation?.unlock?.()
+    // Re-lock to portrait after player close (for portrait APK build)
+    window.screen.orientation?.lock?.('portrait').catch(() => undefined)
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => undefined)
     }
@@ -976,6 +983,8 @@ function App() {
     player?.requestFullscreen?.().catch(() => {
       // Browser fullscreen can be blocked; the overlay is still fixed to the viewport.
     })
+    // On portrait-locked devices (APK), unlock orientation for fullscreen video
+    window.screen.orientation?.unlock?.()
   }
 
   if (showSplash) {

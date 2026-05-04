@@ -15,7 +15,10 @@
     "electron:build": "electron-builder --win",
     "cap:add": "npx cap add android",
     "cap:sync": "npx cap sync android",
-    "cap:open": "npx cap open android"
+    "cap:open": "npx cap open android",
+    "cap:tv:sync": "npx cap sync android --config capacitor.tv.config.ts",
+    "apk:phone": "npm run build && npm run cap:sync && cd android && gradlew.bat assembleDebug",
+    "apk:tv": "npm run build && npx cap copy android --config capacitor.tv.config.ts && cd android && gradlew.bat assembleDebug"
   },
   "build": {
     "appId": "com.atlastv.desktop",
@@ -33,7 +36,10 @@
     "nsis": {
       "oneClick": true,
       "perMachine": false,
-      "installerLanguages": ["tr_TR", "en_US"]
+      "installerLanguages": [
+        "tr_TR",
+        "en_US"
+      ]
     }
   },
   "dependencies": {
@@ -46,6 +52,7 @@
     "react-dom": "^19.2.5"
   },
   "devDependencies": {
+    "@electron/packager": "^20.0.0",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",

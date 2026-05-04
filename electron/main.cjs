@@ -15,11 +15,32 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      // Hardware acceleration settings for stable video rendering
+      backgroundThrottling: false,
     },
   })
 
   win.setMenuBarVisibility(false)
   win.loadURL(RENDER_URL)
+
+  // Fix black screen on player open: invalidate + resize trick forces GPU repaint
+  win.webContents.on('did-finish-load', () => {
+    // Inject a tiny script that forces repaint whenever fullscreen changes
+    win.webContents.executeJavaScript(`
+      document.addEventListener('fullscreenchange', () => {
+        // Force a reflow/repaint to prevent black frame on fullscreen enter
+        document.body.style.transform = 'translateZ(0)';
+        requestAnimationFrame(() => { document.body.style.transform = ''; });
+      });
+    `).catch(() => undefined)
+  })
+
+  // When entering fullscreen, nudge the window size to force GPU surface refresh
+  win.on('enter-full-screen', () => {
+    const [w, h] = win.getSize()
+    win.setSize(w + 1, h)
+    setTimeout(() => win.setSize(w, h), 50)
+  })
 
   // Open any external pop-up links in the system browser
   win.webContents.setWindowOpenHandler(({ url }) => {
