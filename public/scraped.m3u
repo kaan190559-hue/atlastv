@@ -1,27 +1,55 @@
 #EXTM3U
-#EXTINF:-1 tvg-id="atomsport_bein-sports-1" tvg-name="Bein Sports 1" tvg-logo="/logos/bein-sports-1.svg" group-title="Spor",Bein Sports 1
+#EXTINF:-1 tvg-id="atomsport_bein-sports-1" tvg-name="beIN Sports 1" tvg-logo="/logos/bein-sports-1.svg" group-title="Spor",beIN Sports 1
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/bein-sports-11.m3u8
-#EXTINF:-1 tvg-id="atomsport_bein-sports-2" tvg-name="Bein Sports 2" tvg-logo="/logos/bein-sports-2.svg" group-title="Spor",Bein Sports 2
+#EXTINF:-1 tvg-id="atomsport_bein-sports-2" tvg-name="beIN Sports 2" tvg-logo="/logos/bein-sports-2.svg" group-title="Spor",beIN Sports 2
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/bein-sports-2.m3u8
-#EXTINF:-1 tvg-id="atomsport_bein-sports-3" tvg-name="Bein Sports 3" tvg-logo="/logos/bein-sports-3.svg" group-title="Spor",Bein Sports 3
+#EXTINF:-1 tvg-id="atomsport_bein-sports-3" tvg-name="beIN Sports 3" tvg-logo="/logos/bein-sports-3.svg" group-title="Spor",beIN Sports 3
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/bein-sports-3.m3u8
-#EXTINF:-1 tvg-id="atomsport_bein-sports-4" tvg-name="Bein Sports 4" tvg-logo="/logos/bein-sports-4.svg" group-title="Spor",Bein Sports 4
+#EXTINF:-1 tvg-id="atomsport_bein-sports-4" tvg-name="beIN Sports 4" tvg-logo="/logos/bein-sports-4.svg" group-title="Spor",beIN Sports 4
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/bein-sports-4.m3u8
-#EXTINF:-1 tvg-id="atomsport_bein-sports-5" tvg-name="Bein Sports 5" tvg-logo="/logos/bein-sports-5.svg" group-title="Spor",Bein Sports 5
+#EXTINF:-1 tvg-id="atomsport_bein-sports-5" tvg-name="beIN Sports 5" tvg-logo="/logos/bein-sports-5.svg" group-title="Spor",beIN Sports 5
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/bein-sports-5.m3u8
-#EXTINF:-1 tvg-id="atomsport_bein-sports-max-1" tvg-name="Bein Sports Max 1" tvg-logo="/logos/bein-sports-max-1.svg" group-title="Spor",Bein Sports Max 1
+#EXTINF:-1 tvg-id="atomsport_bein-sports-max-1" tvg-name="beIN Sports Max 1" tvg-logo="/logos/bein-sports-max-1.svg" group-title="Spor",beIN Sports Max 1
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/bein-sports-max-1.m3u8
-#EXTINF:-1 tvg-id="atomsport_bein-sports-max-2" tvg-name="Bein Sports Max 2" tvg-logo="/logos/bein-sports-max-2.svg" group-title="Spor",Bein Sports Max 2
+#EXTINF:-1 tvg-id="atomsport_bein-sports-max-2" tvg-name="beIN Sports Max 2" tvg-logo="/logos/bein-sports-max-2.svg" group-title="Spor",beIN Sports Max 2
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/bein-sports-max-2.m3u8
 #EXTINF:-1 tvg-id="atomsport_s-sport" tvg-name="S Sport" tvg-logo="/logos/s-sport.svg" group-title="Spor",S Sport
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/s-sport.m3u8
 #EXTINF:-1 tvg-id="atomsport_s-sport-2" tvg-name="S Sport 2" tvg-logo="/logos/s-sport-2.svg" group-title="Spor",S Sport 2
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/s-sport-2.m3u8
-#EXTINF:-1 tvg-id="atomsport_trt-spor" tvg-name="Trt Spor" tvg-logo="/logos/trt-spor.svg" group-title="Spor",Trt Spor
+#EXTINF:-1 tvg-id="atomsport_trt-spor" tvg-name="TRT Spor" tvg-logo="/logos/trt-spor.svg" group-title="Spor",TRT Spor
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/trt-spor.m3u8
-#EXTINF:-1 tvg-id="atomsport_trt-1" tvg-name="Trt 1" tvg-logo="/logos/trt-1.svg" group-title="Spor",Trt 1
+#EXTINF:-1 tvg-id="atomsport_trt-1" tvg-name="TRT 1" tvg-logo="/logos/trt-1.svg" group-title="Spor",TRT 1
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/trt1.m3u8
 #EXTINF:-1 tvg-id="atomsport_a-spor" tvg-name="A Spor" tvg-logo="/logos/a-spor.svg" group-title="Spor",A Spor
 https://young-surf-88a9.yesbefere.workers.dev/https://corestream.ronaldovurdu.help//hls/a-spor.m3u8
+#EXTINF:-1 tvg-id="bosssports_tivibu-spor-1" tvg-name="Tivibu Spor 1" tvg-logo="/logos/s-sport.svg" group-title="Spor",Tivibu Spor 1
+#EXTVLCOPT:http-referrer=https://bosssports576.com/play.html
+https://bo.5254f5a40cb7d71367.workers.dev/f6e33e69e0fdec0a7780e174f3c8b2c2/-/744/playlist.m3u8
+#EXTINF:-1 tvg-id="bosssports_tivibu-spor-2" tvg-name="Tivibu Spor 2" tvg-logo="/logos/s-sport.svg" group-title="Spor",Tivibu Spor 2
+#EXTVLCOPT:http-referrer=https://bosssports576.com/play.html
+https://bo.5254f5a40cb7d71367.workers.dev/f6e33e69e0fdec0a7780e174f3c8b2c2/-/762/playlist.m3u8
+#EXTINF:-1 tvg-id="bosssports_tabii-spor" tvg-name="tabii Spor" tvg-logo="" group-title="Spor",tabii Spor
+#EXTVLCOPT:http-referrer=https://bosssports576.com/play.html
+https://bo.5254f5a40cb7d71367.workers.dev/f6e33e69e0fdec0a7780e174f3c8b2c2/-/1080/playlist.m3u8
+#EXTINF:-1 tvg-id="bosssports_feed" tvg-name="FEED" tvg-logo="" group-title="Spor",FEED
+#EXTVLCOPT:http-referrer=https://bosssports576.com/play.html
+https://bo.5254f5a40cb7d71367.workers.dev/f6e33e69e0fdec0a7780e174f3c8b2c2/-/19035389/playlist.m3u8
+#EXTINF:-1 tvg-id="bosssports_tivibu-spor" tvg-name="Tivibu Spor" tvg-logo="/logos/s-sport.svg" group-title="Spor",Tivibu Spor
+#EXTVLCOPT:http-referrer=https://bosssports576.com/play.html
+https://bo.5254f5a40cb7d71367.workers.dev/f6e33e69e0fdec0a7780e174f3c8b2c2/-/75/playlist.m3u8
+#EXTINF:-1 tvg-id="bosssports_tivibu-spor-4" tvg-name="Tivibu Spor 4" tvg-logo="/logos/s-sport.svg" group-title="Spor",Tivibu Spor 4
+#EXTVLCOPT:http-referrer=https://bosssports576.com/play.html
+https://bo.5254f5a40cb7d71367.workers.dev/f6e33e69e0fdec0a7780e174f3c8b2c2/-/754/playlist.m3u8
+#EXTINF:-1 tvg-id="bosssports_tivibu-spor-3" tvg-name="Tivibu Spor 3" tvg-logo="/logos/s-sport.svg" group-title="Spor",Tivibu Spor 3
+#EXTVLCOPT:http-referrer=https://bosssports576.com/play.html
+https://bo.5254f5a40cb7d71367.workers.dev/f6e33e69e0fdec0a7780e174f3c8b2c2/-/769/playlist.m3u8
+#EXTINF:-1 tvg-id="bosssports_cbc-sport" tvg-name="CBC Sport" tvg-logo="/logos/ht-spor.svg" group-title="Spor",CBC Sport
+#EXTVLCOPT:http-referrer=https://bosssports576.com/play.html
+https://bo.5254f5a40cb7d71367.workers.dev/f6e33e69e0fdec0a7780e174f3c8b2c2/-/1010/playlist.m3u8
 #EXTINF:-1 tvg-id="static_ht-spor" tvg-name="HT Spor" tvg-logo="/logos/ht-spor.svg" group-title="Spor",HT Spor
 https://ciner.daioncdn.net/ht-spor/ht-spor.m3u8?app=web
+#EXTINF:-1 tvg-id="trgoals_trt-2" tvg-name="TRT 2" tvg-logo="/logos/trt-2.svg" group-title="Spor",TRT 2
+https://tv-trt2.medya.trt.com.tr/master.m3u8
+#EXTINF:-1 tvg-id="trgoals_trt-yıldız" tvg-name="TRT Yıldız" tvg-logo="/logos/trt-yildiz.svg" group-title="Spor",TRT Yıldız
+https://tv-trtspor2.medya.trt.com.tr/master.m3u8

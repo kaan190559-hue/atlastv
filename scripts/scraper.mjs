@@ -213,17 +213,32 @@ const main = async () => {
 
   for (let i = 0; i < sources.length; i++) {
     const source = sources[i]
+
+    // Devre dışı kaynakları atla
+    if (source.disabled) {
+      console.log(`\n[${i + 1}/${sources.length}] ${source.name} — DEVRE DIŞI, atlandı`)
+      continue
+    }
+
     console.log(`\n[${i + 1}/${sources.length}] ${source.name}`)
 
-    // Domain çözümle
+    // Domain çözümle — zorunlu değil, channelsApiUrl/baseUrl varsa domain olmadan devam et
     let baseUrl = source.baseUrl ?? null
     if (source.domainPattern) {
       const result = await findWorkingDomain(source)
-      if (!result) { console.warn(`  Atlandı — domain bulunamadı`); continue }
-      if (result.n !== source.currentN) {
-        sourcesUpdated[i] = { ...sourcesUpdated[i], currentN: result.n }
+      if (!result) {
+        if (source.channelsApiUrl) {
+          console.warn(`  Domain bulunamadı ama channelsApiUrl var, devam ediliyor`)
+        } else {
+          console.warn(`  Atlandı — domain bulunamadı`)
+          continue
+        }
+      } else {
+        if (result.n !== source.currentN) {
+          sourcesUpdated[i] = { ...sourcesUpdated[i], currentN: result.n }
+        }
+        baseUrl = result.baseUrl
       }
-      baseUrl = result.baseUrl
     }
 
     // ── Static tipi: sabit URL listesi
@@ -255,22 +270,12 @@ const main = async () => {
       for (const ch of channels) {
         const key = ch.name.toLowerCase().replace(/\s+/g, '-')
         if (seenIds.has(key)) continue
-        // URL erişilebilirliğini test et (403 olanları atla)
-        try {
-          const ctrl = new AbortController()
-          const t = setTimeout(() => ctrl.abort(), 6_000)
-          const res = await fetch(ch.url, {
-            method: 'HEAD', signal: ctrl.signal, redirect: 'follow',
-            headers: { Referer: ch.referer || '', 'User-Agent': HEADERS['User-Agent'] }
-          })
-          clearTimeout(t)
-          if (res.status >= 400) { console.log(`  ✗ ${ch.name}: ${res.status} (atlandı)`); continue }
-        } catch { console.log(`  ✗ ${ch.name}: timeout`); continue }
         seenIds.add(key)
         allLines.push(`#EXTINF:-1 tvg-id="${source.id}_${key}" tvg-name="${ch.name}" tvg-logo="${getChannelLogo(ch.name)}" group-title="${source.group}",${ch.name}`)
         if (ch.referer) allLines.push(`#EXTVLCOPT:http-referrer=${ch.referer}`)
         allLines.push(ch.url)
         totalValid++
+        console.log(`  ✓ ${ch.name}`)
       }
       console.log(`  ✓ Eklenen: ${channels.length}`)
       continue
@@ -300,6 +305,35 @@ const main = async () => {
         totalValid++
       })
       console.log(`  ✓ Eklenen: ${channels.length}`)
+      continue
+    }
+
+    // ── teletv5 tipi: staticIds listesi → teletv5 API ile stream URL
+    if (source.type === 'teletv5' || (source.staticIds && source.staticIds.length)) {
+      const ids = source.staticIds || []
+      console.log(`  Kanal ID sayısı: ${ids.length}`)
+      const BATCH = 8
+      for (let j = 0; j < ids.length; j += BATCH) {
+        const batch = ids.slice(j, j + BATCH)
+        const results = await Promise.all(
+          batch.map(async ({ id, name }) => {
+            const url = await getStreamUrl(id, null)
+            return url ? { id, name, url } : null
+          })
+        )
+        results.forEach(r => {
+          if (r && !seenIds.has(r.id)) {
+            seenIds.add(r.id)
+            const nameKey = r.name.toLowerCase().replace(/\s+/g, '-')
+            seenIds.add(nameKey)
+            allLines.push(`#EXTINF:-1 tvg-id="${source.id}_${r.id}" tvg-name="${r.name}" tvg-logo="${getChannelLogo(r.name)}" group-title="${source.group}",${r.name}`)
+            allLines.push(r.url)
+            totalValid++
+            console.log(`  ✓ ${r.name}`)
+          } else if (!r) totalFailed++
+        })
+      }
+      console.log(`  ✓ Geçerli stream: ${totalValid}`)
       continue
     }
 
