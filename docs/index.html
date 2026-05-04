@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="AtlasTv — Her cihazda canlı TV, dizi, film ve spor yayınları. Windows, Android ve TV uygulamaları ücretsiz." />
+  <title>AtlasTv — Her Cihazda Yayın</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0a0a0f;
+      --surface: #13131a;
+      --card:    #1a1a24;
+      --border:  rgba(255,255,255,.08);
+      --fg:      #f0f0f8;
+      --muted:   #8888aa;
+      --accent:  #7c5cfc;
+      --accent2: #5eead4;
+      --win:     #3b82f6;
+      --android: #22c55e;
+      --tv:      #f59e0b;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 clamp(16px, 5vw, 80px);
+      height: 64px;
+      background: rgba(10,10,15,.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 20px;
+      text-decoration: none;
+      color: var(--fg);
+    }
+
+    .nav-brand span { font-size: 24px; }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color .2s;
+    }
+
+    .nav-links a:hover { color: var(--fg); }
+
+    .nav-cta {
+      padding: 8px 20px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff !important;
+      font-weight: 700 !important;
+      font-size: 14px;
+      text-decoration: none;
+      transition: opacity .2s !important;
+    }
+
+    .nav-cta:hover { opacity: .85 !important; }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(72px, 12vw, 140px) clamp(16px, 5vw, 80px) clamp(64px, 10vw, 120px);
+      text-align: center;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 50% -10%, rgba(124,92,252,.28), transparent),
+        radial-gradient(ellipse 40% 30% at 80% 60%, rgba(94,234,212,.12), transparent);
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 999px;
+      background: rgba(124,92,252,.15);
+      border: 1px solid rgba(124,92,252,.3);
+      font-size: 13px;
+      font-weight: 600;
+      color: #a78bfa;
+      margin-bottom: 28px;
+    }
+
+    .hero h1 {
+      font-size: clamp(42px, 8vw, 88px);
+      font-weight: 900;
+      letter-spacing: -2px;
+      line-height: 1.05;
+      margin-bottom: 24px;
+    }
+
+    .hero h1 .grad {
+      background: linear-gradient(135deg, #a78bfa 0%, #5eead4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: clamp(16px, 2.5vw, 20px);
+      color: var(--muted);
+      max-width: 560px;
+      margin: 0 auto 40px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 14px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      font-size: 15px;
+      text-decoration: none;
+      transition: transform .2s, opacity .2s;
+      box-shadow: 0 8px 32px rgba(124,92,252,.35);
+    }
+
+    .btn-primary:hover { transform: translateY(-2px); opacity: .9; }
+
+    .btn-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      color: var(--fg);
+      font-weight: 600;
+      font-size: 15px;
+      text-decoration: none;
+      transition: border-color .2s, background .2s;
+    }
+
+    .btn-outline:hover { border-color: var(--accent); background: rgba(124,92,252,.08); }
+
+    /* ── FEATURE PILLS ── */
+    .feature-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      padding: 48px clamp(16px, 5vw, 80px) 0;
+    }
+
+    .pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    /* ── SECTION ── */
+    section {
+      padding: clamp(64px, 10vw, 120px) clamp(16px, 5vw, 80px);
+    }
+
+    .section-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: clamp(28px, 5vw, 44px);
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+    }
+
+    .section-sub {
+      font-size: 16px;
+      color: var(--muted);
+      max-width: 520px;
+      margin-bottom: 48px;
+    }
+
+    /* ── FEATURES GRID ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .feature-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px;
+      transition: border-color .2s, transform .2s;
+    }
+
+    .feature-card:hover {
+      border-color: rgba(124,92,252,.4);
+      transform: translateY(-3px);
+    }
+
+    .feature-icon {
+      font-size: 32px;
+      margin-bottom: 14px;
+    }
+
+    .feature-card h3 {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .feature-card p {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── DOWNLOAD CARDS ── */
+    #indir { background: var(--surface); }
+
+    .download-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .dl-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      transition: transform .2s, border-color .2s;
+    }
+
+    .dl-card:hover { transform: translateY(-4px); }
+    .dl-card.win:hover  { border-color: var(--win); }
+    .dl-card.apk:hover  { border-color: var(--android); }
+    .dl-card.tv:hover   { border-color: var(--tv); }
+
+    .dl-card-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .dl-emoji { font-size: 44px; line-height: 1; }
+
+    .dl-card-info { flex: 1; }
+
+    .dl-card-title {
+      font-size: 20px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .dl-card-sub {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .dl-badge {
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 8px;
+      color: #fff;
+      letter-spacing: .5px;
+    }
+
+    .dl-card-desc {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .dl-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .dl-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .dl-step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--fg);
+    }
+
+    .dl-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 15px;
+      text-decoration: none;
+      color: #fff;
+      transition: opacity .2s, transform .2s;
+    }
+
+    .dl-btn:hover { opacity: .87; transform: scale(.98); }
+    .dl-btn.win  { background: var(--win);     box-shadow: 0 6px 24px rgba(59,130,246,.3); }
+    .dl-btn.apk  { background: var(--android); box-shadow: 0 6px 24px rgba(34,197,94,.3); }
+    .dl-btn.tv   { background: var(--tv);      box-shadow: 0 6px 24px rgba(245,158,11,.3); }
+
+    /* ── M3U SECTION ── */
+    .m3u-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 36px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 720px;
+    }
+
+    .m3u-box h3 {
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .m3u-box p { font-size: 14px; color: var(--muted); }
+
+    .m3u-url-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      flex-wrap: wrap;
+    }
+
+    .m3u-url-row code {
+      flex: 1;
+      font-size: 14px;
+      color: #a78bfa;
+      word-break: break-all;
+    }
+
+    .copy-btn {
+      padding: 8px 18px;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      font-size: 13px;
+      border: none;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: opacity .2s;
+    }
+
+    .copy-btn:hover { opacity: .85; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px clamp(16px, 5vw, 80px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    footer p { font-size: 13px; color: var(--muted); }
+
+    footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
+
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 13px; color: var(--muted); text-decoration: none; }
+    .footer-links a:hover { color: var(--fg); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .hero h1 { letter-spacing: -1px; }
+      .dl-card { padding: 24px 20px; }
+      .m3u-box { padding: 24px 18px; }
+      footer { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <a class="nav-brand" href="#">
+    <span>📡</span> AtlasTv
+  </a>
+  <ul class="nav-links">
+    <li><a href="#ozellikler">Özellikler</a></li>
+    <li><a href="#indir">İndir</a></li>
+    <li><a href="#m3u">M3U</a></li>
+    <li><a href="https://atlastv.onrender.com" target="_blank" class="nav-cta">Web'de Aç →</a></li>
+  </ul>
+</nav>
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <div class="hero-badge">🔴 Ücretsiz &amp; Açık Kaynak</div>
+  <h1>Her Cihazda<br><span class="grad">Sınırsız Yayın</span></h1>
+  <p class="hero-sub">
+    Canlı TV, spor kanalları, dizi ve film — Windows, Android telefon ve Android TV için tek uygulama.
+  </p>
+  <div class="hero-actions">
+    <a href="#indir" class="btn-primary">
+      ⬇️ Uygulamayı İndir
+    </a>
+    <a href="https://atlastv.onrender.com" target="_blank" class="btn-outline">
+      🌐 Web Sürümü
+    </a>
+  </div>
+</div>
+
+<div class="feature-pills">
+  <div class="pill">📡 Canlı TV</div>
+  <div class="pill">⚽ Spor Kanalları</div>
+  <div class="pill">🎬 Film &amp; Dizi</div>
+  <div class="pill">📋 M3U Destekli</div>
+  <div class="pill">🖥️ Windows</div>
+  <div class="pill">📱 Android</div>
+  <div class="pill">📺 Android TV</div>
+  <div class="pill">🌐 Web</div>
+</div>
+
+<!-- ── FEATURES ── -->
+<section id="ozellikler">
+  <div class="section-label">Özellikler</div>
+  <div class="section-title">Neden AtlasTv?</div>
+  <p class="section-sub">Tüm cihazlarında en iyi izleme deneyimi için tasarlandı.</p>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">📡</div>
+      <h3>Canlı TV &amp; Spor</h3>
+      <p>beIN Sports, S Sport, TRT, A Spor ve daha onlarca kanal. Her saat otomatik güncellenen M3U listesi.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎬</div>
+      <h3>Film &amp; Dizi</h3>
+      <p>Geniş VOD katalogu. Kaldığın yerden devam et, favori listeni oluştur, bölüm bölüm izle.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📺</div>
+      <h3>TV Arayüzü</h3>
+      <p>Android TV için özel tasarlanmış uzaktan kumanda navigasyonu. Tam ekran, kesintisiz yayın.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔍</div>
+      <h3>Akıllı Arama</h3>
+      <p>Kanal, dizi ve film ara. Kategori filtrele, ülkeye göre sırala, son izlediklerine hızlı eriş.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">👤</div>
+      <h3>Kullanıcı Profili</h3>
+      <p>İzleme geçmişi, favori listesi ve kişisel ayarlar. Her cihazda senkronize.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎨</div>
+      <h3>Özelleştirme</h3>
+      <p>Karanlık / aydınlık tema. Görünüm ayarları, cihaz tipine göre otomatik layout.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── DOWNLOAD ── -->
+<section id="indir">
+  <div class="section-label">İndir</div>
+  <div class="section-title">Platformunu Seç</div>
+  <p class="section-sub">Tüm sürümler ücretsiz. Kurulum gerekmez.</p>
+
+  <div class="download-cards">
+
+    <!-- Windows -->
+    <div class="dl-card win">
+      <div class="dl-card-top">
+        <div class="dl-emoji">🖥️</div>
+        <div class="dl-card-info">
+          <div class="dl-card-title">AtlasTv Windows</div>
+          <div class="dl-card-sub">Windows 10 / 11 — 64 bit</div>
+        </div>
+        <span class="dl-badge" style="background:var(--win)">EXE</span>
+      </div>
+      <p class="dl-card-desc">Electron tabanlı yerel uygulama. Yükleme gerektirmez, ZIP'i aç ve çalıştır.</p>
+      <div class="dl-steps">
+        <div class="dl-step"><span class="dl-step-num">1</span>ZIP dosyasını indir</div>
+        <div class="dl-step"><span class="dl-step-num">2</span>ZIP'i bir klasöre çıkart</div>
+        <div class="dl-step"><span class="dl-step-num">3</span>AtlasTv.exe'ye çift tıkla</div>
+      </div>
+      <a class="dl-btn win"
+         href="https://github.com/kaan190559-hue/atlastv/releases/latest/download/AtlasTv-Windows.zip"
+         download>
+        ⬇️ AtlasTv-Windows.zip
+      </a>
+    </div>
+
+    <!-- Android Telefon -->
+    <div class="dl-card apk">
+      <div class="dl-card-top">
+        <div class="dl-emoji">📱</div>
+        <div class="dl-card-info">
+          <div class="dl-card-title">AtlasTv Android</div>
+          <div class="dl-card-sub">Telefon &amp; Tablet</div>
+        </div>
+        <span class="dl-badge" style="background:var(--android)">APK</span>
+      </div>
+      <p class="dl-card-desc">Portrait mod. Player açılınca otomatik yatay döner, tam ekran olur.</p>
+      <div class="dl-steps">
+        <div class="dl-step"><span class="dl-step-num">1</span>APK'yı indir</div>
+        <div class="dl-step"><span class="dl-step-num">2</span>Ayarlar → Bilinmeyen kaynaklar → Aç</div>
+        <div class="dl-step"><span class="dl-step-num">3</span>APK'ya dokun ve kur</div>
+      </div>
+      <a class="dl-btn apk"
+         href="https://github.com/kaan190559-hue/atlastv/releases/latest/download/AtlasTv-Phone.apk"
+         download>
+        ⬇️ AtlasTv-Phone.apk
+      </a>
+    </div>
+
+    <!-- Android TV -->
+    <div class="dl-card tv">
+      <div class="dl-card-top">
+        <div class="dl-emoji">📺</div>
+        <div class="dl-card-info">
+          <div class="dl-card-title">AtlasTv TV</div>
+          <div class="dl-card-sub">Android TV / Smart TV</div>
+        </div>
+        <span class="dl-badge" style="background:var(--tv)">APK</span>
+      </div>
+      <p class="dl-card-desc">Landscape tam ekran TV arayüzü. Uzaktan kumanda ile tam navigasyon desteği.</p>
+      <div class="dl-steps">
+        <div class="dl-step"><span class="dl-step-num">1</span>APK'yı bilgisayara indir</div>
+        <div class="dl-step"><span class="dl-step-num">2</span>ADB veya USB ile TV'ye yükle</div>
+        <div class="dl-step"><span class="dl-step-num">3</span>Uygulamalar menüsünden aç</div>
+      </div>
+      <a class="dl-btn tv"
+         href="https://github.com/kaan190559-hue/atlastv/releases/latest/download/AtlasTv-TV.apk"
+         download>
+        ⬇️ AtlasTv-TV.apk
+      </a>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── M3U ── -->
+<section id="m3u">
+  <div class="section-label">M3U Listesi</div>
+  <div class="section-title">VLC / Kodi ile Kullan</div>
+  <p class="section-sub">Her saat otomatik güncellenen canlı yayın listesi. Herhangi bir IPTV oynatıcısında kullanabilirsin.</p>
+
+  <div class="m3u-box">
+    <h3>📋 M3U Yayın URL'si</h3>
+    <p>VLC'de <strong>Medya → Ağ akışını aç</strong> ile veya Kodi, TiviMate gibi IPTV uygulamalarına ekleyebilirsin.</p>
+    <div class="m3u-url-row">
+      <code id="m3u-url">https://atlastv.onrender.com/scraped.m3u</code>
+      <button class="copy-btn" onclick="copyM3u()">Kopyala</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <p>© 2025 AtlasTv — <a href="https://github.com/kaan190559-hue/atlastv" target="_blank">GitHub</a></p>
+  <div class="footer-links">
+    <a href="https://atlastv.onrender.com" target="_blank">Web Uygulaması</a>
+    <a href="https://github.com/kaan190559-hue/atlastv/releases" target="_blank">Tüm Sürümler</a>
+    <a href="https://github.com/kaan190559-hue/atlastv/issues" target="_blank">Hata Bildir</a>
+  </div>
+</footer>
+
+<script>
+  function copyM3u() {
+    const url = document.getElementById('m3u-url').textContent
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = document.querySelector('.copy-btn')
+      btn.textContent = '✓ Kopyalandı'
+      setTimeout(() => btn.textContent = 'Kopyala', 2000)
+    })
+  }
+</script>
+
+</body>
+</html>
