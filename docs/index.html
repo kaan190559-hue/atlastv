@@ -432,6 +432,30 @@
 
     .copy-btn:hover { opacity: .85; }
 
+    .m3u-apps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .m3u-app {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: border-color .2s;
+    }
+
+    .m3u-app:hover { border-color: rgba(124,92,252,.4); }
+
+    .m3u-app-icon { font-size: 22px; }
+    .m3u-app-name { font-size: 14px; font-weight: 700; color: var(--fg); }
+    .m3u-app-note { font-size: 12px; color: var(--muted); }
+
     /* ── FOOTER ── */
     footer {
       border-top: 1px solid var(--border);
@@ -627,15 +651,35 @@
 <!-- ── M3U ── -->
 <section id="m3u">
   <div class="section-label">M3U Listesi</div>
-  <div class="section-title">VLC / Kodi ile Kullan</div>
-  <p class="section-sub">Her saat otomatik güncellenen canlı yayın listesi. Herhangi bir IPTV oynatıcısında kullanabilirsin.</p>
+  <div class="section-title">Harici Oynatıcıda Aç</div>
+  <p class="section-sub">AtlasTv kanallarını istediğin uygulamada kullanmak için M3U linkini kopyala, oynatıcına yapıştır.</p>
 
   <div class="m3u-box">
-    <h3>📋 M3U Yayın URL'si</h3>
-    <p>VLC'de <strong>Medya → Ağ akışını aç</strong> ile veya Kodi, TiviMate gibi IPTV uygulamalarına ekleyebilirsin.</p>
     <div class="m3u-url-row">
       <code id="m3u-url">https://atlastv.onrender.com/scraped.m3u</code>
       <button class="copy-btn" onclick="copyM3u()">Kopyala</button>
+    </div>
+    <div class="m3u-apps">
+      <div class="m3u-app">
+        <span class="m3u-app-icon">📺</span>
+        <span class="m3u-app-name">TiviMate</span>
+        <span class="m3u-app-note">Android TV için en iyi seçim</span>
+      </div>
+      <div class="m3u-app">
+        <span class="m3u-app-icon">📱</span>
+        <span class="m3u-app-name">IPTV Smarters</span>
+        <span class="m3u-app-note">Telefon &amp; Tablet</span>
+      </div>
+      <div class="m3u-app">
+        <span class="m3u-app-icon">🖥️</span>
+        <span class="m3u-app-name">VLC</span>
+        <span class="m3u-app-note">Windows / Mac / Linux</span>
+      </div>
+      <div class="m3u-app">
+        <span class="m3u-app-icon">🎬</span>
+        <span class="m3u-app-name">Kodi</span>
+        <span class="m3u-app-note">PVR IPTV Simple Client</span>
+      </div>
     </div>
   </div>
 </section>
