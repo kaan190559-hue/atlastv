@@ -3280,8 +3280,10 @@ function PlayerOverlay({
   const resumeAppliedRef = useRef(false)
   const proxiedStreamUrl = getProxiedStreamUrl(item)
   const isEmbeddedBetmatikPlayer = /betmatiktv\d+\.com\/channel\?id=/i.test(proxiedStreamUrl)
+  const isEmbeddedIframePlayer = isEmbeddedBetmatikPlayer
+    || /zbahistv\d+\.com\/channel(?:\.html)?\?id=/i.test(proxiedStreamUrl)
   const playerUserAgent = item.httpUserAgent || DEFAULT_PLAYER_USER_AGENT
-  const playerHeaders = isEmbeddedBetmatikPlayer
+  const playerHeaders = isEmbeddedIframePlayer
     ? ['Kaynak: Betmatik gömülü oynatıcı']
     : [
       `UA: ${playerUserAgent}`,
@@ -3374,10 +3376,10 @@ function PlayerOverlay({
   }
 
   useEffect(() => {
-    if (!isEmbeddedBetmatikPlayer) return
+    if (!isEmbeddedIframePlayer) return
     setPlayerStatus('ready')
     setHasVideoFrame(true)
-  }, [isEmbeddedBetmatikPlayer, item.id])
+  }, [isEmbeddedIframePlayer, item.id])
 
   useEffect(() => {
     const video = videoRef.current
@@ -3520,7 +3522,7 @@ function PlayerOverlay({
         onMouseMove={revealControls}
         onPointerMove={revealControls}
       >
-        {isEmbeddedBetmatikPlayer ? (
+        {isEmbeddedIframePlayer ? (
           <iframe
             className="player-video"
             src={proxiedStreamUrl}
@@ -3572,7 +3574,7 @@ function PlayerOverlay({
           </div>
         </div>
 
-        {!isEmbeddedBetmatikPlayer ? <div className="player-center">
+        {!isEmbeddedIframePlayer ? <div className="player-center">
           {playerStatus === 'loading' ? <span className="player-state">Yayin hazirlaniyor...</span> : null}
           {playerStatus === 'error' ? (
             <span className="player-state error">
@@ -3603,7 +3605,7 @@ function PlayerOverlay({
           </div>
         </div> : null}
 
-        {!isEmbeddedBetmatikPlayer ? <div className="player-controls">
+        {!isEmbeddedIframePlayer ? <div className="player-controls">
           <div className="player-progress-row">
             <span>{formatTime(currentTime)}</span>
             <input

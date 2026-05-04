@@ -21,16 +21,7 @@ const HEADERS = {
 
 // ── ZbahisTV: domain.php'den baseurl al, 7/24 kanal listesini HTML'den çek
 const getZbahisChannels = async (baseUrl) => {
-  // 1. Stream base URL'yi data-reality.com'dan çek
-  const domainData = await fetchJson('https://data-reality.com/domain.php')
-  if (!domainData?.baseurl) {
-    console.warn('  data-reality.com/domain.php yanıt vermedi')
-    return []
-  }
-  const streamBase = domainData.baseurl.replace(/\/$/, '') + '/'
-  console.log(`  Stream base: ${streamBase}`)
-
-  // 2. Sitenin HTML'inden 7/24 kanal listesini çek
+  // Sitenin HTML'inden 7/24 kanal listesini çek
   const html = await fetchText(baseUrl)
   if (!html) return []
 
@@ -40,12 +31,13 @@ const getZbahisChannels = async (baseUrl) => {
   const tabHtml = tabStart !== -1 ? html.slice(tabStart, tabEnd !== -1 ? tabEnd : tabStart + 8000) : html
 
   const channels = []
-  const regex = /href="\/channel\.html\?id=([\w]+)"[^>]*>[\s\S]*?<div class="channel-name">([^<]+)<\/div>/g
+  const regex = /href="\/channel(?:\.html)?\?id=([\w]+)"[^>]*>[\s\S]*?<div class="channel-name">([^<]+)<\/div>/g
   let m
   while ((m = regex.exec(tabHtml)) !== null) {
     const id = m[1]
     const name = m[2].trim()
-    channels.push({ id, name, url: `${streamBase}${id}/mono.m3u8` })
+    // Player sayfası URL'si — autoplay ile aç
+    channels.push({ id, name, url: `${baseUrl}/channel.html?id=${id}&autoplay=1` })
   }
 
   console.log(`  Bulunan 7/24 kanal: ${channels.length}`)
@@ -274,7 +266,7 @@ const main = async () => {
       }
     }
 
-    // ── ZbahisTV tipi: domain.php + HTML kanal listesi → mono.m3u8
+    // ── ZbahisTV tipi: domain.php + HTML kanal listesi → channel.html iframe
     if (source.type === 'zbahis') {
       const channels = await getZbahisChannels(baseUrl)
       for (const ch of channels) {
@@ -284,7 +276,6 @@ const main = async () => {
         const nameKey = ch.name.toLowerCase().replace(/\s+/g, '-')
         seenIds.add(nameKey)
         allLines.push(`#EXTINF:-1 tvg-id="${source.id}_${key}" tvg-name="${ch.name}" tvg-logo="${getChannelLogo(ch.name)}" group-title="${source.group}",${ch.name}`)
-        allLines.push(`#EXTVLCOPT:http-referrer=${baseUrl}/`)
         allLines.push(ch.url)
         totalValid++
         console.log(`  ✓ ${ch.name}`)
