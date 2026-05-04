@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { flushSync } from 'react-dom'
+import { createPortal, flushSync } from 'react-dom'
 import Hls from 'hls.js'
 import {
   BadgeInfo,
@@ -1158,7 +1158,7 @@ function App() {
 
       <MobileNav screen={screen} onScreenChange={changeScreen} />
 
-      {playerItem ? (
+      {playerItem ? createPortal(
         <PlayerOverlay
           item={playerItem}
           isPlaying={isPlaying}
@@ -1167,7 +1167,8 @@ function App() {
           onSelectEpisode={openPlayer}
           onToggleFavorite={() => toggleFavorite(playerItem)}
           onProgressSaved={refreshHomeSections}
-        />
+        />,
+        document.body
       ) : null}
 
       {adminGateOpen ? (
