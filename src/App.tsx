@@ -3278,13 +3278,15 @@ function PlayerOverlay({
   const hlsRetryRef = useRef(0)
   const lastProgressSaveRef = useRef(0)
   const resumeAppliedRef = useRef(false)
-  const proxiedStreamUrl = getProxiedStreamUrl(item)
-  const isEmbeddedBetmatikPlayer = /betmatiktv\d+\.com\/channel\?id=/i.test(proxiedStreamUrl)
-  const isEmbeddedIframePlayer = isEmbeddedBetmatikPlayer
-    || /zbahistv\d+\.com\/channel(?:\.html)?\?id=/i.test(proxiedStreamUrl)
+  const rawStreamUrl = item.streamUrl
+  const isEmbeddedIframePlayer =
+    /betmatiktv\d+\.com\/channel\?id=/i.test(rawStreamUrl) ||
+    /zbahistv\d+\.com\/channel(?:\.html)?\?id=/i.test(rawStreamUrl) ||
+    /zbahistv\d+\.com\/channel\?id=/i.test(rawStreamUrl)
+  const playerStreamUrl = isEmbeddedIframePlayer ? rawStreamUrl : getProxiedStreamUrl(item)
   const playerUserAgent = item.httpUserAgent || DEFAULT_PLAYER_USER_AGENT
   const playerHeaders = isEmbeddedIframePlayer
-    ? ['Kaynak: Betmatik gömülü oynatıcı']
+    ? ['Kaynak: iframe gömülü oynatıcı']
     : [
       `UA: ${playerUserAgent}`,
       item.isLive && item.referer ? `Referer: ${item.referer}` : '',
@@ -3403,7 +3405,7 @@ function PlayerOverlay({
         backBufferLength: 90,
       })
 
-      hls.loadSource(proxiedStreamUrl)
+      hls.loadSource(playerStreamUrl)
       hls.attachMedia(video)
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setPlayerStatus('ready')
@@ -3440,7 +3442,7 @@ function PlayerOverlay({
       }
     }
 
-    video.src = proxiedStreamUrl
+    video.src = playerStreamUrl
     video.play().catch(() => onPlayingChange(false))
     return () => {
       if (!item.isLive && video.currentTime > 3) {
@@ -3448,7 +3450,7 @@ function PlayerOverlay({
         onProgressSaved()
       }
     }
-  }, [item.id, item.isLive, onPlayingChange, onProgressSaved, proxiedStreamUrl, playerRetryKey])
+  }, [item.id, item.isLive, onPlayingChange, onProgressSaved, playerStreamUrl, playerRetryKey])
 
   useEffect(() => {
     const isMobile = window.matchMedia('(max-width: 900px), (pointer: coarse)').matches
@@ -3525,7 +3527,7 @@ function PlayerOverlay({
         {isEmbeddedIframePlayer ? (
           <iframe
             className="player-video"
-            src={proxiedStreamUrl}
+            src={playerStreamUrl}
             title={`${item.title} yayın`}
             allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen
@@ -3557,7 +3559,7 @@ function PlayerOverlay({
               setIsMuted(event.currentTarget.muted)
             }}
             data-source-url={item.streamUrl}
-            data-proxy-url={proxiedStreamUrl}
+            data-proxy-url={playerStreamUrl}
             data-http-user-agent={playerUserAgent}
             data-referer={item.isLive ? item.referer : undefined}
             data-origin={item.isLive ? item.origin : undefined}
