@@ -10,6 +10,7 @@ export type CategoryKey =
   | 'downloads'
   | 'account'
   | 'about'
+  | 'get-app'
 
 export type DownloadEntry = {
   item: ContentItem

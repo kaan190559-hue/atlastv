@@ -16,6 +16,7 @@ import {
   ListVideo,
   LogOut,
   Maximize,
+  MonitorSmartphone,
   Moon,
   Pause,
   Palette,
@@ -94,6 +95,7 @@ const navItems: Array<{ id: Screen; label: string; icon: typeof Home }> = [
   { id: 'downloads', label: 'İndirilenler', icon: Download },
   { id: 'list', label: 'Listem', icon: ListVideo },
   { id: 'favorites', label: 'Favoriler', icon: Heart },
+  { id: 'get-app', label: 'Uygulamayı İndir', icon: MonitorSmartphone },
   { id: 'account', label: 'Hesabım', icon: User },
   { id: 'about', label: 'Ayarlar', icon: Settings },
 ]
@@ -148,6 +150,7 @@ const categoryTitles: Record<Screen, string> = {
   downloads: 'İndirilenler',
   account: 'Hesabım',
   about: 'Ayarlar',
+  'get-app': 'Uygulamayı İndir',
 }
 
 type AppearanceSettings = {
@@ -988,8 +991,10 @@ function App() {
         // Browser fullscreen can be blocked; the overlay is still fixed to the viewport.
       })
     }
-    // On portrait-locked devices (APK), unlock orientation for fullscreen video
-    window.screen.orientation?.unlock?.()
+    // On portrait-locked devices (phone APK), force landscape for video playback
+    window.screen.orientation?.lock?.('landscape').catch(() => {
+      window.screen.orientation?.unlock?.()
+    })
   }
 
   if (showSplash) {
@@ -1145,6 +1150,10 @@ function App() {
             }}
           />
         ) : null}
+        {!adminPanelOpen && !detailItem && screen === 'get-app' ? (
+          <GetAppScreen />
+        ) : null}
+
         {!adminPanelOpen && !detailItem && screen === 'about' ? (
           <SettingsScreen
             appearance={appearance}
@@ -3685,6 +3694,108 @@ declare global {
   interface Window {
     webkitAudioContext?: typeof AudioContext
   }
+}
+
+// ── İndirme / Uygulama Sayfası ─────────────────────────────────────────────
+
+const RELEASE_BASE = 'https://github.com/kaan190559-hue/atlastv/releases/latest/download'
+
+const downloads = [
+  {
+    platform: 'Windows',
+    emoji: '🖥️',
+    title: 'AtlasTv Windows',
+    subtitle: 'Windows 10 / 11 — 64-bit',
+    desc: 'ZIP\'i aç, klasör içinden AtlasTv.exe\'yi çalıştır. Kurulum gerektirmez.',
+    filename: 'AtlasTv-Windows.zip',
+    badge: 'EXE',
+    badgeColor: '#3b82f6',
+  },
+  {
+    platform: 'Android Telefon',
+    emoji: '📱',
+    title: 'AtlasTv Android',
+    subtitle: 'Telefon & Tablet',
+    desc: 'APK\'yı indir, Ayarlar → Güvenlik → Bilinmeyen Kaynaklar\'ı aç ve kur.',
+    filename: 'AtlasTv-Phone.apk',
+    badge: 'APK',
+    badgeColor: '#22c55e',
+  },
+  {
+    platform: 'Android TV',
+    emoji: '📺',
+    title: 'AtlasTv TV',
+    subtitle: 'Android TV / Smart TV',
+    desc: 'TV\'ye ADB veya USB ile APK yükle. Tam ekran yatay TV arayüzü.',
+    filename: 'AtlasTv-TV.apk',
+    badge: 'APK',
+    badgeColor: '#f59e0b',
+  },
+]
+
+function GetAppScreen() {
+  return (
+    <div className="get-app-screen">
+      <div className="get-app-hero">
+        <div className="get-app-logo">📡</div>
+        <h1 className="get-app-title">AtlasTv</h1>
+        <p className="get-app-tagline">Her cihazda kesintisiz yayın deneyimi</p>
+        <div className="get-app-badges">
+          <span className="app-feature-badge">🔴 Canlı TV</span>
+          <span className="app-feature-badge">🎬 VOD</span>
+          <span className="app-feature-badge">⚽ Spor</span>
+          <span className="app-feature-badge">📡 M3U</span>
+        </div>
+      </div>
+
+      <div className="get-app-cards">
+        {downloads.map((d) => (
+          <div key={d.filename} className="get-app-card">
+            <div className="get-app-card-header">
+              <span className="get-app-platform-emoji">{d.emoji}</span>
+              <div>
+                <div className="get-app-card-title">{d.title}</div>
+                <div className="get-app-card-subtitle">{d.subtitle}</div>
+              </div>
+              <span className="get-app-badge" style={{ background: d.badgeColor }}>{d.badge}</span>
+            </div>
+            <p className="get-app-card-desc">{d.desc}</p>
+            <a
+              className="get-app-dl-btn"
+              href={`${RELEASE_BASE}/${d.filename}`}
+              download
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Download size={16} />
+              İndir — {d.filename}
+            </a>
+          </div>
+        ))}
+      </div>
+
+      <div className="get-app-m3u">
+        <div className="get-app-m3u-title">📋 M3U Yayın Listesi</div>
+        <p className="get-app-m3u-desc">VLC, Kodi veya herhangi bir IPTV oynatıcısında kullanabilirsin.</p>
+        <div className="get-app-m3u-url">
+          <code>https://atlastv.onrender.com/scraped.m3u</code>
+          <button
+            className="get-app-copy-btn"
+            onClick={() => navigator.clipboard?.writeText('https://atlastv.onrender.com/scraped.m3u')}
+          >
+            Kopyala
+          </button>
+        </div>
+      </div>
+
+      <div className="get-app-footer">
+        <p>AtlasTv açık kaynaklı bir projedir.</p>
+        <a href="https://github.com/kaan190559-hue/atlastv" target="_blank" rel="noreferrer">
+          GitHub&#x2192;
+        </a>
+      </div>
+    </div>
+  )
 }
 
 export default App
