@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">AtlasTv</string>
-    <string name="title_activity_main">AtlasTv</string>
-    <string name="package_name">com.atlastv.app</string>
-    <string name="custom_url_scheme">com.atlastv.app</string>
+    <string name="app_name">AtlasTv TV</string>
+    <string name="title_activity_main">AtlasTv TV</string>
+    <string name="package_name">com.atlastv.tv</string>
+    <string name="custom_url_scheme">com.atlastv.tv</string>
 </resources>

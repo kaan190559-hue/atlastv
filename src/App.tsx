@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal, flushSync } from 'react-dom'
-import Hls from 'hls.js'
+import type Hls from 'hls.js'
 import {
   BadgeInfo,
   Bell,
@@ -86,18 +86,24 @@ const securityQuestions = [
   'İlk okulunun adı',
 ]
 
-const navItems: Array<{ id: Screen; label: string; icon: typeof Home }> = [
-  { id: 'home', label: 'Anasayfa', icon: Home },
-  { id: 'live', label: 'Canlı Kanallar', icon: Tv },
-  { id: 'sports', label: 'Spor Kanalları', icon: Trophy },
-  { id: 'series', label: 'Dizi', icon: Clapperboard },
-  { id: 'movies', label: 'Film', icon: Film },
-  { id: 'downloads', label: 'İndirilenler', icon: Download },
-  { id: 'list', label: 'Listem', icon: ListVideo },
-  { id: 'favorites', label: 'Favoriler', icon: Heart },
-  { id: 'get-app', label: 'Uygulamayı İndir', icon: MonitorSmartphone },
-  { id: 'account', label: 'Hesabım', icon: User },
-  { id: 'about', label: 'Ayarlar', icon: Settings },
+const navItems: Array<{
+  id: Screen
+  label: string
+  icon: typeof Home
+  eyebrow: string
+  tone: 'home' | 'live' | 'sports' | 'series' | 'movie' | 'utility'
+}> = [
+  { id: 'home', label: 'Anasayfa', icon: Home, eyebrow: 'Editor secimi', tone: 'home' },
+  { id: 'live', label: 'Canlı Kanallar', icon: Tv, eyebrow: 'Pulse akisi', tone: 'live' },
+  { id: 'sports', label: 'Spor Kanalları', icon: Trophy, eyebrow: 'Arena feed', tone: 'sports' },
+  { id: 'series', label: 'Dizi', icon: Clapperboard, eyebrow: 'Binge track', tone: 'series' },
+  { id: 'movies', label: 'Film', icon: Film, eyebrow: 'Cinema cut', tone: 'movie' },
+  { id: 'downloads', label: 'İndirilenler', icon: Download, eyebrow: 'Offline kit', tone: 'utility' },
+  { id: 'list', label: 'Listem', icon: ListVideo, eyebrow: 'Watchlist', tone: 'utility' },
+  { id: 'favorites', label: 'Favoriler', icon: Heart, eyebrow: 'Saved glow', tone: 'utility' },
+  { id: 'get-app', label: 'Uygulamayı İndir', icon: MonitorSmartphone, eyebrow: 'Install hub', tone: 'utility' },
+  { id: 'account', label: 'Hesabım', icon: User, eyebrow: 'Profile deck', tone: 'utility' },
+  { id: 'about', label: 'Ayarlar', icon: Settings, eyebrow: 'Control room', tone: 'utility' },
 ]
 
 const onboardingSlides = [
@@ -196,7 +202,7 @@ function applyDeviceProfile(profile: DeviceType) {
   if (profile === 'pc') {
     root.style.setProperty('--display-scale', '1')
     root.style.setProperty('--display-width', '100%')
-    root.style.setProperty('--display-height', '100svh')
+    root.style.setProperty('--display-height', '100dvh')
     root.style.setProperty('--rail-poster-width', 'clamp(178px, 14vw, 230px)')
     root.style.setProperty('--rail-wide-width', 'clamp(290px, 23vw, 390px)')
     root.style.setProperty('--rail-channel-width', 'clamp(220px, 17vw, 280px)')
@@ -209,7 +215,7 @@ function applyDeviceProfile(profile: DeviceType) {
   }
   root.style.setProperty('--display-scale', '1')
   root.style.setProperty('--display-width', '100%')
-  root.style.setProperty('--display-height', '100svh')
+  root.style.setProperty('--display-height', '100dvh')
   root.style.setProperty('--rail-poster-width', 'clamp(138px, 42vw, 170px)')
   root.style.setProperty('--rail-wide-width', 'clamp(220px, 66vw, 280px)')
   root.style.setProperty('--rail-channel-width', 'clamp(190px, 58vw, 250px)')
@@ -224,12 +230,18 @@ function detectDeviceProfile(): DeviceType {
   // URL override for TV APK build
   const urlParams = new URLSearchParams(window.location.search)
   const override = urlParams.get('deviceOverride') as DeviceType | null
-  if (override === 'tv' || override === 'pc' || override === 'phone') return override
+  if (override === 'tv' || override === 'pc' || override === 'tablet' || override === 'phone') return override
 
   const ua = navigator.userAgent.toLowerCase()
   const isTv =
     /\b(smart-tv|smarttv|hbbtv|netcast|webos|tizen|appletv|googletv|android tv|bravia|viera|aquos|roku|aft)\b/.test(ua)
   if (isTv) return 'tv'
+
+  const isTablet = /\b(ipad|tablet)\b/.test(ua)
+  if (isTablet) return 'tablet'
+
+  const isPhone = /\b(android|iphone|ipod|iemobile|windows phone|mobile)\b/.test(ua)
+  if (isPhone) return 'phone'
 
   // Use only CSS viewport width — avoids false phone detection on landscape tablets/emulators
   const narrowScreen = window.matchMedia('(max-width: 760px)').matches
@@ -582,6 +594,11 @@ function App() {
   }, [deviceType])
 
   useEffect(() => {
+    if (deviceType !== 'phone' || playerItem) return
+    window.screen.orientation?.lock?.('portrait').catch(() => undefined)
+  }, [deviceType, playerItem])
+
+  useEffect(() => {
     document.documentElement.style.setProperty('--accent', appearance.accent)
     document.documentElement.style.setProperty('--accent-2', appearance.accent2)
     document.documentElement.style.setProperty('--card-scale', String(appearance.cardScale))
@@ -687,13 +704,14 @@ function App() {
 
   const closePlayer = useCallback(() => {
     window.screen.orientation?.unlock?.()
-    // Re-lock to portrait after player close (for portrait APK build)
-    window.screen.orientation?.lock?.('portrait').catch(() => undefined)
+    if (deviceType === 'phone') {
+      window.screen.orientation?.lock?.('portrait').catch(() => undefined)
+    }
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => undefined)
     }
     setPlayerItem(null)
-  }, [])
+  }, [deviceType])
 
   const refreshHomeSections = useCallback(() => {
     void api.content
@@ -986,15 +1004,20 @@ function App() {
     // full-viewport; calling requestFullscreen causes a GPU surface black frame.
     const isElectron = navigator.userAgent.includes('Electron')
     if (!isElectron) {
-      const player = document.querySelector<HTMLElement>('.player-overlay')
-      player?.requestFullscreen?.().catch(() => {
-        // Browser fullscreen can be blocked; the overlay is still fixed to the viewport.
+      window.requestAnimationFrame(() => {
+        const player =
+          document.querySelector<HTMLElement>('.player-stage') ??
+          document.querySelector<HTMLElement>('.player-overlay')
+        player?.requestFullscreen?.().catch(() => {
+          // Browser fullscreen can be blocked; the overlay is still fixed to the viewport.
+        })
       })
     }
-    // On portrait-locked devices (phone APK), force landscape for video playback
-    window.screen.orientation?.lock?.('landscape').catch(() => {
-      window.screen.orientation?.unlock?.()
-    })
+    if (deviceType === 'phone') {
+      window.screen.orientation?.lock?.('landscape').catch(() => {
+        window.screen.orientation?.unlock?.()
+      })
+    }
   }
 
   if (showSplash) {
@@ -1240,7 +1263,7 @@ function AuthScreen({
         <button type="button" onClick={() => window.open(telegramUrl, '_blank', 'noopener,noreferrer')}>Telegram’a Katıl</button>
       </aside>
 
-      <form className="auth-card" onSubmit={onSubmit}>
+      <form className="auth-card" data-auth-mode={mode} onSubmit={onSubmit}>
         <h2>
           {isForgot ? 'Şifrenizi ' : 'Hesabınıza '}
           <span>{isForgot ? 'yenileyin' : isRegister ? 'kayıt olun' : 'giriş yapın'}</span>
@@ -1498,6 +1521,7 @@ function TopBar({
   const hasNotification = Boolean(notificationText)
   const lastReadId = Number(window.localStorage.getItem(NOTIFICATION_READ_KEY) || '0')
   const hasUnread = notificationId > 0 && notificationId > lastReadId && hasNotification
+  const activeNavItem = navItems.find((item) => item.id === screen) ?? navItems[0]
 
   const fetchSearchResults = async (query: string) => {
     if (!query.trim()) { setDropdownItems([]); setDropdownActive(false); return }
@@ -1555,27 +1579,40 @@ function TopBar({
   }
 
   return (
-    <header className="top-bar">
+    <header className="top-bar" data-tone={activeNavItem.tone}>
       <div className="brand-lockup">
         <button className="icon-button menu-button" type="button" onClick={onSettingsOpen} aria-label="Ayarlar">
           <Settings />
         </button>
-        <strong>
-          Atlas<span>Tv</span>
-        </strong>
+        <div className="brand-copy">
+          <strong>
+            Atlas<span>Tv</span>
+          </strong>
+          <small>{activeNavItem.eyebrow}</small>
+        </div>
       </div>
 
       <nav className="desktop-nav" aria-label="Ana menü">
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={screen === item.id ? 'active' : ''}
-            onClick={() => onScreenChange(item.id)}
-          >
-            {item.label}
-          </button>
-        ))}
+        {navItems.map((item) => {
+          const Icon = item.icon
+          return (
+            <button
+              key={item.id}
+              type="button"
+              data-tone={item.tone}
+              className={screen === item.id ? 'active' : ''}
+              onClick={() => onScreenChange(item.id)}
+            >
+              <span className="desktop-nav-icon">
+                <Icon />
+              </span>
+              <span className="desktop-nav-copy">
+                <strong>{item.label}</strong>
+                <small>{item.eyebrow}</small>
+              </span>
+            </button>
+          )
+        })}
       </nav>
 
       <div className="top-actions">
@@ -1672,26 +1709,44 @@ function HomeScreen({
   const historyItems = sections.find((section) => section.id === 'continue')?.items ?? []
   const trendSection = sections.find((section) => section.id === 'trend')
   const regularSections = sections.filter((section) => section.id !== 'trend' && section.id !== 'continue')
+  const heroPresentation = getPlayerPresentation(hero, getEpisodeCount(hero))
 
   return (
     <div className="home-screen">
-      <section className="hero-banner" style={{ backgroundImage: `url(${hero.backdropUrl})` }}>
+      <section
+        className="hero-banner"
+        data-hero-tone={heroPresentation.tone}
+        style={{ backgroundImage: `url(${hero.backdropUrl})` }}
+      >
         <div className="hero-content">
-          <div className="tag-row">
-            <span>{hero.category}</span>
-            <span>★ {hero.rating}</span>
-            <span>{hero.type === 'series' ? 'Dizi' : hero.type === 'movie' ? 'Film' : 'Canlı'}</span>
+          <div className="hero-copy">
+            <span className="hero-kicker">{heroPresentation.eyebrow}</span>
+            <div className="tag-row">
+              <span>{hero.category}</span>
+              <span>★ {hero.rating}</span>
+              <span>{hero.type === 'series' ? 'Dizi' : hero.type === 'movie' ? 'Film' : 'Canlı'}</span>
+            </div>
+            <h1>{hero.title}</h1>
+            <p>{hero.description}</p>
+            <div className="hero-actions">
+              <button data-autofocus="true" type="button" className="watch-button" onClick={() => onPlay(hero)}>
+                <Play /> İzle
+              </button>
+              <button type="button" className="detail-button" onClick={() => onDetail(hero)}>
+                <Info /> Detay
+              </button>
+            </div>
           </div>
-          <h1>{hero.title}</h1>
-          <p>{hero.description}</p>
-          <div className="hero-actions">
-            <button data-autofocus="true" type="button" className="watch-button" onClick={() => onPlay(hero)}>
-              <Play /> İzle
-            </button>
-            <button type="button" className="detail-button" onClick={() => onDetail(hero)}>
-              <Info /> Detay
-            </button>
-          </div>
+          <aside className="hero-meta-card" aria-hidden="true">
+            <span className="hero-meta-kicker">{heroPresentation.meterLabel}</span>
+            <strong>{heroPresentation.panelTitle}</strong>
+            <p>{heroPresentation.panelCopy}</p>
+            <div className="hero-meta-row">
+              {heroPresentation.chips.map((chip) => (
+                <span key={chip} className="hero-meta-chip">{chip}</span>
+              ))}
+            </div>
+          </aside>
         </div>
         <div className="hero-dots">
           {heroItems.map((item, index) => (
@@ -1948,6 +2003,7 @@ function ContentRail({
   const railRef = useRef<HTMLDivElement>(null)
   const [canLeft, setCanLeft] = useState(false)
   const [canRight, setCanRight] = useState(true)
+  const railEyebrow = getRailEyebrow(title, variant)
 
   useEffect(() => {
     const el = railRef.current
@@ -1977,30 +2033,38 @@ function ContentRail({
     return (
       <section className={`${sectionClass} trend-section`}>
         <div className="rail-heading trend-heading">
-          <h2>{title}</h2>
+          <div className="rail-heading-copy">
+            <span className="rail-kicker">{railEyebrow}</span>
+            <h2>{title}</h2>
+          </div>
         </div>
         <div className="trend-list">
-          {items.map((item, index) => (
-            <button
-              key={`${title}-${item.id}`}
-              type="button"
-              className={`trend-row rank-tone-${Math.min(index + 1, 4)}`}
-              onClick={() => onPlay(item)}
-            >
-              <span className="trend-rank">{index + 1}</span>
-              <img src={item.posterUrl} alt="" loading="lazy" />
-              <span className="trend-copy">
-                <strong>{item.title}</strong>
-                <span>
-                  <Star /> {item.rating} - {item.badge ?? item.category}
+          {items.map((item, index) => {
+            const presentation = getPlayerPresentation(item, getEpisodeCount(item))
+            return (
+              <button
+                key={`${title}-${item.id}`}
+                type="button"
+                className={`trend-row rank-tone-${Math.min(index + 1, 4)}`}
+                data-card-tone={presentation.tone}
+                onClick={() => onPlay(item)}
+              >
+                <span className="trend-rank">{index + 1}</span>
+                <img src={item.posterUrl} alt="" loading="lazy" />
+                <span className="trend-copy">
+                  <small className="trend-eyebrow">{presentation.eyebrow}</small>
+                  <strong>{item.title}</strong>
+                  <span>
+                    <Star /> {item.rating} - {item.badge ?? item.category}
+                  </span>
+                  <small>{item.category}</small>
                 </span>
-                <small>{item.category}</small>
-              </span>
-              <span className="trend-play" aria-hidden="true">
-                <Play />
-              </span>
-            </button>
-          ))}
+                <span className="trend-play" aria-hidden="true">
+                  <Play />
+                </span>
+              </button>
+            )
+          })}
         </div>
       </section>
     )
@@ -2009,7 +2073,10 @@ function ContentRail({
   return (
     <section className={sectionClass}>
       <div className="rail-heading">
-        <h2>{title}</h2>
+        <div className="rail-heading-copy">
+          <span className="rail-kicker">{railEyebrow}</span>
+          <h2>{title}</h2>
+        </div>
         <div className="rail-scroll-btns">
           <button
             type="button"
@@ -2066,10 +2133,12 @@ function ContentCard({
 }) {
   const flag = item.isLive ? getCountryFlag(item.country ?? item.category) : null
   const cardImage = variant === 'wide' || variant === 'channel' ? item.backdropUrl : item.posterUrl
+  const contentPresentation = getPlayerPresentation(item, getEpisodeCount(item))
 
   return (
     <article
       className={`content-card ${variant}`}
+      data-card-tone={contentPresentation.tone}
       role="button"
       tabIndex={0}
       data-autofocus={autoFocus ? 'true' : undefined}
@@ -2108,6 +2177,7 @@ function ContentCard({
         ) : null}
       </button>
       <div className="card-meta">
+        <small className="card-eyebrow">{contentPresentation.eyebrow}</small>
         <h3>{item.title}</h3>
         <p>
           {item.isLive ? (
@@ -2175,7 +2245,7 @@ function AccountScreen({
   }
 
   return (
-    <section className="utility-page">
+    <section className="utility-page" data-utility-tone="account">
       <div className="page-heading">
         <div>
           <p>Kullanıcı Merkezi</p>
@@ -2271,6 +2341,7 @@ function DetailPanel({
   const [metadata, setMetadata] = useState<ContentMetadata | null>(null)
   const [metadataLoading, setMetadataLoading] = useState(false)
   const [similarItems, setSimilarItems] = useState<ContentItem[]>([])
+  const detailPresentation = getPlayerPresentation(item, getEpisodeCount(item))
 
   useEffect(() => {
     if (panelRef.current) focusFirstElement(panelRef.current)
@@ -2318,6 +2389,7 @@ function DetailPanel({
     <aside
       ref={panelRef}
       className="detail-panel"
+      data-detail-tone={detailPresentation.tone}
       role="region"
       aria-label={`${item.title} detay`}
       onKeyDown={(event) => {
@@ -2332,16 +2404,30 @@ function DetailPanel({
       </button>
       <div className="detail-art" style={{ backgroundImage: `url(${detailPoster})` }} />
       <div className="detail-body">
-        <p className="eyebrow">{item.category}</p>
-        <h2>{metadata?.title ?? item.displayTitle ?? item.title}</h2>
-        {metadata?.tagline ? <p className="detail-tagline">{metadata.tagline}</p> : null}
-        <div className="detail-facts">
-          <span>{item.episodeCount ?? episodes.length} bolum</span>
-          <span>{item.seasonCount ?? 1} sezon</span>
-          <span>★ {metadata?.tmdbRating ?? item.rating}</span>
-          {metadata?.releaseYear ? <span>{metadata.releaseYear}</span> : null}
-          {metadata?.runtime ? <span>{metadata.runtime} dk</span> : null}
-          {metadata?.imdbId ? <span>IMDb {metadata.imdbId}</span> : null}
+        <div className="detail-hero-row">
+          <div className="detail-heading-block">
+            <p className="eyebrow">{item.category}</p>
+            <h2>{metadata?.title ?? item.displayTitle ?? item.title}</h2>
+            {metadata?.tagline ? <p className="detail-tagline">{metadata.tagline}</p> : null}
+            <div className="detail-facts">
+              <span>{item.episodeCount ?? episodes.length} bolum</span>
+              <span>{item.seasonCount ?? 1} sezon</span>
+              <span>★ {metadata?.tmdbRating ?? item.rating}</span>
+              {metadata?.releaseYear ? <span>{metadata.releaseYear}</span> : null}
+              {metadata?.runtime ? <span>{metadata.runtime} dk</span> : null}
+              {metadata?.imdbId ? <span>IMDb {metadata.imdbId}</span> : null}
+            </div>
+          </div>
+          <aside className="detail-meta-card" aria-hidden="true">
+            <span className="detail-meta-kicker">{detailPresentation.meterLabel}</span>
+            <strong>{detailPresentation.panelTitle}</strong>
+            <p>{detailPresentation.panelCopy}</p>
+            <div className="detail-meta-row">
+              {detailPresentation.chips.map((chip) => (
+                <span key={chip} className="detail-meta-chip">{chip}</span>
+              ))}
+            </div>
+          </aside>
         </div>
         <section className="detail-section">
           <h3>Özet</h3>
@@ -2492,7 +2578,7 @@ function SettingsScreen({
   }
 
   return (
-    <section className="utility-page settings-page">
+    <section className="utility-page settings-page" data-utility-tone="settings">
       <div className="page-heading">
         <div>
           <p>Kontrol Merkezi</p>
@@ -3301,6 +3387,7 @@ function PlayerOverlay({
   const [isMuted, setIsMuted] = useState(false)
   const [hasVideoFrame, setHasVideoFrame] = useState(false)
   const playerEpisodes = item.episodes?.length ? item.episodes : []
+  const playerPresentation = getPlayerPresentation(item, playerEpisodes.length)
 
   const revealControls = useCallback(() => {
     setControlsVisible(true)
@@ -3348,13 +3435,15 @@ function PlayerOverlay({
   }
 
   const toggleFullscreen = () => {
+    const isPhoneProfile = document.documentElement.dataset.deviceType === 'phone'
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => undefined)
-      window.screen.orientation?.unlock?.()
       return
     }
     stageRef.current?.requestFullscreen?.().then(() => {
-      window.screen.orientation?.lock?.('landscape').catch(() => undefined)
+      if (isPhoneProfile) {
+        window.screen.orientation?.lock?.('landscape').catch(() => undefined)
+      }
     }).catch(() => undefined)
   }
 
@@ -3386,6 +3475,66 @@ function PlayerOverlay({
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
+    let hls: Hls | null = null
+    let disposed = false
+
+    const persistProgress = () => {
+      if (!item.isLive && video.currentTime > 3) {
+        void api.user.markWatched(item.id, video.currentTime, video.duration || 0)
+        onProgressSaved()
+      }
+    }
+
+    const initializePlayback = async () => {
+      try {
+        const { default: Hls } = await import('hls.js')
+        if (disposed) return
+
+        if (Hls.isSupported()) {
+          hls = new Hls({
+            lowLatencyMode: true,
+            backBufferLength: 90,
+          })
+
+          hls.loadSource(playerStreamUrl)
+          hls.attachMedia(video)
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            setPlayerStatus('ready')
+            video.play().catch(() => onPlayingChange(false))
+          })
+          hls.on(Hls.Events.ERROR, (_event, data) => {
+            // eslint-disable-next-line no-console
+            console.error('[AtlasTV] HLS error:', data.type, data.details, data.fatal, data.url ?? '')
+            if (!data.fatal) return
+
+            if (hlsRetryRef.current < 3 && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              hlsRetryRef.current += 1
+              setPlayerStatus('loading')
+              hls?.startLoad()
+              return
+            }
+
+            if (hlsRetryRef.current < 3 && data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+              hlsRetryRef.current += 1
+              setPlayerStatus('loading')
+              hls?.recoverMediaError()
+              return
+            }
+
+            setPlayerStatus('error')
+          })
+
+          return
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('[AtlasTV] HLS bootstrap failed:', error)
+      }
+
+      if (disposed) return
+      video.src = playerStreamUrl
+      video.play().catch(() => onPlayingChange(false))
+    }
 
     video.muted = false
     video.volume = 1
@@ -3398,74 +3547,35 @@ function PlayerOverlay({
     hlsRetryRef.current = 0
     lastProgressSaveRef.current = 0
     resumeAppliedRef.current = false
+    void initializePlayback()
 
-    if (Hls.isSupported()) {
-      const hls = new Hls({
-        lowLatencyMode: true,
-        backBufferLength: 90,
-      })
-
-      hls.loadSource(playerStreamUrl)
-      hls.attachMedia(video)
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        setPlayerStatus('ready')
-        video.play().catch(() => onPlayingChange(false))
-      })
-      hls.on(Hls.Events.ERROR, (_event, data) => {
-        // eslint-disable-next-line no-console
-        console.error('[AtlasTV] HLS error:', data.type, data.details, data.fatal, data.url ?? '')
-        if (!data.fatal) return
-
-        if (hlsRetryRef.current < 3 && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-          hlsRetryRef.current += 1
-          setPlayerStatus('loading')
-          hls.startLoad()
-          return
-        }
-
-        if (hlsRetryRef.current < 3 && data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-          hlsRetryRef.current += 1
-          setPlayerStatus('loading')
-          hls.recoverMediaError()
-          return
-        }
-
-        setPlayerStatus('error')
-      })
-
-      return () => {
-        if (!item.isLive && video.currentTime > 3) {
-          void api.user.markWatched(item.id, video.currentTime, video.duration || 0)
-          onProgressSaved()
-        }
-        hls.destroy()
-      }
-    }
-
-    video.src = playerStreamUrl
-    video.play().catch(() => onPlayingChange(false))
     return () => {
-      if (!item.isLive && video.currentTime > 3) {
-        void api.user.markWatched(item.id, video.currentTime, video.duration || 0)
-        onProgressSaved()
-      }
+      disposed = true
+      persistProgress()
+      hls?.destroy()
     }
   }, [item.id, item.isLive, onPlayingChange, onProgressSaved, playerStreamUrl, playerRetryKey])
 
   useEffect(() => {
-    const isMobile = window.matchMedia('(max-width: 900px), (pointer: coarse)').matches
+    const isPhoneProfile = document.documentElement.dataset.deviceType === 'phone'
+    const isElectron = navigator.userAgent.includes('Electron')
     const stage = stageRef.current
     if (!stage) return undefined
 
     const enterImmersive = () => {
-      stage.requestFullscreen?.().then(() => {
-        if (isMobile) window.screen.orientation?.lock?.('landscape').catch(() => undefined)
-      }).catch(() => undefined)
+      if (!document.fullscreenElement && !isElectron) {
+        stage.requestFullscreen?.().catch(() => undefined)
+      }
+      if (isPhoneProfile) {
+        window.screen.orientation?.lock?.('landscape').catch(() => undefined)
+      }
     }
 
     enterImmersive()
     return () => {
-      window.screen.orientation?.unlock?.()
+      if (isPhoneProfile) {
+        window.screen.orientation?.unlock?.()
+      }
     }
   }, [])
 
@@ -3514,7 +3624,13 @@ function PlayerOverlay({
   }, [isPlaying, onPlayingChange])
 
   return (
-    <section className="player-overlay" role="dialog" aria-modal="true" aria-label={`${item.title} player`}>
+    <section
+      className="player-overlay"
+      data-player-tone={playerPresentation.tone}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${item.title} player`}
+    >
       <div
         ref={stageRef}
         data-autofocus="true"
@@ -3571,6 +3687,7 @@ function PlayerOverlay({
             <X />
           </button>
           <div>
+            <span className="player-topbar-kicker">{playerPresentation.eyebrow}</span>
             <strong>AtlasTv</strong>
             <span>{item.isLive ? 'Canli Yayin' : item.category}</span>
           </div>
@@ -3623,9 +3740,30 @@ function PlayerOverlay({
 
           <div className="player-bottom-row">
             <div className="player-title-block">
-              <p>{item.badge ?? (item.isLive ? 'CANLI' : 'VOD')}</p>
+              <div className="player-kicker-row">
+                <p>{item.badge ?? (item.isLive ? 'CANLI' : 'VOD')}</p>
+                <span className="player-mood-pill">{playerPresentation.eyebrow}</span>
+              </div>
               <h2>{item.title}</h2>
+              <span className="player-summary">{playerPresentation.panelCopy}</span>
+              <div className="player-chip-row">
+                {playerPresentation.chips.map((chip) => (
+                  <span key={chip} className="player-chip">{chip}</span>
+                ))}
+              </div>
               <span className="player-user-agent">Proxy Headers: {playerHeaders.join(' · ')}</span>
+            </div>
+            <div className="player-meta-card" aria-hidden="true">
+              <span className="player-meta-eyebrow">{playerPresentation.meterLabel}</span>
+              <strong>{playerPresentation.panelTitle}</strong>
+              <p>{playerPresentation.panelCopy}</p>
+              <div className="player-meta-meter">
+                <span style={{ width: `${playerPresentation.meterValue}%` }} />
+              </div>
+              <div className="player-meta-footer">
+                <span>{playerPresentation.chips[0]}</span>
+                <span>{playerPresentation.meterValue}%</span>
+              </div>
             </div>
             <div className="control-buttons">
               <button type="button" onClick={() => onPlayingChange(!isPlaying)} aria-label="Oynat veya duraklat">
@@ -3682,16 +3820,95 @@ function MobileNav({ screen, onScreenChange }: { screen: Screen; onScreenChange:
           <button
             key={item.id}
             type="button"
+            data-tone={item.tone}
             className={screen === item.id ? 'active' : ''}
             onClick={() => onScreenChange(item.id)}
           >
-            <Icon />
+            <span className="mobile-nav-icon"><Icon /></span>
             <span>{item.label}</span>
           </button>
         )
       })}
     </nav>
   )
+}
+
+type PlayerPresentation = {
+  tone: 'movie' | 'series' | 'live' | 'sports'
+  eyebrow: string
+  panelTitle: string
+  panelCopy: string
+  meterLabel: string
+  meterValue: number
+  chips: string[]
+}
+
+function getEpisodeCount(item: ContentItem) {
+  return Math.max(item.episodeCount ?? 0, item.episodes?.length ?? 0)
+}
+
+function getRailEyebrow(title: string, variant: HomeSection['variant']) {
+  if (variant === 'trend') return 'Editor cut'
+  if (variant === 'wide') return 'Resume lane'
+  if (variant === 'channel') return 'Signal stack'
+  if (/yeni|eklenen|new/i.test(title)) return 'Fresh drop'
+  if (/film|movie/i.test(title)) return 'Cinema shelf'
+  if (/dizi|series/i.test(title)) return 'Binge shelf'
+  return 'Curated rail'
+}
+
+function getPlayerPresentation(item: ContentItem, episodeCount: number): PlayerPresentation {
+  const source = `${item.title} ${item.category} ${item.liveCategory ?? ''}`.toLocaleLowerCase('tr-TR')
+  const isSportsTone = item.isLive && (
+    item.liveCategory === 'Spor' ||
+    /spor|sport|arena|bein|s sport|ssport|trt spor|eurosport/.test(source)
+  )
+
+  if (isSportsTone) {
+    return {
+      tone: 'sports',
+      eyebrow: 'ARENA FEED',
+      panelTitle: 'Mac modu',
+      panelCopy: 'Yuksek kontrast, daha sert spotlight ve hizli tepki veren spor odakli player dili.',
+      meterLabel: 'Momentum',
+      meterValue: 96,
+      chips: [item.liveCategory ?? 'Spor', item.country ?? item.category, 'Anlik skor hissi'],
+    }
+  }
+
+  if (item.isLive) {
+    return {
+      tone: 'live',
+      eyebrow: 'LIVE PULSE',
+      panelTitle: 'Akis odasi',
+      panelCopy: 'Canli kanallarda daha sade cam katman, net bilgi satiri ve sinyal odakli bir akis tutulur.',
+      meterLabel: 'Signal',
+      meterValue: 81,
+      chips: [item.liveCategory ?? 'Canli', item.country ?? item.category, 'Anlik yayin'],
+    }
+  }
+
+  if (item.type === 'series' || episodeCount > 1) {
+    return {
+      tone: 'series',
+      eyebrow: 'BINGE TRACK',
+      panelTitle: 'Bolum akisi',
+      panelCopy: 'Dizi oturumlari icin bolum gecisi ve maraton hissi daha belirgin kurulur.',
+      meterLabel: 'Flow',
+      meterValue: 88,
+      chips: [item.category, `${Math.max(item.seasonCount ?? 1, 1)} sezon`, `${Math.max(episodeCount, 1)} bolum`],
+    }
+  }
+
+  return {
+    tone: 'movie',
+    eyebrow: 'CINEMA CUT',
+    panelTitle: 'Sinematik oda',
+    panelCopy: 'Filmler icin daha editorial glow, daha sessiz kontrol dili ve odakli alt panel.',
+    meterLabel: 'Atmosfer',
+    meterValue: 79,
+    chips: [item.category, item.badge || 'Film', 'Tek akis'],
+  }
 }
 
 declare global {

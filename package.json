@@ -4,6 +4,8 @@
   "version": "0.0.2",
   "type": "module",
   "main": "electron/main.cjs",
+  "description": "AtlasTv coklu platform istemcisi",
+  "author": "AtlasTv",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -12,17 +14,19 @@
     "preview": "vite preview",
     "start": "node server.mjs",
     "electron:dev": "electron .",
-    "electron:build": "electron-builder --win",
+    "electron:build": "node scripts/build-electron-win.mjs",
     "cap:add": "npx cap add android",
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",
-    "cap:tv:sync": "npx cap sync android --config capacitor.tv.config.ts",
-    "apk:phone": "npm run build && npm run cap:sync && cd android && gradlew.bat assembleDebug",
-    "apk:tv": "npm run build && npx cap copy android --config capacitor.tv.config.ts && cd android && gradlew.bat assembleDebug"
+    "cap:tv:sync": "node scripts/sync-tv-project.mjs",
+    "apk:phone": "node scripts/build-android-apk.mjs phone",
+    "apk:tv": "node scripts/build-android-apk.mjs tv",
+    "release:all": "npm run apk:phone && npm run apk:tv && npm run electron:build"
   },
   "build": {
     "appId": "com.atlastv.desktop",
     "productName": "AtlasTv",
+    "icon": "build/icon.ico",
     "directories": {
       "output": "dist-electron"
     },
@@ -31,7 +35,8 @@
     ],
     "win": {
       "target": "nsis",
-      "artifactName": "AtlasTv-Setup-${version}.exe"
+      "artifactName": "AtlasTv-Setup-${version}.exe",
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": true,
@@ -54,6 +59,7 @@
   "devDependencies": {
     "@electron/packager": "^20.0.0",
     "@eslint/js": "^10.0.1",
+    "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -66,6 +72,7 @@
     "globals": "^17.5.0",
     "libsodium-wrappers": "^0.8.4",
     "node-fetch": "^3.3.2",
+    "png-to-ico": "^3.0.1",
     "puppeteer": "^24.42.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",

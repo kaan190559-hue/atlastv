@@ -1,0 +1,215 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="960" viewBox="0 0 1600 960" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="80" x2="1480" y2="900" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#07131D"/>
+      <stop offset="0.45" stop-color="#171116"/>
+      <stop offset="1" stop-color="#050608"/>
+    </linearGradient>
+    <radialGradient id="glowCopper" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1260 180) rotate(139.173) scale(446.226 287.647)">
+      <stop stop-color="#FF8A4C" stop-opacity="0.44"/>
+      <stop offset="1" stop-color="#FF8A4C" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowCyan" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(360 760) rotate(31.865) scale(408.882 251.79)">
+      <stop stop-color="#4CC9FF" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#4CC9FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="panel" x1="198" y1="56" x2="1456" y2="928" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.04"/>
+    </linearGradient>
+    <linearGradient id="heroOverlay" x1="220" y1="132" x2="1118" y2="492" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B141D"/>
+      <stop offset="0.52" stop-color="#111821"/>
+      <stop offset="1" stop-color="#1B1315"/>
+    </linearGradient>
+    <linearGradient id="posterA" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#2C3148"/>
+      <stop offset="1" stop-color="#10141F"/>
+    </linearGradient>
+    <linearGradient id="posterB" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#513127"/>
+      <stop offset="1" stop-color="#17131A"/>
+    </linearGradient>
+    <linearGradient id="posterC" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#1D4A57"/>
+      <stop offset="1" stop-color="#0F1118"/>
+    </linearGradient>
+    <linearGradient id="posterD" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#42295B"/>
+      <stop offset="1" stop-color="#121018"/>
+    </linearGradient>
+    <filter id="softShadow" x="0" y="0" width="1600" height="960" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+      <feGaussianBlur stdDeviation="16" result="effect1_foregroundBlur_0_1"/>
+    </filter>
+    <filter id="cardShadow" x="160" y="120" width="1300" height="760" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="24"/>
+      <feGaussianBlur stdDeviation="24"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.0117647 0 0 0 0 0.0196078 0 0 0 0 0.0352941 0 0 0 0.42 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_0_1" result="shape"/>
+    </filter>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" stroke="#FFFFFF" stroke-opacity="0.05"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="960" fill="url(#bg)"/>
+  <rect width="1600" height="960" fill="url(#grid)" opacity="0.45"/>
+  <circle cx="1260" cy="180" r="340" fill="url(#glowCopper)"/>
+  <circle cx="360" cy="760" r="300" fill="url(#glowCyan)"/>
+
+  <g filter="url(#cardShadow)">
+    <rect x="24" y="24" width="1552" height="912" rx="36" fill="#090E12" fill-opacity="0.52"/>
+    <rect x="24.75" y="24.75" width="1550.5" height="910.5" rx="35.25" stroke="url(#panel)" stroke-opacity="0.65" stroke-width="1.5"/>
+  </g>
+
+  <rect x="36" y="36" width="168" height="888" rx="30" fill="#0E1620" fill-opacity="0.82"/>
+  <rect x="36.75" y="36.75" width="166.5" height="886.5" rx="29.25" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1.5"/>
+
+  <g transform="translate(62 68)">
+    <path d="M33.586 60.401c-1.049 1.334-3.191.592-3.191-1.102V43.03a3.57 3.57 0 0 0-3.57-3.57H8.867c-1.453 0-2.298-1.643-1.453-2.821L19.225 20.1c1.688-2.362 0-5.647-2.907-5.647H-5.413c-1.453 0-2.299-1.643-1.454-2.821L8.437-9.974A1.79 1.79 0 0 1 9.89-10.72h45.608c1.453 0 2.299 1.643 1.454 2.821L45.14 8.64c-1.688 2.362 0 5.647 2.908 5.647h17.957c1.49 0 2.327 1.716 1.407 2.885L33.587 60.4Z" fill="#8E4BFF"/>
+    <text x="84" y="14" fill="#E8EDF3" font-size="16" font-family="Space Grotesk, Segoe UI, sans-serif" letter-spacing="0.28em">ATLASTV</text>
+    <text x="84" y="42" fill="#7F95A8" font-size="13" font-family="Space Grotesk, Segoe UI, sans-serif" letter-spacing="0.12em">AFTERGLOW CONCEPT</text>
+  </g>
+
+  <g font-family="Space Grotesk, Segoe UI, sans-serif" font-size="15" fill="#A8B8C7">
+    <rect x="56" y="178" width="128" height="50" rx="18" fill="#F4EFE8" fill-opacity="0.1"/>
+    <text x="96" y="209">Anasayfa</text>
+    <text x="76" y="274">Canli</text>
+    <text x="76" y="326">Spor</text>
+    <text x="76" y="378">Diziler</text>
+    <text x="76" y="430">Filmler</text>
+    <text x="76" y="482">Listem</text>
+    <text x="76" y="534">Favoriler</text>
+    <text x="76" y="586">Hesabim</text>
+  </g>
+  <g fill="#9CB0C0">
+    <circle cx="68" cy="203" r="4" fill="#FF8A4C"/>
+    <circle cx="68" cy="269" r="4" fill="#48C5FF"/>
+    <circle cx="68" cy="321" r="4" fill="#8E4BFF"/>
+    <circle cx="68" cy="373" r="4" fill="#E8EDF3" fill-opacity="0.6"/>
+    <circle cx="68" cy="425" r="4" fill="#E8EDF3" fill-opacity="0.6"/>
+    <circle cx="68" cy="477" r="4" fill="#E8EDF3" fill-opacity="0.6"/>
+    <circle cx="68" cy="529" r="4" fill="#E8EDF3" fill-opacity="0.6"/>
+    <circle cx="68" cy="581" r="4" fill="#E8EDF3" fill-opacity="0.6"/>
+  </g>
+
+  <rect x="228" y="40" width="1328" height="72" rx="24" fill="#10171F" fill-opacity="0.78"/>
+  <rect x="228.75" y="40.75" width="1326.5" height="70.5" rx="23.25" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1.5"/>
+  <text x="264" y="83" fill="#EAF1F7" font-size="18" font-family="Space Grotesk, Segoe UI, sans-serif">Yeni stil yonu: editorial + cinematic + glass rails</text>
+  <g font-family="Space Grotesk, Segoe UI, sans-serif" font-size="13">
+    <rect x="1180" y="58" width="116" height="36" rx="18" fill="#F2ECE4" fill-opacity="0.08"/>
+    <text x="1214" y="81" fill="#DCE6EF">Canli pulse</text>
+    <rect x="1308" y="58" width="104" height="36" rx="18" fill="#F2ECE4" fill-opacity="0.08"/>
+    <text x="1338" y="81" fill="#DCE6EF">Kulup mod</text>
+    <rect x="1424" y="58" width="108" height="36" rx="18" fill="#FF8A4C" fill-opacity="0.18"/>
+    <text x="1451" y="81" fill="#FFF4EE">Premium UI</text>
+  </g>
+
+  <rect x="228" y="132" width="892" height="362" rx="34" fill="url(#heroOverlay)"/>
+  <rect x="228.75" y="132.75" width="890.5" height="360.5" rx="33.25" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1.5"/>
+  <circle cx="938" cy="222" r="148" fill="#FF8A4C" fill-opacity="0.17"/>
+  <circle cx="1008" cy="390" r="134" fill="#48C5FF" fill-opacity="0.14"/>
+  <rect x="658" y="168" width="400" height="18" rx="9" fill="#FFFFFF" fill-opacity="0.06"/>
+  <rect x="700" y="204" width="330" height="18" rx="9" fill="#FFFFFF" fill-opacity="0.08"/>
+  <rect x="744" y="240" width="250" height="18" rx="9" fill="#FFFFFF" fill-opacity="0.08"/>
+  <path d="M907 149c-14.092 17.925-42.87 7.956-42.87-14.811v-64.368c0-12.974-10.518-23.492-23.492-23.492H722.35c-9.558 0-15.122-10.815-9.558-18.576l77.683-108.723c11.11-15.551 0-37.172-19.112-37.172H628.454c-9.558 0-15.122-10.815-9.557-18.576l100.639-140.86A11.77 11.77 0 0 1 729.094-282h299.94c9.558 0 15.122 10.815 9.558 18.576l-77.684 108.723c-11.109 15.551 0 37.172 19.113 37.172h118.287c9.802 0 15.311 11.281 9.256 18.998L907 149Z" transform="translate(154 444) scale(0.42)" fill="#FFFFFF" fill-opacity="0.045"/>
+
+  <text x="278" y="180" fill="#89A1B6" font-size="14" font-family="Space Grotesk, Segoe UI, sans-serif" letter-spacing="0.28em">CURATED NIGHT DROP</text>
+  <text x="278" y="274" fill="#F5EDE2" font-size="74" font-family="Cormorant Garamond, Georgia, serif" font-weight="600">Afterglow Cinema</text>
+  <text x="282" y="328" fill="#D9E2EB" font-size="22" font-family="Space Grotesk, Segoe UI, sans-serif">Daha premium, daha sinematik, daha editor secimi gibi davranan bir AtlasTv ana ekrani.</text>
+  <text x="282" y="360" fill="#91A3B4" font-size="18" font-family="Space Grotesk, Segoe UI, sans-serif">Buyuk hero sahnesi, cam etkili rail yapisi, vurucu tipografi ve canli pulse panelleri.</text>
+
+  <g font-family="Space Grotesk, Segoe UI, sans-serif" font-size="15">
+    <rect x="282" y="394" width="180" height="52" rx="20" fill="#F0ECE6"/>
+    <text x="331" y="426" fill="#101317">Izlemeye Basla</text>
+    <rect x="476" y="394" width="152" height="52" rx="20" fill="#FFFFFF" fill-opacity="0.08"/>
+    <text x="520" y="426" fill="#E8EEF4">Mood Board</text>
+    <rect x="642" y="394" width="112" height="52" rx="20" fill="#48C5FF" fill-opacity="0.18"/>
+    <text x="678" y="426" fill="#DDF6FF">TV UI</text>
+    <rect x="768" y="394" width="132" height="52" rx="20" fill="#FF8A4C" fill-opacity="0.16"/>
+    <text x="807" y="426" fill="#FFF0E8">Mobile Inset</text>
+  </g>
+
+  <g font-family="Space Grotesk, Segoe UI, sans-serif">
+    <rect x="1142" y="132" width="390" height="174" rx="30" fill="#111821" fill-opacity="0.84"/>
+    <rect x="1142.75" y="132.75" width="388.5" height="172.5" rx="29.25" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1.5"/>
+    <text x="1174" y="180" fill="#F4EDE5" font-size="28" font-family="Cormorant Garamond, Georgia, serif">Canli Ritim</text>
+    <text x="1174" y="210" fill="#8DA0B2" font-size="15">Sag paneli sadece bilgi degil, hareket hissi de verir.</text>
+    <rect x="1174" y="236" width="326" height="14" rx="7" fill="#FFFFFF" fill-opacity="0.07"/>
+    <rect x="1174" y="236" width="224" height="14" rx="7" fill="#48C5FF"/>
+    <text x="1174" y="274" fill="#DCE6EE" font-size="15">128 canli kanal</text>
+    <text x="1474" y="274" fill="#DCE6EE" font-size="15" text-anchor="end">84% aktif</text>
+  </g>
+
+  <g font-family="Space Grotesk, Segoe UI, sans-serif">
+    <rect x="1142" y="320" width="390" height="174" rx="30" fill="#161116" fill-opacity="0.9"/>
+    <rect x="1142.75" y="320.75" width="388.5" height="172.5" rx="29.25" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1.5"/>
+    <text x="1174" y="366" fill="#F4EDE5" font-size="28" font-family="Cormorant Garamond, Georgia, serif">Style Notes</text>
+    <text x="1174" y="404" fill="#DEE7EF" font-size="15">01  Serif odakli baslik</text>
+    <text x="1174" y="432" fill="#DEE7EF" font-size="15">02  Buzlu cam nav ve panel dili</text>
+    <text x="1174" y="460" fill="#DEE7EF" font-size="15">03  Bakir turuncu + buz cyan vurgu</text>
+  </g>
+
+  <text x="228" y="550" fill="#F4ECE3" font-size="34" font-family="Cormorant Garamond, Georgia, serif">Secili koleksiyonlar</text>
+  <text x="228" y="578" fill="#8398AB" font-size="16" font-family="Space Grotesk, Segoe UI, sans-serif">Kartlar tekdize degil; editor secimi gibi daha farkli agirliklarda.</text>
+
+  <g font-family="Space Grotesk, Segoe UI, sans-serif">
+    <g transform="translate(228 608)">
+      <rect width="250" height="188" rx="28" fill="url(#posterA)"/>
+      <rect x="1" y="1" width="248" height="186" rx="27" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1.5"/>
+      <circle cx="198" cy="44" r="78" fill="#48C5FF" fill-opacity="0.18"/>
+      <text x="24" y="130" fill="#F6EFE7" font-size="14" letter-spacing="0.24em">TREND DROP</text>
+      <text x="24" y="162" fill="#FFFFFF" font-size="28" font-family="Cormorant Garamond, Georgia, serif">Neon Bosphorus</text>
+    </g>
+    <g transform="translate(494 608)">
+      <rect width="250" height="188" rx="28" fill="url(#posterB)"/>
+      <rect x="1" y="1" width="248" height="186" rx="27" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1.5"/>
+      <circle cx="176" cy="58" r="70" fill="#FF8A4C" fill-opacity="0.2"/>
+      <text x="24" y="130" fill="#F6EFE7" font-size="14" letter-spacing="0.24em">EDITORS PICK</text>
+      <text x="24" y="162" fill="#FFFFFF" font-size="28" font-family="Cormorant Garamond, Georgia, serif">Last Ember</text>
+    </g>
+    <g transform="translate(760 608)">
+      <rect width="314" height="188" rx="28" fill="url(#posterC)"/>
+      <rect x="1" y="1" width="312" height="186" rx="27" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1.5"/>
+      <circle cx="252" cy="56" r="86" fill="#48C5FF" fill-opacity="0.2"/>
+      <text x="24" y="130" fill="#F6EFE7" font-size="14" letter-spacing="0.24em">LIVE SPORTS WALL</text>
+      <text x="24" y="162" fill="#FFFFFF" font-size="28" font-family="Cormorant Garamond, Georgia, serif">Cold Pulse Arena</text>
+    </g>
+  </g>
+
+  <text x="228" y="842" fill="#F4ECE3" font-size="28" font-family="Cormorant Garamond, Georgia, serif">Mobil yansima</text>
+  <text x="228" y="868" fill="#8398AB" font-size="15" font-family="Space Grotesk, Segoe UI, sans-serif">Ayni dil daha dar ekranda dikey ritim ve buyuk thumb actionlarla devam eder.</text>
+
+  <g transform="translate(1144 550)">
+    <rect width="360" height="316" rx="34" fill="#0F151C" fill-opacity="0.96"/>
+    <rect x="1" y="1" width="358" height="314" rx="33" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1.5"/>
+    <rect x="120" y="18" width="120" height="6" rx="3" fill="#FFFFFF" fill-opacity="0.18"/>
+    <rect x="24" y="36" width="312" height="124" rx="24" fill="#16181E"/>
+    <circle cx="272" cy="92" r="54" fill="#FF8A4C" fill-opacity="0.2"/>
+    <text x="44" y="74" fill="#8EA3B4" font-size="11" font-family="Space Grotesk, Segoe UI, sans-serif" letter-spacing="0.22em">MOBILE HERO</text>
+    <text x="44" y="116" fill="#F5EEE6" font-size="34" font-family="Cormorant Garamond, Georgia, serif">Night Shift</text>
+    <rect x="44" y="128" width="104" height="30" rx="15" fill="#F2ECE4"/>
+    <text x="72" y="147" fill="#11131A" font-size="12" font-family="Space Grotesk, Segoe UI, sans-serif">Play now</text>
+    <rect x="24" y="178" width="148" height="108" rx="22" fill="#1A2230"/>
+    <rect x="188" y="178" width="148" height="108" rx="22" fill="#231920"/>
+    <rect x="44" y="196" width="74" height="8" rx="4" fill="#FFFFFF" fill-opacity="0.12"/>
+    <rect x="44" y="214" width="96" height="8" rx="4" fill="#48C5FF" fill-opacity="0.8"/>
+    <rect x="208" y="196" width="74" height="8" rx="4" fill="#FFFFFF" fill-opacity="0.12"/>
+    <rect x="208" y="214" width="86" height="8" rx="4" fill="#FF8A4C" fill-opacity="0.8"/>
+    <rect x="24" y="296" width="312" height="4" rx="2" fill="#FFFFFF" fill-opacity="0.08"/>
+    <circle cx="72" cy="298" r="18" fill="#F2ECE4"/>
+    <circle cx="144" cy="298" r="18" fill="#FFFFFF" fill-opacity="0.08"/>
+    <circle cx="216" cy="298" r="18" fill="#FFFFFF" fill-opacity="0.08"/>
+    <circle cx="288" cy="298" r="18" fill="#FFFFFF" fill-opacity="0.08"/>
+  </g>
+
+  <g font-family="Space Grotesk, Segoe UI, sans-serif" font-size="13" fill="#7F93A4">
+    <text x="56" y="900">Konsept yonu: daha premium, daha editorial, daha cesur.</text>
+    <text x="1326" y="900" text-anchor="end">Onay verirsen bunu mevcut projeye uygularim.</text>
+  </g>
+</svg>

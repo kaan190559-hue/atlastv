@@ -23,6 +23,20 @@ npm run build
 npm run start
 ```
 
+Tum ciktalari tek seferde uretmek icin:
+
+```bash
+npm run release:all
+```
+
+Bu komut su dosyalari [dist-electron](dist-electron) altinda hazirlar:
+
+- Windows kurulum paketi: `AtlasTv-Setup-<surum>.exe`
+- Telefon APK: `AtlasTv-Phone.apk`
+- TV APK: `AtlasTv-TV.apk`
+
+Windows uzerinde Android derlemeleri icin script, Android Studio JBR yolunu otomatik tercih eder. Electron Windows build de yerel makinede imza auto-discovery kapali sekilde calisir.
+
 Katalog cache dosyalarini yerelde uretmek icin:
 
 ```bash

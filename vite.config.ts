@@ -737,4 +737,19 @@ function rewritePlaylist(playlist: string, playlistUrl: string, userAgent: strin
 
 export default defineConfig({
   plugins: [react(), atlasMediaProxy()],
+  build: {
+    chunkSizeWarningLimit: 550,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('hls.js')) return 'hls-vendor'
+          if (id.includes('@capacitor')) return 'native-vendor'
+          if (id.includes('react') || id.includes('scheduler')) return 'react-vendor'
+          if (id.includes('lucide-react')) return 'ui-vendor'
+          return 'vendor'
+        },
+      },
+    },
+  },
 })

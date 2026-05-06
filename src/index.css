@@ -12,9 +12,13 @@
   --accent-ink: #031018;
   --accent-glow: rgba(0, 229, 255, 0.34);
   --focus: rgba(0, 229, 255, 0.78);
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
   --display-scale: 1;
   --display-width: 100%;
-  --display-height: 100svh;
+  --display-height: 100dvh;
   --card-scale: 1;
   --ui-scale: 1;
   --rail-poster-width: clamp(178px, 14vw, 230px);
