@@ -43,9 +43,21 @@ https://tzy.zirvedesin236.cfd/atv/mono.m3u8
 https://tzy.zirvedesin236.cfd/tv8/mono.m3u8
 #EXTINF:-1 tvg-id="zbahis_tv85" tvg-name="TV 8,5" tvg-logo="" group-title="Spor",TV 8,5
 https://tzy.zirvedesin236.cfd/tv85/mono.m3u8
-#EXTINF:-1 tvg-id="zbahis_f1" tvg-name="SKY SPORTS F1" tvg-logo="" group-title="Spor",SKY SPORTS F1
-https://tzy.zirvedesin236.cfd/f1/mono.m3u8
 #EXTINF:-1 tvg-id="zbahis_eu1" tvg-name="EURO SPORT 1" tvg-logo="" group-title="Spor",EURO SPORT 1
 https://tzy.zirvedesin236.cfd/eu1/mono.m3u8
 #EXTINF:-1 tvg-id="zbahis_eu2" tvg-name="EURO SPORT 2" tvg-logo="" group-title="Spor",EURO SPORT 2
 https://tzy.zirvedesin236.cfd/eu2/mono.m3u8
+#EXTINF:-1 tvg-id="zbahis_ex7" tvg-name="TABII SPOR" tvg-logo="" group-title="Spor",TABII SPOR
+https://tzy.zirvedesin236.cfd/ex7/mono.m3u8
+#EXTINF:-1 tvg-id="zbahis_ex1" tvg-name="TABII SPOR 1" tvg-logo="" group-title="Spor",TABII SPOR 1
+https://tzy.zirvedesin236.cfd/ex1/mono.m3u8
+#EXTINF:-1 tvg-id="zbahis_ex2" tvg-name="TABII SPOR 2" tvg-logo="" group-title="Spor",TABII SPOR 2
+https://tzy.zirvedesin236.cfd/ex2/mono.m3u8
+#EXTINF:-1 tvg-id="zbahis_ex3" tvg-name="TABII SPOR 3" tvg-logo="" group-title="Spor",TABII SPOR 3
+https://tzy.zirvedesin236.cfd/ex3/mono.m3u8
+#EXTINF:-1 tvg-id="zbahis_ex4" tvg-name="TABII SPOR 4" tvg-logo="" group-title="Spor",TABII SPOR 4
+https://tzy.zirvedesin236.cfd/ex4/mono.m3u8
+#EXTINF:-1 tvg-id="zbahis_ex5" tvg-name="TABII SPOR 5" tvg-logo="" group-title="Spor",TABII SPOR 5
+https://tzy.zirvedesin236.cfd/ex5/mono.m3u8
+#EXTINF:-1 tvg-id="zbahis_ex6" tvg-name="TABII SPOR 6" tvg-logo="" group-title="Spor",TABII SPOR 6
+https://tzy.zirvedesin236.cfd/ex6/mono.m3u8
