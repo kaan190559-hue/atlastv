@@ -5,7 +5,7 @@
     "type": "zbahis",
     "scheme": "https",
     "domainPattern": "zbahistv{N}.com",
-    "currentN": 64,
+    "currentN": 65,
     "group": "Spor"
   }
 ]
